@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  flutter:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: ¿Existe ya el proyecto Flutter?
+        id: proyecto
+        run: |
+          if [ -f pubspec.yaml ]; then echo "existe=true" >> "$GITHUB_OUTPUT"; else echo "existe=false" >> "$GITHUB_OUTPUT"; fi
+      - uses: subosito/flutter-action@v2
+        if: steps.proyecto.outputs.existe == 'true'
+        with:
+          channel: stable
+          cache: true
+      - name: Dependencias
+        if: steps.proyecto.outputs.existe == 'true'
+        run: flutter pub get
+      - name: Análisis estático
+        if: steps.proyecto.outputs.existe == 'true'
+        run: flutter analyze
+      - name: Pruebas
+        if: steps.proyecto.outputs.existe == 'true' && hashFiles('test/**') != ''
+        run: flutter test
+      - name: Aviso
+        if: steps.proyecto.outputs.existe == 'false'
+        run: echo "Todavía no hay proyecto Flutter (se crea en TEC-01). Nada que analizar."

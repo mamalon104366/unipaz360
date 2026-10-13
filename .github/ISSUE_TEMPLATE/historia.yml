@@ -1,0 +1,31 @@
+name: Historia de usuario
+description: Un elemento del Product Backlog con valor para el usuario
+title: "HU-XX: "
+labels: ["historia"]
+body:
+  - type: textarea
+    id: historia
+    attributes:
+      label: Historia
+      description: Como [usuario], quiero [acción] para [beneficio].
+      placeholder: Como estudiante nuevo, quiero ... para ...
+    validations:
+      required: true
+  - type: textarea
+    id: criterios
+    attributes:
+      label: Criterios de aceptación
+      description: Se completan en la semana 4. Formato Dado / Cuando / Entonces.
+      value: |
+        - [ ] Dado ... cuando ... entonces ...
+  - type: dropdown
+    id: prioridad
+    attributes:
+      label: Prioridad (MoSCoW)
+      options: [Must, Should, Could]
+    validations:
+      required: true
+  - type: textarea
+    id: notas
+    attributes:
+      label: Notas técnicas o dudas
