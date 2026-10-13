@@ -22,7 +22,7 @@
 7. **Fusionar:** al fusionar el PR, GitHub cierra el issue y la tarjeta pasa sola a «Hecho».
 
 ## 2. Reglas de `main`
-- No se hace push directo a `main`; todo entra por pull request.
+- Por acuerdo del equipo, todo entra a `main` por pull request revisado (la rama no tiene protección técnica).
 - `main` siempre compila y se puede instalar.
 
 ## 3. Bloqueos

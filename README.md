@@ -16,7 +16,7 @@ App móvil de orientación para el **Centro de Investigaciones Santa Lucía de U
 | Juan Andrés Rangel Fernández | [@ondresz](https://github.com/ondresz) | **Scrum Master** y Developer |
 | Keyner Trujillo | [@Causa-Trujillo](https://github.com/Causa-Trujillo) | Developer |
 
-**Usuario real de referencia:** `[nombre de un estudiante de primer semestre o de un visitante]`
+**Usuario real de referencia:** un estudiante de primer semestre de la Escuela de Ciencias, que todavía no conoce el campus. Con él se validan las historias del Sprint 1, junto con otro estudiante nuevo y un visitante. Sus nombres quedan en [docs/sprints/sprint-01.md](docs/sprints/sprint-01.md).
 
 Los tres desarrollan.
 - **Product Owner:** ordena el backlog y valida las historias con los usuarios.
@@ -50,10 +50,10 @@ Así se verifica: en la prueba con usuarios, al menos el 90 % de las tareas «ll
 | Datos del campus guardados en el teléfono (SQLite) | APK de prueba distribuido | | Otras sedes de UNIPAZ |
 | | | | Integración con horarios y sistema académico |
 
-**Regla del 60 %:** las Must suman 27 de 63 puntos (43 %).
+**Regla del 60 %:** las Must suman 37 de 79 puntos (47 %).
 
 **Cobertura del Hito 3:**
-- API: descarga del paquete de datos (HU-09) y reporte de errores (HU-13).
+- API: publicación y descarga del paquete de datos (TEC-07 y HU-09) y reporte de errores (HU-13).
 - Persistencia: SQLite (TEC-02).
 - Función del dispositivo: cámara para leer el QR (HU-06).
 
@@ -68,34 +68,43 @@ Así se verifica: en la prueba con usuarios, al menos el 90 % de las tareas «ll
 
 ## Product Backlog
 
-El backlog vive en el **[tablero del proyecto](../../projects)**. Tiene 18 elementos y 63 puntos, y la historia de referencia es HU-02 = 2 puntos. Las épicas son **Base · Encontrar · Llegar · Conocer · Mantener**.
+El backlog vive en el **[tablero del proyecto](../../projects)**. Tiene 25 elementos y 79 puntos, y la historia de referencia es HU-02 = 2 puntos. Las épicas son **Base · Encontrar · Llegar · Conocer · Mantener**.
 
 | Orden | ID | Épica | Elemento | MoSCoW | Pts |
 |---|---|---|---|---|---|
-| 1 | TEC-01 | Base | Crear el proyecto Flutter, configurar ramas, proteger `main` y correr `flutter analyze` en cada PR | Must | 2 |
-| 2 | TEC-02 | Base | Modelo Espacio–Vértice–Tramo y repositorio SQLite con sus pruebas | Must | 3 |
-| 3 | INV-01 | Base | Levantar un bloque piloto del campus en el formato del paquete de datos | Must | 5 |
-| 4 | HU-01 | Encontrar | Como estudiante nuevo, quiero buscar un aula u oficina por su nombre o código para saber dónde queda | Must | 3 |
-| 5 | HU-02 | Encontrar | Como visitante, quiero ver la ficha de un espacio (bloque, piso, horario y foto) para confirmar que es el lugar que busco | Must | 2 |
-| 6 | TEC-03 | Base | Configurar Firebase App Distribution para repartir el APK de prueba | Should | 2 |
-| 7 | HU-03 | Llegar | Como estudiante nuevo, quiero elegir de una lista el lugar donde estoy para indicar desde dónde salgo | Must | 2 |
-| 8 | HU-04 | Llegar | Como estudiante nuevo, quiero que la app calcule el camino más corto a pie hasta el espacio para no perderme | Must | 5 |
-| 9 | HU-05 | Llegar | Como estudiante nuevo, quiero ver la ruta dibujada sobre el plano del campus para seguirla mientras camino | Must | 5 |
-| 10 | HU-08 | Llegar | Como estudiante, quiero ver la distancia y el tiempo estimado de la ruta para saber si llego a tiempo | Should | 2 |
-| 11 | HU-06 | Llegar | Como estudiante, quiero escanear el código QR de una placa para que la app sepa dónde estoy sin buscarlo | Should | 3 |
-| 12 | HU-07 | Llegar | Como persona con movilidad reducida, quiero pedir una ruta sin escaleras ni desniveles para llegar sin barreras | Should | 5 |
-| 13 | HU-09 | Mantener | Como usuario, quiero que la app descargue los datos actualizados del campus cuando haya internet para no ir a un aula que cambió | Should | 5 |
-| 14 | HU-10 | Conocer | Como aspirante, quiero recorrer el campus en fotos 360° para conocerlo antes de ir | Should | 8 |
-| 15 | HU-12 | Conocer | Como visitante, quiero saltar desde una foto 360° a la ficha y la ruta del espacio para ir al lugar que vi | Could | 3 |
-| 16 | HU-11 | Llegar | Como estudiante, quiero ver la ruta piso por piso cuando el destino está en otro nivel para no equivocarme de escalera | Could | 3 |
-| 17 | HU-13 | Mantener | Como usuario, quiero reportar un error en una ruta o en una ficha para que la universidad lo corrija | Could | 3 |
-| 18 | HU-14 | Encontrar | Como persona con baja visión, quiero agrandar el texto y usar el lector de pantalla para leer las indicaciones | Could | 2 |
+| 1 | TEC-01 | Base | Crear el proyecto Flutter, definir las ramas de trabajo y verificar que el CI corra `flutter analyze` y las pruebas en cada PR | Must | 2 |
+| 2 | TEC-06 | Base | Definir la arquitectura del proyecto Flutter: capas, gestión de estado y convenciones (`docs/arquitectura.md`) | Must | 2 |
+| 3 | TEC-04 | Base | Modelo entidad-relación y diccionario de datos de la base SQLite (borrador en [`docs/datos/modelo-er.md`](docs/datos/modelo-er.md)) | Must | 2 |
+| 4 | TEC-02 | Base | Modelo Espacio–Vértice–Tramo y repositorio SQLite con sus pruebas | Must | 3 |
+| 5 | INV-01 | Base | Levantar un bloque piloto del campus en el formato del paquete de datos | Must | 5 |
+| 6 | TEC-05 | Base | Script que convierte los CSV del levantamiento en el paquete JSON con su hash, validando ids, referencias y conectividad del grafo | Must | 3 |
+| 7 | TEC-10 | Base | Plano base del bloque piloto alineado con las coordenadas de los vértices, para dibujar las rutas | Must | 3 |
+| 8 | HU-01 | Encontrar | Como estudiante nuevo, quiero buscar un aula u oficina por su nombre o código para saber dónde queda | Must | 3 |
+| 9 | HU-02 | Encontrar | Como visitante, quiero ver la ficha de un espacio (bloque, piso, horario y foto) para confirmar que es el lugar que busco | Must | 2 |
+| 10 | TEC-03 | Base | Configurar Firebase App Distribution para repartir el APK de prueba | Should | 2 |
+| 11 | HU-03 | Llegar | Como estudiante nuevo, quiero elegir de una lista el lugar donde estoy para indicar desde dónde salgo | Must | 2 |
+| 12 | HU-04 | Llegar | Como estudiante nuevo, quiero que la app calcule el camino más corto a pie hasta el espacio para no perderme | Must | 5 |
+| 13 | HU-05 | Llegar | Como estudiante nuevo, quiero ver la ruta dibujada sobre el plano del campus para seguirla mientras camino | Must | 5 |
+| 14 | HU-08 | Llegar | Como estudiante, quiero ver la distancia y el tiempo estimado de la ruta para saber si llego a tiempo | Should | 2 |
+| 15 | INV-03 | Llegar | Spike: lectura de QR sin conexión en un Android de gama media (tiempo, poca luz, placas impresas) | Should | 1 |
+| 16 | HU-06 | Llegar | Como estudiante, quiero escanear el código QR de una placa para que la app sepa dónde estoy sin buscarlo | Should | 3 |
+| 17 | HU-07 | Llegar | Como persona con movilidad reducida, quiero pedir una ruta sin escaleras ni desniveles para llegar sin barreras | Should | 5 |
+| 18 | TEC-07 | Mantener | API del paquete de datos: publicar `version.json` y el paquete por HTTPS para las actualizaciones | Should | 3 |
+| 19 | HU-09 | Mantener | Como usuario, quiero que la app descargue los datos actualizados del campus cuando haya internet para no ir a un aula que cambió | Should | 5 |
+| 20 | INV-02 | Conocer | Spike: visor 360° sin conexión con 3 fotos de prueba y reestimación de HU-10 | Should | 2 |
+| 21 | HU-10 | Conocer | Como aspirante, quiero recorrer el campus en fotos 360° para conocerlo antes de ir | Should | 8 |
+| 22 | HU-12 | Conocer | Como visitante, quiero saltar desde una foto 360° a la ficha y la ruta del espacio para ir al lugar que vi | Could | 3 |
+| 23 | HU-11 | Llegar | Como estudiante, quiero ver la ruta piso por piso cuando el destino está en otro nivel para no equivocarme de escalera | Could | 3 |
+| 24 | HU-13 | Mantener | Como usuario, quiero reportar un error en una ruta o en una ficha para que la universidad lo corrija | Could | 3 |
+| 25 | HU-14 | Encontrar | Como persona con baja visión, quiero agrandar el texto y usar el lector de pantalla para leer las indicaciones | Could | 2 |
+
+**Totales:** Must 37 puntos · Should 31 · Could 11. Ningún elemento llega a 13 puntos.
 
 **Por qué este orden:**
-1. Primero la base técnica y los datos del bloque piloto: sin ellos no se puede buscar ni calcular rutas.
+1. Primero la base técnica: arquitectura, modelo entidad-relación, base SQLite, datos del bloque piloto, empaquetado y plano. Sin ellos no se puede buscar ni calcular rutas.
 2. Luego las Must en el orden en que el usuario las vive: encontrar, ubicarse, llegar.
 3. TEC-03 sube porque desde la semana 6 la DoD exige probar el APK en un dispositivo.
-4. HU-10 (8 puntos) queda abajo por su tamaño e incertidumbre: antes conviene una investigación rápida (spike) sobre el visor 360°.
+4. Las investigaciones rápidas (spikes) van justo antes de su historia: INV-03 antes del QR (HU-06) e INV-02 antes del recorrido 360° (HU-10, 8 puntos), para reducir su incertidumbre.
 
 ---
 
@@ -142,4 +151,4 @@ El detalle de cada sprint está en [`docs/sprints/`](docs/sprints).
 
 ## Cómo trabajamos
 
-Las reglas de ramas, commits y pull requests están en [CONTRIBUTING.md](CONTRIBUTING.md). Los datos del campus y su formato están en [`docs/datos/`](docs/datos) y [`datos/`](datos).
+Las reglas de ramas, commits y pull requests están en [CONTRIBUTING.md](CONTRIBUTING.md). Los datos del campus, su formato y el [modelo entidad-relación](docs/datos/modelo-er.md) de la base local están en [`docs/datos/`](docs/datos); las plantillas del levantamiento, en [`datos/`](datos).
