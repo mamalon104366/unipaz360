@@ -2,9 +2,9 @@
 
 App móvil de orientación para el **Centro de Investigaciones Santa Lucía de UNIPAZ**. Encuentra aulas y oficinas y muestra la ruta a pie, incluida una ruta sin escaleras. **Funciona sin conexión.**
 
-**Curso:** Desarrollo de Aplicaciones Móviles · Ingeniería Informática · VIII semestre · UNIPAZ · 2026
-**Metodología:** Mobile-D con Scrum (sprints de 1 semana) y Kanban en GitHub Projects
-**Tecnología:** Flutter (Android) · SQLite · API del paquete de datos · cámara (lectura de QR)
+- **Curso:** Desarrollo de Aplicaciones Móviles · Ingeniería Informática · VIII semestre · UNIPAZ · 2026
+- **Metodología:** Mobile-D con Scrum (sprints de 1 semana) y Kanban en GitHub Projects
+- **Tecnología:** Flutter (Android) · SQLite · API del paquete de datos · cámara (lectura de QR)
 
 ---
 
