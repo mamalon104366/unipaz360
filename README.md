@@ -14,9 +14,9 @@ App móvil de orientación para el **Centro de Investigaciones Santa Lucía de U
 |---|---|---|
 | Product Owner (PO) | `[nombre]` | `@...` |
 | Scrum Master (SM) | `[nombre]` | `@...` |
-| Developer | Esteban David Merlano Quintana | `@...` |
-| Developer | `[integrante 2]` | `@...` |
-| Developer | `[integrante 3]` | `@...` |
+| Developer | Esteban David Merlano Quintana | [@mamalon104366](https://github.com/mamalon104366) |
+| Developer | Andrés Fernández | [@ondresz](https://github.com/ondresz) |
+| Developer | Keyner Trujillo | [@Causa-Trujillo](https://github.com/Causa-Trujillo) |
 | Usuario real de referencia | `[estudiante de primer semestre o visitante]` | — |
 
 Los tres son Developers. El PO y el SM también desarrollan.
