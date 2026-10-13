@@ -10,21 +10,19 @@ App móvil de orientación para el **Centro de Investigaciones Santa Lucía de U
 
 ## Equipo y roles
 
-| Rol | Integrante | Usuario de GitHub |
+| Integrante | Usuario de GitHub | Rol |
 |---|---|---|
-| Product Owner (PO) | `[nombre]` | `@...` |
-| Scrum Master (SM) | `[nombre]` | `@...` |
-| Developer | Esteban David Merlano Quintana | [@mamalon104366](https://github.com/mamalon104366) |
-| Developer | Andrés Fernández | [@ondresz](https://github.com/ondresz) |
-| Developer | Keyner Trujillo | [@Causa-Trujillo](https://github.com/Causa-Trujillo) |
-| Usuario real de referencia | `[estudiante de primer semestre o visitante]` | — |
+| Esteban David Merlano Quintana | [@mamalon104366](https://github.com/mamalon104366) | **Product Owner** y Developer |
+| Juan Andrés Rangel Fernández | [@ondresz](https://github.com/ondresz) | **Scrum Master** y Developer |
+| Keyner Trujillo | [@Causa-Trujillo](https://github.com/Causa-Trujillo) | Developer |
 
-Los tres son Developers. El PO y el SM también desarrollan.
+**Usuario real de referencia:** `[nombre de un estudiante de primer semestre o de un visitante]`
 
-**Rotación:**
-- El rol de Scrum Master rota cada 3 sprints.
-- El PO se mantiene durante el semestre.
-- El Daily dura 10 minutos, a la misma hora, y lo conduce el SM.
+Los tres desarrollan.
+- **Product Owner:** ordena el backlog y valida las historias con los usuarios.
+- **Scrum Master:** conduce el Daily (10 minutos, a la misma hora), cuida el tablero y el tiempo, y quita bloqueos.
+
+**Rotación:** los roles se mantienen durante el semestre y se revisan en la retrospectiva del Sprint 4.
 
 ---
 
