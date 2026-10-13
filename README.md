@@ -104,7 +104,7 @@ El backlog vive en el **[tablero del proyecto](../../projects)**. Tiene 18 eleme
 | Columna | Política de entrada | WIP |
 |---|---|---|
 | Backlog | Cualquier idea con título claro. El PO decide su orden. | — |
-| Listo | Cumple INVEST, tiene criterios de aceptación y puntos, y el equipo la entiende. | 4 |
+| Listo | Cumple INVEST, tiene criterios de aceptación y puntos, y el equipo la entiende. | 6 (capacidad de un sprint) |
 | En desarrollo | Alguien se la asigna y crea su rama (`hu-04-ruta-corta`). Solo una tarjeta por persona. | 3 (= integrantes) |
 | En revisión | Hay un PR abierto que enlaza el issue (`Closes #N`) y `flutter analyze` está limpio. | 2 |
 | En dispositivo | PR aprobado por otra persona; el APK de la rama está instalado en un Android físico y probado **en modo avión**. | 2 |
