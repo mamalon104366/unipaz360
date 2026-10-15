@@ -28,10 +28,9 @@ class UniPaz360App extends StatelessWidget {
   Widget build(BuildContext context) {
     return Provider<EspacioRepository>(
       create: (_) => RepositorioSimulado(),
-      child: ProxyProvider<EspacioRepository, EspaciosViewModel>(
-        update: (_, repositorio, anterior) =>
-            anterior ?? EspaciosViewModel(repositorio),
-        dispose: (_, viewModel) => viewModel.dispose(),
+      child: ChangeNotifierProvider<EspaciosViewModel>(
+        create: (context) =>
+            EspaciosViewModel(context.read<EspacioRepository>()),
         child: Builder(
           builder: (context) {
             final viewModel = context.read<EspaciosViewModel>();
