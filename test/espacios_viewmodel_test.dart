@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:unipaz360/app/unipaz360_app.dart';
 import 'package:unipaz360/data/espacio_repository.dart';
 import 'package:unipaz360/domain/espacio.dart';
 import 'package:unipaz360/ui/espacios/espacios_viewmodel.dart';
@@ -13,6 +14,17 @@ class _RepositorioPrueba implements EspacioRepository {
 }
 
 void main() {
+  testWidgets('la aplicación inicia y muestra espacios del campus', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const UniPaz360App());
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pump();
+
+    expect(find.text('Espacios del campus'), findsOneWidget);
+    expect(find.text('Aula 101'), findsOneWidget);
+  });
+
   group('EspaciosViewModel', () {
     test('publica la lista cuando el repositorio tiene espacios', () async {
       const espacio = Espacio(

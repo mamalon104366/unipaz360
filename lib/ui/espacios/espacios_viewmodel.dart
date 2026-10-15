@@ -27,8 +27,10 @@ class EspaciosViewModel extends ChangeNotifier {
 
   Future<void> cargarEspacios() async {
     final solicitud = ++_solicitudActual;
-    _estado = EstadoUi.cargando;
-    notifyListeners();
+    if (_estado != EstadoUi.cargando) {
+      _estado = EstadoUi.cargando;
+      notifyListeners();
+    }
 
     try {
       final espacios = await _repositorio.listarEspacios();
