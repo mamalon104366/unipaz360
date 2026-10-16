@@ -1,0 +1,4 @@
+id;vertice;ubicacion;autorizado_por;instalada;notas
+A01;V001;Portería principal;Coordinación;true;
+A02;V003;Puerta del Bloque 1;Coordinación;true;
+A03;V005;Puerta del Bloque 2;Coordinación;false;Pendiente de instalar

@@ -1,6 +1,8 @@
 # Modelo entidad-relación de la base de datos local (TEC-04)
 
-**Borrador para revisar en equipo.** La base vive en el teléfono (SQLite) y se llena con el paquete de datos del campus; el formato del paquete está en [formato-paquete.md](formato-paquete.md). El script SQL equivalente está en [esquema.sql](esquema.sql).
+> **v2 (TEC-05):** el esquema local evolucionó y ahora vive en [`db/esquema-local.sql`](../../db/esquema-local.sql), que es lo que usa `scripts/empaquetar.mjs` para construir `datos.sqlite`. Añade `campus`, `medio`, `horario`, `calendario_academico` y las tablas de búsqueda **FTS5** (`espacio_fts`, `materia_fts`). El diagrama de abajo es el borrador **v1**, se conserva como referencia. La base central (Neon) se documenta en [modelo-central.md](modelo-central.md).
+
+**Borrador para revisar en equipo.** La base vive en el teléfono (SQLite) y se llena con el paquete de datos del campus; el formato del paquete está en [formato-paquete.md](formato-paquete.md). El script SQL equivalente está en [esquema.sql](esquema.sql) (migrado a `db/esquema-local.sql` en v2).
 
 ```mermaid
 erDiagram

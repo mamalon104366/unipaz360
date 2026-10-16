@@ -1,0 +1,17 @@
+{
+  "name": "@unipaz360/pipeline",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Valida el levantamiento del campus y empaqueta los datos para la app (SQLite + manifiesto).",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "validar": "node validar.mjs",
+    "empaquetar": "node empaquetar.mjs",
+    "pruebas": "node pruebas.mjs",
+    "validar:ejemplo": "node validar.mjs --fuente ../datos/ejemplo",
+    "empaquetar:ejemplo": "node empaquetar.mjs --fuente ../datos/ejemplo --salida ../dist"
+  }
+}

@@ -1,0 +1,5 @@
+id;espacio;dia;hora_inicio;hora_fin;materia;programa;semestre;grupo;docente
+H01;B1-101;2;08:00;10:00;Cálculo I;Ingeniería Informática;3;A;Marta Pérez
+H02;B2-201;2;10:00;12:00;Redes de Datos;Ingeniería Informática;3;A;Juan Rangel
+H03;B1-101;4;08:00;10:00;Cálculo I;Ingeniería Informática;3;A;Marta Pérez
+H04;GEN-BIB;5;14:00;16:00;Metodología de la Investigación;Ingeniería Informática;3;A;Keyner Trujillo
