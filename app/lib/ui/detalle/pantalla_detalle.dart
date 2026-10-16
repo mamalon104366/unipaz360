@@ -1,19 +1,37 @@
+import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
 import '../../domain/espacio.dart';
 import '../comun/aviso.dart';
+import '../comun/linea_horario.dart';
 import '../espacios/espacios_viewmodel.dart';
+import '../recientes/recientes_viewmodel.dart';
 
-class PantallaDetalle extends StatelessWidget {
+class PantallaDetalle extends StatefulWidget {
   const PantallaDetalle({required this.espacioId, super.key});
 
   final String espacioId;
 
   @override
+  State<PantallaDetalle> createState() => _PantallaDetalleState();
+}
+
+class _PantallaDetalleState extends State<PantallaDetalle> {
+  @override
+  void initState() {
+    super.initState();
+    // Abrir la ficha también cuenta como visita reciente.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<RecientesViewModel>().registrar(widget.espacioId);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final viewModel = context.watch<EspaciosViewModel>();
-    final espacio = viewModel.obtenerPorId(espacioId);
+    final espacio = viewModel.obtenerPorId(widget.espacioId);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Ficha del espacio')),
@@ -69,10 +87,18 @@ class _FichaEspacio extends StatelessWidget {
         const SizedBox(height: 24),
         Text(espacio.nombre, style: Theme.of(context).textTheme.headlineSmall),
         const SizedBox(height: 20),
+        FilledButton.icon(
+          onPressed: () => context.push('/espacios/${espacio.id}/360'),
+          icon: const Icon(Icons.threesixty),
+          label: const Text('Ver recorrido 360°'),
+        ),
+        const SizedBox(height: 12),
         _DatoFicha(etiqueta: 'Código', valor: espacio.codigo),
         _DatoFicha(etiqueta: 'Categoría', valor: espacio.categoria),
         _DatoFicha(etiqueta: 'Bloque', valor: espacio.bloque),
         _DatoFicha(etiqueta: 'Nivel', valor: espacio.nivel),
+        const SizedBox(height: 8),
+        LineaHorario(espacio: espacio),
         _DatoFicha(etiqueta: 'Horario', valor: espacio.horario),
       ],
     );

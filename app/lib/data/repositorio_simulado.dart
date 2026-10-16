@@ -1,9 +1,14 @@
 import 'dart:async';
 
 import '../domain/espacio.dart';
+import '../domain/horario.dart';
 import 'espacio_repository.dart';
 
 enum Escenario { conDatos, vacio, falla, cargando }
+
+/// Días de la semana (1 = lunes ... 7 = domingo).
+const List<int> _entreSemana = <int>[1, 2, 3, 4, 5];
+const List<int> _todosLosDias = <int>[1, 2, 3, 4, 5, 6, 7];
 
 /// Fuente local de datos para demostrar los estados de la pantalla.
 class RepositorioSimulado implements EspacioRepository {
@@ -20,6 +25,9 @@ class RepositorioSimulado implements EspacioRepository {
       bloque: 'Bloque 1',
       nivel: 'Primer piso',
       horario: 'Lunes a viernes, 7:00 a. m. – 6:00 p. m.',
+      atencion: HorarioEspacio(<TramoHorario>[
+        TramoHorario(dias: _entreSemana, abre: 7 * 60, cierra: 18 * 60),
+      ]),
     ),
     Espacio(
       id: 'b1-lab-sistemas',
@@ -29,6 +37,9 @@ class RepositorioSimulado implements EspacioRepository {
       bloque: 'Bloque 1',
       nivel: 'Primer piso',
       horario: 'Lunes a viernes, 7:00 a. m. – 8:00 p. m.',
+      atencion: HorarioEspacio(<TramoHorario>[
+        TramoHorario(dias: _entreSemana, abre: 7 * 60, cierra: 20 * 60),
+      ]),
     ),
     Espacio(
       id: 'b2-bienestar',
@@ -38,6 +49,9 @@ class RepositorioSimulado implements EspacioRepository {
       bloque: 'Bloque 2',
       nivel: 'Segundo piso',
       horario: 'Lunes a viernes, 8:00 a. m. – 5:00 p. m.',
+      atencion: HorarioEspacio(<TramoHorario>[
+        TramoHorario(dias: _entreSemana, abre: 8 * 60, cierra: 17 * 60),
+      ]),
     ),
     Espacio(
       id: 'b1-bano-accesible',
@@ -47,6 +61,9 @@ class RepositorioSimulado implements EspacioRepository {
       bloque: 'Bloque 1',
       nivel: 'Primer piso',
       horario: 'Disponible durante el horario del campus.',
+      atencion: HorarioEspacio(<TramoHorario>[
+        TramoHorario(dias: _todosLosDias, abre: 6 * 60, cierra: 22 * 60),
+      ]),
     ),
     Espacio(
       id: 'cafeteria-central',
@@ -56,6 +73,10 @@ class RepositorioSimulado implements EspacioRepository {
       bloque: 'Servicios centrales',
       nivel: 'Primer piso',
       horario: 'Lunes a viernes, 7:00 a. m. – 5:00 p. m.',
+      atencion: HorarioEspacio(<TramoHorario>[
+        TramoHorario(dias: _entreSemana, abre: 7 * 60, cierra: 17 * 60),
+        TramoHorario(dias: <int>[6], abre: 8 * 60, cierra: 13 * 60),
+      ]),
     ),
   ];
 
