@@ -107,6 +107,20 @@ Detalle completo en [06-chatbot-y-horarios](06-chatbot-y-horarios.md). Resumen: 
 - «Próxima clase»: tarjeta en inicio con cuenta regresiva y botón «Cómo llegar» (ruta desde el último QR escaneado).
 - El chatbot responde «¿dónde es X materia?» y «¿a qué hora termina la clase actual?».
 
+**Quién ve qué (decidido):**
+
+| Contenido | Invitado | Cuenta institucional (`@unipaz.edu.co`) |
+|---|:--:|:--:|
+| Mapa 2D, búsqueda, rutas, 360°, tour con dron | ✅ | ✅ |
+| Chatbot (rutas, ubicaciones, cómo llegar) | ✅ | ✅ |
+| Reportes y sugerencias | ✅ | ✅ |
+| **Horarios de salones y calendario académico** | ❌ | ✅ |
+| «Mi horario», favoritos y progreso del tour | ❌ | ✅ |
+
+El **invitado** usa todo el contenido offline sin crear cuenta. Iniciar sesión con
+el correo institucional **agrega** los horarios (se consultan con sesión y se
+cachean para uso sin conexión de ese usuario), sin quitarle nada al invitado.
+
 ## 4.9 Sin conexión: qué significa exactamente
 
 | Función | Sin internet | Con internet |

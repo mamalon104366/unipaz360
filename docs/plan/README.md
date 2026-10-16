@@ -34,3 +34,5 @@
 | D5 | 360° completo offline | Descarga por zonas con niveles de detalle (LOD): vista rápida siempre, alta resolución bajo demanda |
 | D6 | Horarios de salones | Pedir a Coordinación la fuente oficial (Excel/CSV); mientras tanto, carga manual desde el panel |
 | D7 | Dron | Definir quién vuela y permisos (UAEAC, RAC 100) **antes** de comprar/comprar vuelos |
+| D8 | Acceso en la app: ¿invitado o con cuenta? | **Ambos.** El invitado ve mapa, rutas, 360°, chatbot y reportes; el correo institucional (`@unipaz.edu.co`) agrega **horarios de salones** y calendario académico. ✅ **Decidido** |
+| D9 | ¿Dónde vive el esquema de la base central? | Carpeta `db/` con migraciones versionadas aplicadas a **Neon** (PostgreSQL + PostGIS). ✅ **Hecho** |

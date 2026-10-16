@@ -42,8 +42,10 @@ Si una tarjeta no puede avanzar:
 | `app/` | La aplicación móvil multiplataforma (Flutter) |
 | `panel/` | La plataforma web de administración (fase F3) |
 | `datos/` | Plantillas del levantamiento del campus |
+| `db/` | Esquema y migraciones de la base central (Neon · PostgreSQL + PostGIS) |
 | `scripts/` | Validación y empaquetado del paquete de datos (TEC-05) |
 | `docs/` | Documentación, incluida `docs/plan/` |
 
 - El CI comprueba lo que cambie: `app/` → `flutter analyze` y pruebas · `panel/` → lint y build · `scripts/` → validación de datos.
+- Las migraciones de `db/` se aplican con `npm run migrar` (ver `db/README.md`); nunca se editan tablas a mano en Neon.
 - El nombre de la rama y el mensaje del commit siguen usando el ID de la tarjeta (`tec-01-monorepo`, `feat(HU-04): …`), sin importar en qué carpeta se trabaje.

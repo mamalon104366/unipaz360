@@ -51,13 +51,16 @@
 
 ```
 unipaz360/
-├── app/                  ← proyecto Flutter (TEC-01 lo crea aquí)
+├── app/                  ← proyecto Flutter
 │   ├── lib/
-│   │   ├── datos/        (SQLite/drift, paquete, sincronización)
-│   │   ├── dominio/      (grafo, A*, búsqueda, chatbot, horarios)
-│   │   ├── ui/           (mapa, 360, dron, tour, chat)
-│   │   └── plataforma/   (adaptadores web/escritorio/móvil)
+│   │   ├── app/          (arranque y enrutado)
+│   │   ├── data/         (SQLite/drift, paquete, sincronización)
+│   │   ├── domain/       (grafo, A*, búsqueda, chatbot, horarios)
+│   │   └── ui/           (mapa, 360, dron, tour, chat)
 │   └── test/
+├── db/                   ← base central: esquema y migraciones (Neon · PostgreSQL + PostGIS)
+│   ├── migraciones/      (cambios del esquema, en orden)
+│   └── semilla/          (datos base, p. ej. el campus)
 ├── panel/                ← Next.js del panel de administración
 │   ├── app/  (rutas y API)
 │   └── components/

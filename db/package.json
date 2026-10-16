@@ -1,0 +1,15 @@
+{
+  "name": "@unipaz360/db",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Esquema, migraciones y semilla de la base central de UniPaz360 (Neon PostgreSQL + PostGIS).",
+  "scripts": {
+    "migrar": "node migrar.mjs",
+    "sembrar": "node sembrar.mjs",
+    "probar": "node pruebas.mjs"
+  },
+  "dependencies": {
+    "pg": "^8.13.0"
+  }
+}
