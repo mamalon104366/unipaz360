@@ -9,6 +9,7 @@ import '../data/repositorio_simulado.dart';
 import '../ui/detalle/pantalla_detalle.dart';
 import '../ui/espacios/espacios_viewmodel.dart';
 import '../ui/espacios/pantalla_espacios.dart';
+import '../ui/visor/pantalla_visor.dart';
 
 class UniPaz360App extends StatelessWidget {
   const UniPaz360App({super.key});
@@ -20,6 +21,11 @@ class UniPaz360App extends StatelessWidget {
         path: '/espacios/:id',
         builder: (context, state) =>
             PantallaDetalle(espacioId: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: '/espacios/:id/360',
+        builder: (context, state) =>
+            PantallaVisor(espacioId: state.pathParameters['id']!),
       ),
     ],
   );

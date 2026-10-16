@@ -1,3 +1,4 @@
+import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
@@ -69,6 +70,12 @@ class _FichaEspacio extends StatelessWidget {
         const SizedBox(height: 24),
         Text(espacio.nombre, style: Theme.of(context).textTheme.headlineSmall),
         const SizedBox(height: 20),
+        FilledButton.icon(
+          onPressed: () => context.push('/espacios/${espacio.id}/360'),
+          icon: const Icon(Icons.threesixty),
+          label: const Text('Ver recorrido 360°'),
+        ),
+        const SizedBox(height: 12),
         _DatoFicha(etiqueta: 'Código', valor: espacio.codigo),
         _DatoFicha(etiqueta: 'Categoría', valor: espacio.categoria),
         _DatoFicha(etiqueta: 'Bloque', valor: espacio.bloque),
