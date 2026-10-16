@@ -8,6 +8,18 @@ App móvil de orientación para el **Centro de Investigaciones Santa Lucía de U
 
 ---
 
+## Estructura del repositorio (monorepo)
+
+| Carpeta | Qué contiene |
+|---|---|
+| [`app/`](app/) | La aplicación Flutter (Android, iOS, web y escritorio) |
+| [`panel/`](panel/) | La plataforma web de administración (fase F3) |
+| [`datos/`](datos/) | Plantillas del levantamiento del campus (CSV) |
+| [`scripts/`](scripts/) | Validación y empaquetado del paquete de datos (TEC-05) |
+| [`docs/`](docs/) | Documentación, incluida la del proyecto y [`docs/plan/`](docs/plan/) |
+
+El CI comprueba la carpeta que cambia: `app/` → Flutter · `panel/` → Next.js · `scripts/` → validación de datos.
+
 ## Equipo y roles
 
 | Integrante | Usuario de GitHub | Rol |
@@ -72,7 +84,7 @@ El backlog vive en el **[tablero del proyecto](../../projects)**. Tiene 25 eleme
 
 | Orden | ID | Épica | Elemento | MoSCoW | Pts |
 |---|---|---|---|---|---|
-| 1 | TEC-01 | Base | Crear el proyecto Flutter, definir las ramas de trabajo y verificar que el CI corra `flutter analyze` y las pruebas en cada PR | Must | 2 |
+| 1 | TEC-01 | Base | Crear el proyecto Flutter en [`app/`](app/), definir las ramas de trabajo y verificar que el CI corra `flutter analyze` y las pruebas en cada PR | Must | 2 |
 | 2 | TEC-06 | Base | Definir la arquitectura del proyecto Flutter: capas, gestión de estado y convenciones (`docs/arquitectura.md`) | Must | 2 |
 | 3 | TEC-04 | Base | Modelo entidad-relación y diccionario de datos de la base SQLite (borrador en [`docs/datos/modelo-er.md`](docs/datos/modelo-er.md)) | Must | 2 |
 | 4 | TEC-02 | Base | Modelo Espacio–Vértice–Tramo y repositorio SQLite con sus pruebas | Must | 3 |

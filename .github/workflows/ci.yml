@@ -6,14 +6,19 @@ on:
     branches: [main]
 
 jobs:
-  flutter:
+  app:
+    name: App Flutter
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
     steps:
       - uses: actions/checkout@v4
       - name: ¿Existe ya el proyecto Flutter?
         id: proyecto
+        working-directory: .
         run: |
-          if [ -f pubspec.yaml ]; then echo "existe=true" >> "$GITHUB_OUTPUT"; else echo "existe=false" >> "$GITHUB_OUTPUT"; fi
+          if [ -f app/pubspec.yaml ]; then echo "existe=true" >> "$GITHUB_OUTPUT"; else echo "existe=false" >> "$GITHUB_OUTPUT"; fi
       - uses: subosito/flutter-action@v2
         if: steps.proyecto.outputs.existe == 'true'
         with:
@@ -26,8 +31,64 @@ jobs:
         if: steps.proyecto.outputs.existe == 'true'
         run: flutter analyze
       - name: Pruebas
-        if: steps.proyecto.outputs.existe == 'true' && hashFiles('test/**') != ''
+        if: steps.proyecto.outputs.existe == 'true' && hashFiles('app/test/**') != ''
         run: flutter test
       - name: Aviso
         if: steps.proyecto.outputs.existe == 'false'
-        run: echo "Todavía no hay proyecto Flutter (se crea en TEC-01). Nada que analizar."
+        working-directory: .
+        run: echo "Todavía no hay proyecto Flutter en app/ (se crea en TEC-01). Nada que analizar."
+
+  panel:
+    name: Panel Next.js
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: ¿Existe ya el panel?
+        id: panel
+        run: |
+          if [ -f panel/package.json ]; then echo "existe=true" >> "$GITHUB_OUTPUT"; else echo "existe=false" >> "$GITHUB_OUTPUT"; fi
+      - uses: actions/setup-node@v4
+        if: steps.panel.outputs.existe == 'true'
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: panel/package-lock.json
+      - name: Instalar dependencias
+        if: steps.panel.outputs.existe == 'true'
+        working-directory: panel
+        run: npm ci
+      - name: Lint y tipos
+        if: steps.panel.outputs.existe == 'true'
+        working-directory: panel
+        run: npm run lint --if-present
+      - name: Pruebas
+        if: steps.panel.outputs.existe == 'true'
+        working-directory: panel
+        run: npm test --if-present
+      - name: Compilar
+        if: steps.panel.outputs.existe == 'true'
+        working-directory: panel
+        run: npm run build --if-present
+      - name: Aviso
+        if: steps.panel.outputs.existe == 'false'
+        run: echo "Todavía no hay panel en panel/ (fase F3). Nada que compilar."
+
+  datos:
+    name: Datos del campus
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: ¿Hay validador de datos?
+        id: validador
+        run: |
+          if [ -f scripts/validar.mjs ]; then echo "existe=true" >> "$GITHUB_OUTPUT"; else echo "existe=false" >> "$GITHUB_OUTPUT"; fi
+      - uses: actions/setup-node@v4
+        if: steps.validador.outputs.existe == 'true'
+        with:
+          node-version: 22
+      - name: Validar el levantamiento
+        if: steps.validador.outputs.existe == 'true'
+        run: node scripts/validar.mjs
+      - name: Aviso
+        if: steps.validador.outputs.existe == 'false'
+        run: echo "Todavía no hay validador en scripts/ (TEC-05). Nada que validar."

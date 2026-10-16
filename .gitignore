@@ -25,4 +25,13 @@ ios/.symlinks/
 Thumbs.db
 # Secretos
 .env
+.env.local
+.env.*.local
+!.env.example
 google-services.json
+# Panel (Next.js / Node)
+node_modules/
+.next/
+out/
+coverage/
+.turbo/
