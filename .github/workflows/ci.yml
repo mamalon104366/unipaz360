@@ -85,10 +85,23 @@ jobs:
       - uses: actions/setup-node@v4
         if: steps.validador.outputs.existe == 'true'
         with:
-          node-version: 22
-      - name: Validar el levantamiento
+          node-version: 24
+      - name: Validar el levantamiento (ejemplo)
         if: steps.validador.outputs.existe == 'true'
-        run: node scripts/validar.mjs
+        run: node scripts/validar.mjs --fuente datos/ejemplo
+      - name: Empaquetar el ejemplo (extremo a extremo)
+        if: steps.validador.outputs.existe == 'true'
+        run: node scripts/empaquetar.mjs --fuente datos/ejemplo --salida dist --version ci
+      - name: Comprobar el paquete generado
+        if: steps.validador.outputs.existe == 'true'
+        run: |
+          test -f dist/paquete-ci/datos.sqlite
+          test -f dist/paquete-ci/manifest.json
+          test -f dist/paquete-ci/version.json
+          echo "Paquete generado correctamente."
+      - name: Pruebas del paquete
+        if: steps.validador.outputs.existe == 'true'
+        run: node scripts/pruebas.mjs
       - name: Aviso
         if: steps.validador.outputs.existe == 'false'
         run: echo "Todavía no hay validador en scripts/ (TEC-05). Nada que validar."

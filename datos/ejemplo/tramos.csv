@@ -1,0 +1,7 @@
+id;origen;destino;longitud_m;desnivel_m;pendiente_pct;escaleras;superficie;ancho_m;accesible;bidireccional;verificado;notas
+T001;V001;V002;33;0;0;false;piso;2.0;true;true;true;Tramo plano
+T002;V002;V003;33;0;0;false;piso;2.0;true;true;true;
+T003;V003;V004;55;0;0;false;piso;2.0;true;true;true;
+T004;V004;V005;55;0;0;false;piso;2.0;true;true;true;
+T005;V003;V006;4;3.5;87;true;escalera;1.5;false;true;true;Escaleras al piso 1
+T006;V006;V007;10;0;0;false;piso;1.5;true;true;true;Pasillo del piso 1

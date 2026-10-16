@@ -1,0 +1,8 @@
+id;lat;lon;nivel;tipo;descripcion
+V001;7.00000;-73.00000;0;acceso;Portería principal
+V002;7.00030;-73.00000;0;cruce;Pasillo central (sur)
+V003;7.00060;-73.00000;0;puerta;Puerta del Bloque 1 (piso 0)
+V004;7.00060;-73.00050;0;cruce;Pasillo central (norte)
+V005;7.00060;-73.00100;0;puerta;Puerta del Bloque 2 (piso 0)
+V006;7.00060;-73.00000;1;escalera;Escaleras del Bloque 1 al piso 1
+V007;7.00066;-73.00008;1;puerta;Puerta del Aula 101 (piso 1)

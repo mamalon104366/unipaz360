@@ -1,0 +1,7 @@
+id;nombre;codigo;categoria;bloque;nivel;vertice;horario;servicios;foto;notas
+E01;Aula 101;B1-101;aula;Bloque 1;1;V007;;videobeam,aire;;Sala de clase del piso 1
+E02;Aula 102;B1-102;aula;Bloque 1;1;V007;;videobeam;;Sala de clase del piso 1
+E03;Laboratorio de Redes;B2-201;laboratorio;Bloque 2;0;V005;;computadores,switch;;;
+E04;Coordinación Académica;B1-001;oficina;Bloque 1;0;V003;;;;
+E05;Biblioteca;GEN-BIB;biblioteca;Bloque 1;0;V003;;wifi,mesas;;
+E06;Portería;GEN-POR;porteria;Exterior;0;V001;;;;Entrada principal del campus
