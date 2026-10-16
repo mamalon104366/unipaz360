@@ -16,7 +16,7 @@
    - `docs(INV-01): agregar tramos del bloque 1`
 
    Tipos: `feat`, `fix`, `test`, `docs`, `refactor`, `chore`.
-4. **Abrir el pull request** con `Closes #N` en la descripción y pasar la tarjeta a «En revisión». El CI corre `flutter analyze` y las pruebas.
+4. **Abrir el pull request** con `Closes #N` en la descripción y pasar la tarjeta a «En revisión». El CI de `app/` corre `flutter analyze` y las pruebas.
 5. **Revisión:** otra persona del equipo revisa y aprueba. Nadie fusiona su propio PR sin aprobación.
 6. **En dispositivo:** se instala el APK de la rama en un Android físico y se prueba **en modo avión**. Si pasa, la tarjeta va a «En dispositivo» y luego se fusiona.
 7. **Fusionar:** al fusionar el PR, GitHub cierra el issue y la tarjeta pasa sola a «Hecho».
@@ -34,3 +34,16 @@ Si una tarjeta no puede avanzar:
 - Los datos se editan en `datos/` siguiendo [docs/datos/formato-paquete.md](docs/datos/formato-paquete.md).
 - Cada cambio de datos también va por pull request.
 - Solo se marca un tramo como accesible si se verificó en campo.
+
+## 5. Estructura del repositorio (monorepo)
+
+| Carpeta | Qué contiene |
+|---|---|
+| `app/` | La aplicación móvil multiplataforma (Flutter) |
+| `panel/` | La plataforma web de administración (fase F3) |
+| `datos/` | Plantillas del levantamiento del campus |
+| `scripts/` | Validación y empaquetado del paquete de datos (TEC-05) |
+| `docs/` | Documentación, incluida `docs/plan/` |
+
+- El CI comprueba lo que cambie: `app/` → `flutter analyze` y pruebas · `panel/` → lint y build · `scripts/` → validación de datos.
+- El nombre de la rama y el mensaje del commit siguen usando el ID de la tarjeta (`tec-01-monorepo`, `feat(HU-04): …`), sin importar en qué carpeta se trabaje.
