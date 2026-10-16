@@ -11,14 +11,14 @@ build/
 .vscode/
 *.log
 # Android
-android/.gradle/
-android/local.properties
-android/key.properties
+.gradle/
+local.properties
+key.properties
 *.jks
 *.keystore
 # iOS / macOS
-ios/Pods/
-ios/.symlinks/
+Pods/
+.symlinks/
 **/xcuserdata/
 # Sistema
 .DS_Store
