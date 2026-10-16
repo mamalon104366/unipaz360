@@ -15,10 +15,11 @@ App móvil de orientación para el **Centro de Investigaciones Santa Lucía de U
 | [`app/`](app/) | La aplicación Flutter (Android, iOS, web y escritorio) |
 | [`panel/`](panel/) | La plataforma web de administración (fase F3) |
 | [`datos/`](datos/) | Plantillas del levantamiento del campus (CSV) |
+| [`db/`](db/) | Esquema y migraciones de la base central (Neon · PostgreSQL + PostGIS) |
 | [`scripts/`](scripts/) | Validación y empaquetado del paquete de datos (TEC-05) |
 | [`docs/`](docs/) | Documentación, incluida la del proyecto y [`docs/plan/`](docs/plan/) |
 
-El CI comprueba la carpeta que cambia: `app/` → Flutter · `panel/` → Next.js · `scripts/` → validación de datos.
+El CI comprueba la carpeta que cambia: `app/` → Flutter · `panel/` → Next.js · `scripts/` → validación de datos. Las migraciones de `db/` se aplican con `npm run migrar` (ver [`db/README.md`](db/README.md)).
 
 ## Equipo y roles
 
