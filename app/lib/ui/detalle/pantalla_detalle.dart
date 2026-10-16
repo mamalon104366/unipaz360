@@ -4,17 +4,34 @@ import 'package:provider/provider.dart';
 
 import '../../domain/espacio.dart';
 import '../comun/aviso.dart';
+import '../comun/linea_horario.dart';
 import '../espacios/espacios_viewmodel.dart';
+import '../recientes/recientes_viewmodel.dart';
 
-class PantallaDetalle extends StatelessWidget {
+class PantallaDetalle extends StatefulWidget {
   const PantallaDetalle({required this.espacioId, super.key});
 
   final String espacioId;
 
   @override
+  State<PantallaDetalle> createState() => _PantallaDetalleState();
+}
+
+class _PantallaDetalleState extends State<PantallaDetalle> {
+  @override
+  void initState() {
+    super.initState();
+    // Abrir la ficha también cuenta como visita reciente.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<RecientesViewModel>().registrar(widget.espacioId);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final viewModel = context.watch<EspaciosViewModel>();
-    final espacio = viewModel.obtenerPorId(espacioId);
+    final espacio = viewModel.obtenerPorId(widget.espacioId);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Ficha del espacio')),
@@ -80,6 +97,8 @@ class _FichaEspacio extends StatelessWidget {
         _DatoFicha(etiqueta: 'Categoría', valor: espacio.categoria),
         _DatoFicha(etiqueta: 'Bloque', valor: espacio.bloque),
         _DatoFicha(etiqueta: 'Nivel', valor: espacio.nivel),
+        const SizedBox(height: 8),
+        LineaHorario(espacio: espacio),
         _DatoFicha(etiqueta: 'Horario', valor: espacio.horario),
       ],
     );

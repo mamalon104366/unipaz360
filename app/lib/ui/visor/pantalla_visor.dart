@@ -8,14 +8,21 @@ import 'package:provider/provider.dart';
 
 import '../../domain/espacio.dart';
 import '../comun/aviso.dart';
+import '../comun/barra_lateral.dart';
 import '../comun/iconos.dart';
+import '../comun/linea_horario.dart';
 import '../espacios/espacios_viewmodel.dart';
+import '../recientes/panel_recientes.dart';
+import '../recientes/recientes_viewmodel.dart';
 import 'minimapa.dart';
 import 'motor_360.dart';
 import 'pintor_panorama.dart';
 
 const Color _azulGoogle = Color(0xFF1A73E8);
 const Color _grisClaro = Color(0xFFF1F3F4);
+
+/// Ancho del panel izquierdo en pantallas amplias: barra de accesos + ficha.
+const double _anchoPanelIzquierdo = BarraLateral.ancho + 396;
 
 /// Recorrido 360° de un espacio, con la disposición de Google Street View:
 /// panorama a pantalla completa, panel del lugar, chip de dirección y minimapa.
@@ -38,11 +45,17 @@ class _PantallaVisorState extends State<PantallaVisor> {
   double _fov = Motor360.fovPorDefecto;
   double _fovAlIniciar = Motor360.fovPorDefecto;
   bool _ayudaVisible = true;
+  SeccionLateral _seccion = SeccionLateral.lugar;
 
   @override
   void initState() {
     super.initState();
     _cargarFoto();
+    // Se anota la visita fuera del build, para la lista de recientes.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<RecientesViewModel>().registrar(widget.espacioId);
+    });
   }
 
   Future<void> _cargarFoto() async {
@@ -102,6 +115,35 @@ class _PantallaVisorState extends State<PantallaVisor> {
     }
   }
 
+  /// Abre otro espacio desde la barra o la lista de recientes.
+  void _abrirEspacio(String id) {
+    if (id == widget.espacioId) {
+      setState(() => _seccion = SeccionLateral.lugar);
+      return;
+    }
+    context.go('/espacios/$id/360');
+  }
+
+  /// La web invita a bajar la app; en escritorio y móvil ya se está dentro.
+  void _mostrarDialogoApp(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('UniPaz360 en tu teléfono'),
+        content: const Text(
+          'Muy pronto vas a poder instalarla desde la Play Store y la App Store. '
+          'Mientras tanto, esta versión web funciona completa y sin conexión.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Entendido'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _verFicha(BuildContext context, String id) {
     if (context.canPop()) {
       context.pop();
@@ -113,7 +155,18 @@ class _PantallaVisorState extends State<PantallaVisor> {
   @override
   Widget build(BuildContext context) {
     final viewModel = context.watch<EspaciosViewModel>();
+    final recientesVm = context.watch<RecientesViewModel>();
     final espacio = viewModel.obtenerPorId(widget.espacioId);
+
+    final recientes = <RecienteResuelto>[];
+    for (final vista in recientesVm.vistas) {
+      final visto = viewModel.obtenerPorId(vista.espacioId);
+      if (visto != null) {
+        recientes.add(
+          RecienteResuelto(espacio: visto, visto: vista.visto),
+        );
+      }
+    }
 
     if (espacio == null) {
       return Scaffold(
@@ -135,9 +188,16 @@ class _PantallaVisorState extends State<PantallaVisor> {
             return Row(
               children: [
                 SizedBox(
-                  width: 400,
+                  width: _anchoPanelIzquierdo,
                   child: _PanelLugar(
                     espacio: espacio,
+                    seccion: _seccion,
+                    recientes: recientes,
+                    alCambiarSeccion: (seccion) =>
+                        setState(() => _seccion = seccion),
+                    alAbrirEspacio: _abrirEspacio,
+                    alLimpiarRecientes: recientesVm.limpiar,
+                    alObtenerApp: () => _mostrarDialogoApp(context),
                     alVolver: () => _salir(context),
                     alVerFicha: () => _verFicha(context, espacio.id),
                   ),
@@ -473,11 +533,23 @@ class _BotonRedondo extends StatelessWidget {
 class _PanelLugar extends StatelessWidget {
   const _PanelLugar({
     required this.espacio,
+    required this.seccion,
+    required this.recientes,
+    required this.alCambiarSeccion,
+    required this.alAbrirEspacio,
+    required this.alLimpiarRecientes,
+    required this.alObtenerApp,
     required this.alVolver,
     required this.alVerFicha,
   });
 
   final Espacio espacio;
+  final SeccionLateral seccion;
+  final List<RecienteResuelto> recientes;
+  final ValueChanged<SeccionLateral> alCambiarSeccion;
+  final ValueChanged<String> alAbrirEspacio;
+  final VoidCallback alLimpiarRecientes;
+  final VoidCallback alObtenerApp;
   final VoidCallback alVolver;
   final VoidCallback alVerFicha;
 
@@ -487,30 +559,50 @@ class _PanelLugar extends StatelessWidget {
       color: Colors.white,
       child: SafeArea(
         right: false,
-        child: Column(
+        child: Row(
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(4, 8, 8, 8),
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.menu),
-                    tooltip: 'Menú',
-                    onPressed: () {},
-                  ),
-                  Expanded(child: _CampoBusqueda(texto: espacio.nombre)),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    tooltip: 'Salir del recorrido',
-                    onPressed: alVolver,
-                  ),
-                ],
-              ),
+            BarraLateral(
+              seccion: seccion,
+              espacioActual: espacio.id,
+              recientes: [for (final reciente in recientes) reciente.espacio],
+              alCambiarSeccion: alCambiarSeccion,
+              alAbrirEspacio: alAbrirEspacio,
+              alObtenerApp: alObtenerApp,
             ),
             Expanded(
-              child: SingleChildScrollView(
-                child: _InfoLugar(espacio: espacio, alVerFicha: alVerFicha),
-              ),
+              child: seccion == SeccionLateral.recientes
+                  ? PanelRecientes(
+                      recientes: recientes,
+                      alAbrir: (elegido) => alAbrirEspacio(elegido.id),
+                      alLimpiar: alLimpiarRecientes,
+                    )
+                  : Column(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: _CampoBusqueda(texto: espacio.nombre),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.close),
+                                tooltip: 'Salir del recorrido',
+                                onPressed: alVolver,
+                              ),
+                            ],
+                          ),
+                        ),
+                        Expanded(
+                          child: SingleChildScrollView(
+                            child: _InfoLugar(
+                              espacio: espacio,
+                              alVerFicha: alVerFicha,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
             ),
           ],
         ),
@@ -620,6 +712,10 @@ class _InfoLugar extends StatelessWidget {
         _DatoFila(etiqueta: 'Categoría', valor: espacio.categoria),
         _DatoFila(etiqueta: 'Bloque', valor: espacio.bloque),
         _DatoFila(etiqueta: 'Nivel', valor: espacio.nivel),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+          child: LineaHorario(espacio: espacio),
+        ),
         _DatoFila(etiqueta: 'Horario', valor: espacio.horario),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
