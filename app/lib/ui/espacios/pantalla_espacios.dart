@@ -17,6 +17,11 @@ class PantallaEspacios extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.map_outlined),
+          tooltip: 'Volver al mapa del campus',
+          onPressed: () => context.go('/'),
+        ),
         title: const Text('Espacios del campus'),
         actions: [if (kDebugMode) const SelectorEscenario()],
       ),

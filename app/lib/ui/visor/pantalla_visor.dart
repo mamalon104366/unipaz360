@@ -9,12 +9,16 @@ import 'package:provider/provider.dart';
 import '../../domain/espacio.dart';
 import '../comun/aviso.dart';
 import '../comun/barra_lateral.dart';
+import '../comun/dialogo_app.dart';
 import '../comun/iconos.dart';
 import '../comun/linea_horario.dart';
 import '../comun/panel_contraible.dart';
 import '../espacios/espacios_viewmodel.dart';
 import '../recientes/panel_recientes.dart';
 import '../recientes/recientes_viewmodel.dart';
+import '../sesion/dialogo_cuenta.dart';
+import '../sesion/ingreso_institucional.dart';
+import '../sesion/sesion_viewmodel.dart';
 import 'minimapa.dart';
 import 'motor_360.dart';
 import 'pintor_panorama.dart';
@@ -127,18 +131,46 @@ class _PantallaVisorState extends State<PantallaVisor> {
 
   /// La web invita a bajar la app; en escritorio y móvil ya se está dentro.
   void _mostrarDialogoApp(BuildContext context) {
+    mostrarDialogoObtenerApp(context);
+  }
+
+  /// Los horarios de clase son solo para las cuentas institucionales.
+  void _verHorarios(BuildContext context) {
+    final sesion = context.read<SesionViewModel>();
+
+    if (sesion.esInstitucional) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Los horarios de clase del espacio llegan con el paquete de datos.',
+          ),
+        ),
+      );
+      return;
+    }
+
     showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('UniPaz360 en tu teléfono'),
+        title: const Text('Horarios y calendario'),
         content: const Text(
-          'Muy pronto vas a poder instalarla desde la Play Store y la App Store. '
-          'Mientras tanto, esta versión web funciona completa y sin conexión.',
+          'Esta parte es para la comunidad universitaria. Entra con tu correo '
+          '@unipaz.edu.co y verás los horarios de clase del espacio y el '
+          'calendario académico.\n\n'
+          'Como invitado sigues viendo el mapa, las rutas, los recorridos '
+          '360°, el dron y el chatbot.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Entendido'),
+            child: const Text('Seguir como invitado'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              explicarIngresoInstitucional(context, sesion);
+            },
+            child: const Text('Iniciar sesión'),
           ),
         ],
       ),
@@ -197,8 +229,10 @@ class _PantallaVisorState extends State<PantallaVisor> {
                 alAbrirEspacio: _abrirEspacio,
                 alLimpiarRecientes: recientesVm.limpiar,
                 alObtenerApp: () => _mostrarDialogoApp(context),
+                alAbrirMenu: () => mostrarDialogoCuenta(context),
                 alVolver: () => _salir(context),
                 alVerFicha: () => _verFicha(context, espacio.id),
+                alVerHorarios: () => _verHorarios(context),
               ),
               contenido: _ZonaPanorama(
                 espacio: espacio,
@@ -534,8 +568,10 @@ class _PanelLugar extends StatelessWidget {
     required this.alAbrirEspacio,
     required this.alLimpiarRecientes,
     required this.alObtenerApp,
+    required this.alAbrirMenu,
     required this.alVolver,
     required this.alVerFicha,
+    required this.alVerHorarios,
   });
 
   final Espacio espacio;
@@ -545,8 +581,10 @@ class _PanelLugar extends StatelessWidget {
   final ValueChanged<String> alAbrirEspacio;
   final VoidCallback alLimpiarRecientes;
   final VoidCallback alObtenerApp;
+  final VoidCallback alAbrirMenu;
   final VoidCallback alVolver;
   final VoidCallback alVerFicha;
+  final VoidCallback alVerHorarios;
 
   @override
   Widget build(BuildContext context) {
@@ -563,6 +601,7 @@ class _PanelLugar extends StatelessWidget {
               alCambiarSeccion: alCambiarSeccion,
               alAbrirEspacio: alAbrirEspacio,
               alObtenerApp: alObtenerApp,
+              alAbrirMenu: alAbrirMenu,
             ),
             Expanded(
               child: seccion == SeccionLateral.recientes
@@ -593,6 +632,7 @@ class _PanelLugar extends StatelessWidget {
                             child: _InfoLugar(
                               espacio: espacio,
                               alVerFicha: alVerFicha,
+                              alVerHorarios: alVerHorarios,
                             ),
                           ),
                         ),
@@ -637,10 +677,17 @@ class _CampoBusqueda extends StatelessWidget {
 }
 
 class _InfoLugar extends StatelessWidget {
-  const _InfoLugar({required this.espacio, required this.alVerFicha});
+  const _InfoLugar({
+    required this.espacio,
+    required this.alVerFicha,
+    required this.alVerHorarios,
+  });
 
   final Espacio espacio;
   final VoidCallback alVerFicha;
+
+  /// Muestra los horarios de clase: a los invitados les pide la cuenta.
+  final VoidCallback alVerHorarios;
 
   @override
   Widget build(BuildContext context) {
@@ -679,12 +726,29 @@ class _InfoLugar extends StatelessWidget {
               const SizedBox(height: 16),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: const [
-                  _AccionRedonda(icono: Icons.directions, etiqueta: 'Indicaciones', primario: true),
-                  _AccionRedonda(icono: Icons.bookmark_border, etiqueta: 'Guardar'),
-                  _AccionRedonda(icono: Icons.schedule, etiqueta: 'Horarios'),
-                  _AccionRedonda(icono: Icons.report_problem_outlined, etiqueta: 'Reportar'),
-                  _AccionRedonda(icono: Icons.share_outlined, etiqueta: 'Compartir'),
+                children: [
+                  const _AccionRedonda(
+                    icono: Icons.directions,
+                    etiqueta: 'Indicaciones',
+                    primario: true,
+                  ),
+                  const _AccionRedonda(
+                    icono: Icons.bookmark_border,
+                    etiqueta: 'Guardar',
+                  ),
+                  _AccionRedonda(
+                    icono: Icons.schedule,
+                    etiqueta: 'Horarios',
+                    alPresionar: alVerHorarios,
+                  ),
+                  const _AccionRedonda(
+                    icono: Icons.report_problem_outlined,
+                    etiqueta: 'Reportar',
+                  ),
+                  const _AccionRedonda(
+                    icono: Icons.share_outlined,
+                    etiqueta: 'Compartir',
+                  ),
                 ],
               ),
               const SizedBox(height: 16),
@@ -693,9 +757,9 @@ class _InfoLugar extends StatelessWidget {
                   border: Border(bottom: BorderSide(color: Color(0xFFE0E0E0))),
                 ),
                 child: Row(
-                  children: const [
-                    _Pestana(texto: 'Información', activa: true),
-                    _Pestana(texto: 'Horarios'),
+                  children: [
+                    const _Pestana(texto: 'Información', activa: true),
+                    _Pestana(texto: 'Horarios', alPresionar: alVerHorarios),
                   ],
                 ),
               ),
@@ -734,28 +798,34 @@ class _InfoLugar extends StatelessWidget {
 }
 
 class _Pestana extends StatelessWidget {
-  const _Pestana({required this.texto, this.activa = false});
+  const _Pestana({required this.texto, this.activa = false, this.alPresionar});
 
   final String texto;
   final bool activa;
+  final VoidCallback? alPresionar;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: Container(
-        decoration: activa
-            ? const BoxDecoration(
-                border: Border(bottom: BorderSide(color: _azulGoogle, width: 3)),
-              )
-            : null,
-        child: Padding(
-          padding: EdgeInsets.only(bottom: activa ? 8 : 0),
-          child: Text(
-            texto,
-            style: TextStyle(
-              fontWeight: FontWeight.w600,
-              color: activa ? _azulGoogle : const Color(0xFF5F6368),
+    return InkWell(
+      onTap: alPresionar,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Container(
+          decoration: activa
+              ? const BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(color: _azulGoogle, width: 3),
+                  ),
+                )
+              : null,
+          child: Padding(
+            padding: EdgeInsets.only(bottom: activa ? 8 : 0),
+            child: Text(
+              texto,
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: activa ? _azulGoogle : const Color(0xFF5F6368),
+              ),
             ),
           ),
         ),
@@ -769,11 +839,13 @@ class _AccionRedonda extends StatelessWidget {
     required this.icono,
     required this.etiqueta,
     this.primario = false,
+    this.alPresionar,
   });
 
   final IconData icono;
   final String etiqueta;
   final bool primario;
+  final VoidCallback? alPresionar;
 
   @override
   Widget build(BuildContext context) {
@@ -785,7 +857,7 @@ class _AccionRedonda extends StatelessWidget {
           shape: const CircleBorder(),
           child: InkWell(
             customBorder: const CircleBorder(),
-            onTap: () {},
+            onTap: alPresionar ?? () {},
             child: SizedBox(
               width: 46,
               height: 46,
