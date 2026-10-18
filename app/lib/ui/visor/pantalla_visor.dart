@@ -11,6 +11,7 @@ import '../comun/aviso.dart';
 import '../comun/barra_lateral.dart';
 import '../comun/iconos.dart';
 import '../comun/linea_horario.dart';
+import '../comun/panel_contraible.dart';
 import '../espacios/espacios_viewmodel.dart';
 import '../recientes/panel_recientes.dart';
 import '../recientes/recientes_viewmodel.dart';
@@ -185,40 +186,34 @@ class _PantallaVisorState extends State<PantallaVisor> {
         builder: (context, restricciones) {
           final amplio = restricciones.maxWidth >= 900;
           if (amplio) {
-            return Row(
-              children: [
-                SizedBox(
-                  width: _anchoPanelIzquierdo,
-                  child: _PanelLugar(
-                    espacio: espacio,
-                    seccion: _seccion,
-                    recientes: recientes,
-                    alCambiarSeccion: (seccion) =>
-                        setState(() => _seccion = seccion),
-                    alAbrirEspacio: _abrirEspacio,
-                    alLimpiarRecientes: recientesVm.limpiar,
-                    alObtenerApp: () => _mostrarDialogoApp(context),
-                    alVolver: () => _salir(context),
-                    alVerFicha: () => _verFicha(context, espacio.id),
-                  ),
-                ),
-                Expanded(
-                  child: _ZonaPanorama(
-                    espacio: espacio,
-                    motor: _motor,
-                    yaw: _yaw,
-                    pitch: _pitch,
-                    fov: _fov,
-                    ayudaVisible: _ayudaVisible,
-                    alIniciarGesto: _iniciarGesto,
-                    alGesto: _gesto,
-                    alRueda: _ruedaDelMouse,
-                    alAcercar: _acercar,
-                    alAlejar: _alejar,
-                    alVolver: () => _salir(context),
-                  ),
-                ),
-              ],
+            return PanelContraible(
+              ancho: _anchoPanelIzquierdo,
+              panel: _PanelLugar(
+                espacio: espacio,
+                seccion: _seccion,
+                recientes: recientes,
+                alCambiarSeccion: (seccion) =>
+                    setState(() => _seccion = seccion),
+                alAbrirEspacio: _abrirEspacio,
+                alLimpiarRecientes: recientesVm.limpiar,
+                alObtenerApp: () => _mostrarDialogoApp(context),
+                alVolver: () => _salir(context),
+                alVerFicha: () => _verFicha(context, espacio.id),
+              ),
+              contenido: _ZonaPanorama(
+                espacio: espacio,
+                motor: _motor,
+                yaw: _yaw,
+                pitch: _pitch,
+                fov: _fov,
+                ayudaVisible: _ayudaVisible,
+                alIniciarGesto: _iniciarGesto,
+                alGesto: _gesto,
+                alRueda: _ruedaDelMouse,
+                alAcercar: _acercar,
+                alAlejar: _alejar,
+                alVolver: () => _salir(context),
+              ),
             );
           }
           return _ZonaPanorama(
