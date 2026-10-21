@@ -4,8 +4,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:unipaz360/app/unipaz360_app.dart';
 import 'package:unipaz360/data/espacio_repository.dart';
 import 'package:unipaz360/domain/espacio.dart';
-import 'package:unipaz360/ui/dron/pantalla_dron.dart';
 import 'package:unipaz360/ui/espacios/espacios_viewmodel.dart';
+import 'package:unipaz360/ui/visor/pantalla_visor.dart';
 
 class _RepositorioPrueba implements EspacioRepository {
   _RepositorioPrueba(this.respuesta);
@@ -17,7 +17,7 @@ class _RepositorioPrueba implements EspacioRepository {
 }
 
 void main() {
-  testWidgets('con sesión, la aplicación inicia en el mapa del campus', (
+  testWidgets('con sesión, la aplicación inicia en el recorrido del campus', (
     tester,
   ) async {
     // Con una sesión ya guardada no aparece el ingreso.
@@ -29,14 +29,13 @@ void main() {
     await tester.pump(const Duration(seconds: 2));
     await tester.pump();
 
-    // La pantalla de inicio ya es el mapa del campus (en móvil, el panel de
-    // abajo; en escritorio, el panel de la izquierda).
-    expect(find.byType(PantallaDron), findsOneWidget);
-    expect(find.text('Estás aquí'), findsWidgets);
-    expect(find.text('Portería principal'), findsWidgets);
+    expect(find.byType(PantallaVisor), findsOneWidget);
+    expect(find.text('Vistas 360°'), findsOneWidget);
   });
 
-  testWidgets('desde el mapa se llega a la lista de espacios', (tester) async {
+  testWidgets('la ruta antigua de espacios vuelve al recorrido principal', (
+    tester,
+  ) async {
     SharedPreferences.setMockInitialValues({
       'unipaz360.sesion': '{"tipo":"invitado"}',
     });
@@ -45,11 +44,11 @@ void main() {
     await tester.pump(const Duration(seconds: 2));
     await tester.pump();
 
-    GoRouter.of(tester.element(find.byType(PantallaDron))).go('/espacios');
+    GoRouter.of(tester.element(find.byType(PantallaVisor))).go('/espacios');
     await tester.pumpAndSettle();
 
-    expect(find.text('Espacios del campus'), findsOneWidget);
-    expect(find.text('Aula 101'), findsOneWidget);
+    expect(find.byType(PantallaVisor), findsOneWidget);
+    expect(find.text('Vistas 360°'), findsOneWidget);
   });
 
   testWidgets('la primera vez pide entrar como invitado o con la cuenta', (
