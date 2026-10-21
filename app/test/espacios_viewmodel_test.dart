@@ -1,8 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:unipaz360/app/unipaz360_app.dart';
 import 'package:unipaz360/data/espacio_repository.dart';
 import 'package:unipaz360/domain/espacio.dart';
 import 'package:unipaz360/ui/espacios/espacios_viewmodel.dart';
+import 'package:unipaz360/ui/visor/pantalla_visor.dart';
 
 class _RepositorioPrueba implements EspacioRepository {
   _RepositorioPrueba(this.respuesta);
@@ -14,15 +17,51 @@ class _RepositorioPrueba implements EspacioRepository {
 }
 
 void main() {
-  testWidgets('la aplicación inicia y muestra espacios del campus', (
+  testWidgets('con sesión, la aplicación inicia en el recorrido del campus', (
     tester,
   ) async {
+    // Con una sesión ya guardada no aparece el ingreso.
+    SharedPreferences.setMockInitialValues({
+      'unipaz360.sesion': '{"tipo":"invitado"}',
+    });
+
     await tester.pumpWidget(const UniPaz360App());
     await tester.pump(const Duration(seconds: 2));
     await tester.pump();
 
-    expect(find.text('Espacios del campus'), findsOneWidget);
-    expect(find.text('Aula 101'), findsOneWidget);
+    expect(find.byType(PantallaVisor), findsOneWidget);
+    expect(find.text('Vistas 360°'), findsOneWidget);
+  });
+
+  testWidgets('la ruta antigua de espacios vuelve al recorrido principal', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({
+      'unipaz360.sesion': '{"tipo":"invitado"}',
+    });
+
+    await tester.pumpWidget(const UniPaz360App());
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pump();
+
+    GoRouter.of(tester.element(find.byType(PantallaVisor))).go('/espacios');
+    await tester.pumpAndSettle();
+
+    expect(find.byType(PantallaVisor), findsOneWidget);
+    expect(find.text('Vistas 360°'), findsOneWidget);
+  });
+
+  testWidgets('la primera vez pide entrar como invitado o con la cuenta', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+
+    await tester.pumpWidget(const UniPaz360App());
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pump();
+
+    expect(find.text('Continuar con Google'), findsOneWidget);
+    expect(find.text('Iniciar como invitado'), findsOneWidget);
   });
 
   group('EspaciosViewModel', () {

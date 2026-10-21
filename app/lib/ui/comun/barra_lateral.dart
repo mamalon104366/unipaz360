@@ -21,6 +21,7 @@ class BarraLateral extends StatelessWidget {
     required this.recientes,
     required this.alCambiarSeccion,
     required this.alAbrirEspacio,
+    this.alAbrirMenu,
     this.alObtenerApp,
     this.mostrarObtenerApp = kIsWeb,
     super.key,
@@ -39,6 +40,10 @@ class BarraLateral extends StatelessWidget {
 
   final ValueChanged<SeccionLateral> alCambiarSeccion;
   final ValueChanged<String> alAbrirEspacio;
+
+  /// Abre el menú de la cuenta: quién entró y cómo cambiar de sesión.
+  final VoidCallback? alAbrirMenu;
+
   final VoidCallback? alObtenerApp;
 
   /// "Obtener app" solo tiene sentido en la web: en escritorio y móvil el
@@ -59,7 +64,11 @@ class BarraLateral extends StatelessWidget {
         child: Column(
           children: [
             const SizedBox(height: 6),
-            const _BotonBarra(icono: Icons.menu, etiqueta: 'Menú'),
+            _BotonBarra(
+              icono: Icons.menu,
+              etiqueta: 'Menú',
+              alPresionar: alAbrirMenu,
+            ),
             _BotonBarra(
               icono: Icons.history,
               etiqueta: 'Recientes',

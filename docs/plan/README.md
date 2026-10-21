@@ -14,6 +14,7 @@
 | 5 | [Plataforma de administración](05-plataforma-admin.md) | Panel web: editor de mapas y grafos, subida de edificios/fotos, auditoría, respaldos y botón de publicar |
 | 6 | [Chatbot y horarios](06-chatbot-y-horarios.md) | Intenciones, motor de reglas offline, integración con horarios de salones |
 | 7 | [Hoja de ruta](07-hoja-de-ruta.md) | Fases, cruce con los sprints e Hitos del curso, riesgos, costos y decisiones abiertas |
+| 8 | [Análisis funcional de Google Maps y arquitectura cartográfica](08-analisis-funcional-y-arquitectura-cartografica.md) | Ingeniería inversa de funciones observables, equivalentes libres, arquitectura recomendada y brechas del repositorio actual |
 
 ## Principios que guían todo el plan
 
