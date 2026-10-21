@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/gestures.dart';
@@ -19,9 +20,14 @@ import '../recientes/recientes_viewmodel.dart';
 import '../sesion/dialogo_cuenta.dart';
 import '../sesion/ingreso_institucional.dart';
 import '../sesion/sesion_viewmodel.dart';
+import '../dron/dron_viewmodel.dart';
+import 'barra_tour.dart';
 import 'minimapa.dart';
+import 'minimapa_tour.dart';
 import 'motor_360.dart';
 import 'pintor_panorama.dart';
+import 'contenido_tour.dart';
+import 'seccion_tour.dart';
 
 const Color _azulGoogle = Color(0xFF1A73E8);
 const Color _grisClaro = Color(0xFFF1F3F4);
@@ -32,9 +38,16 @@ const double _anchoPanelIzquierdo = BarraLateral.ancho + 396;
 /// Recorrido 360° de un espacio, con la disposición de Google Street View:
 /// panorama a pantalla completa, panel del lugar, chip de dirección y minimapa.
 class PantallaVisor extends StatefulWidget {
-  const PantallaVisor({required this.espacioId, super.key});
+  const PantallaVisor({
+    required this.espacioId,
+    this.escenaPrincipal = false,
+    super.key,
+  });
 
   final String espacioId;
+
+  /// Abre la panorámica institucional con navegación y mapa superpuestos.
+  final bool escenaPrincipal;
 
   @override
   State<PantallaVisor> createState() => _PantallaVisorState();
@@ -51,6 +64,10 @@ class _PantallaVisorState extends State<PantallaVisor> {
   double _fovAlIniciar = Motor360.fovPorDefecto;
   bool _ayudaVisible = true;
   SeccionLateral _seccion = SeccionLateral.lugar;
+  bool _menuTourAbierto = true;
+  bool _mapaTourVisible = true;
+  SeccionTour _seccionTour = SeccionTour.recorrido;
+  SeccionAdmisiones _seccionAdmisiones = SeccionAdmisiones.pasos;
 
   @override
   void initState() {
@@ -65,7 +82,10 @@ class _PantallaVisorState extends State<PantallaVisor> {
 
   Future<void> _cargarFoto() async {
     try {
-      final datos = await rootBundle.load('assets/panoramas/muestra-360.jpg');
+      final archivo = widget.escenaPrincipal
+          ? 'assets/panoramas/panorama-campus.jpg'
+          : 'assets/panoramas/muestra-360.jpg';
+      final datos = await rootBundle.load(archivo);
       final codec = await ui.instantiateImageCodec(datos.buffer.asUint8List());
       final cuadro = await codec.getNextFrame();
       if (!mounted) return;
@@ -82,13 +102,18 @@ class _PantallaVisorState extends State<PantallaVisor> {
   /// Un solo gesto sirve para mirar alrededor (arrastrando) y para el zoom
   /// (pellizcando con dos dedos en el celular).
   void _gesto(ScaleUpdateDetails detalles) {
+    final limiteVertical = _motor?.latitudMaxima ?? _pitchMaximo;
     setState(() {
       _yaw += detalles.focalPointDelta.dx * _sensibilidad;
-      _pitch = (_pitch + detalles.focalPointDelta.dy * _sensibilidad)
-          .clamp(-_pitchMaximo, _pitchMaximo);
+      _pitch = (_pitch + detalles.focalPointDelta.dy * _sensibilidad).clamp(
+        -limiteVertical,
+        limiteVertical,
+      );
       if (detalles.scale != 1) {
-        _fov = (_fovAlIniciar / detalles.scale)
-            .clamp(Motor360.fovMinimo, Motor360.fovMaximo);
+        _fov = (_fovAlIniciar / detalles.scale).clamp(
+          Motor360.fovMinimo,
+          Motor360.fovMaximo,
+        );
       }
       _ayudaVisible = false;
     });
@@ -189,15 +214,14 @@ class _PantallaVisorState extends State<PantallaVisor> {
   Widget build(BuildContext context) {
     final viewModel = context.watch<EspaciosViewModel>();
     final recientesVm = context.watch<RecientesViewModel>();
+    final dronVm = context.watch<DronViewModel>();
     final espacio = viewModel.obtenerPorId(widget.espacioId);
 
     final recientes = <RecienteResuelto>[];
     for (final vista in recientesVm.vistas) {
       final visto = viewModel.obtenerPorId(vista.espacioId);
       if (visto != null) {
-        recientes.add(
-          RecienteResuelto(espacio: visto, visto: vista.visto),
-        );
+        recientes.add(RecienteResuelto(espacio: visto, visto: vista.visto));
       }
     }
 
@@ -216,7 +240,76 @@ class _PantallaVisorState extends State<PantallaVisor> {
       backgroundColor: Colors.black,
       body: LayoutBuilder(
         builder: (context, restricciones) {
-          final amplio = restricciones.maxWidth >= 900;
+          final movil = MediaQuery.sizeOf(context).shortestSide < 600;
+          final amplio = restricciones.maxWidth >= 900 && !movil;
+          if (widget.escenaPrincipal) {
+            return _ZonaPanorama(
+              espacio: espacio,
+              motor: _motor,
+              yaw: _yaw,
+              pitch: _pitch,
+              fov: _fov,
+              ayudaVisible: _ayudaVisible,
+              modoTour: true,
+              barraTour: BarraTour(
+                abierta: _menuTourAbierto,
+                escritorio: amplio,
+                alternar: () =>
+                    setState(() => _menuTourAbierto = !_menuTourAbierto),
+                seleccionada: _seccionTour,
+                admisionesSeleccionada: _seccionAdmisiones,
+                alSeleccionarAdmisiones: (subseccion) => setState(() {
+                  _seccionTour = SeccionTour.admisiones;
+                  _seccionAdmisiones = subseccion;
+                  _menuTourAbierto = true;
+                }),
+                alSeleccionar: (seccion) => setState(() {
+                  if (seccion == SeccionTour.admisiones &&
+                      _seccionTour != SeccionTour.admisiones) {
+                    _seccionAdmisiones = SeccionAdmisiones.pasos;
+                  }
+                  _seccionTour = seccion;
+                  _menuTourAbierto = true;
+                }),
+              ),
+              contenidoTour: _seccionTour == SeccionTour.recorrido
+                  ? null
+                  : ContenidoTour(
+                      seccion: _seccionTour,
+                      menuAbierto: _menuTourAbierto,
+                      escritorio: amplio,
+                      subseccionAdmisiones: _seccionAdmisiones,
+                      alCerrar: () => setState(() {
+                        _seccionTour = SeccionTour.recorrido;
+                        _menuTourAbierto = true;
+                      }),
+                    ),
+              minimapaTour: _mapaTourVisible
+                  ? MiniMapaTour(
+                      mapa: dronVm.mapa,
+                      espacioId: espacio.id,
+                      yaw: _yaw,
+                      fovVertical: _fov,
+                      aspectoVista:
+                          restricciones.maxWidth /
+                          math.max(1, restricciones.maxHeight),
+                      alCerrar: () => setState(() => _mapaTourVisible = false),
+                    )
+                  : _BotonMapaTour(
+                      alPresionar: () =>
+                          setState(() => _mapaTourVisible = true),
+                    ),
+              alAlternarMenu: () =>
+                  setState(() => _menuTourAbierto = !_menuTourAbierto),
+              alInicio: () => context.go('/'),
+              alIniciarGesto: _iniciarGesto,
+              alGesto: _gesto,
+              alRueda: _ruedaDelMouse,
+              alAcercar: _acercar,
+              alAlejar: _alejar,
+              alVolver: () => _salir(context),
+            );
+          }
           if (amplio) {
             return PanelContraible(
               ancho: _anchoPanelIzquierdo,
@@ -291,6 +384,12 @@ class _ZonaPanorama extends StatelessWidget {
     required this.alAcercar,
     required this.alAlejar,
     required this.alVolver,
+    this.modoTour = false,
+    this.barraTour,
+    this.contenidoTour,
+    this.minimapaTour,
+    this.alAlternarMenu,
+    this.alInicio,
     this.panelInferior,
   });
 
@@ -306,6 +405,12 @@ class _ZonaPanorama extends StatelessWidget {
   final VoidCallback alAcercar;
   final VoidCallback alAlejar;
   final VoidCallback alVolver;
+  final bool modoTour;
+  final Widget? barraTour;
+  final Widget? contenidoTour;
+  final Widget? minimapaTour;
+  final VoidCallback? alAlternarMenu;
+  final VoidCallback? alInicio;
   final Widget? panelInferior;
 
   @override
@@ -327,56 +432,150 @@ class _ZonaPanorama extends StatelessWidget {
                         desplazamiento: yaw * 200,
                         nombreBloque: espacio.bloque,
                       )
-                    : Pintor360(
-                        motor: mot,
-                        yaw: yaw,
-                        pitch: pitch,
-                        fov: fov,
-                      ),
+                    : Pintor360(motor: mot, yaw: yaw, pitch: pitch, fov: fov),
               ),
             ),
           ),
         ),
-        if (ayudaVisible) const Center(child: _PistaGiro()),
+        if (!modoTour && ayudaVisible) const Center(child: _PistaGiro()),
+        if (!modoTour)
+          Positioned(
+            top: 16,
+            left: 0,
+            right: 0,
+            child: Center(child: _ChipDireccion(espacio: espacio)),
+          ),
+        if (modoTour)
+          Positioned(
+            top: 12,
+            right: 12,
+            child: _BotonRedondo(
+              icono: Icons.menu,
+              etiqueta: 'Abrir navegación',
+              alPresionar: alAlternarMenu,
+            ),
+          )
+        else
+          Positioned(
+            top: 12,
+            right: 12,
+            child: Row(
+              children: [
+                const _BotonRedondo(
+                  icono: Icons.share_outlined,
+                  etiqueta: 'Compartir',
+                ),
+                const SizedBox(width: 8),
+                _BotonRedondo(
+                  icono: Icons.close,
+                  etiqueta: 'Salir del recorrido',
+                  alPresionar: alVolver,
+                ),
+              ],
+            ),
+          ),
+        if (!modoTour)
+          const Positioned(
+            top: 74,
+            right: 16,
+            child: _BotonRedondo(
+              icono: Icons.explore_outlined,
+              etiqueta: 'Brújula',
+            ),
+          ),
         Positioned(
-          top: 16,
-          left: 0,
-          right: 0,
-          child: Center(child: _ChipDireccion(espacio: espacio)),
-        ),
-        Positioned(
-          top: 12,
-          right: 12,
-          child: Row(
-            children: [
-              const _BotonRedondo(
-                icono: Icons.share_outlined,
-                etiqueta: 'Compartir',
-              ),
-              const SizedBox(width: 8),
-              _BotonRedondo(
-                icono: Icons.close,
-                etiqueta: 'Salir del recorrido',
-                alPresionar: alVolver,
-              ),
-            ],
+          top: modoTour ? 64 : null,
+          bottom: modoTour ? null : 24,
+          right: 16,
+          child: _ControlesZoom(
+            alAcercar: alAcercar,
+            alAlejar: alAlejar,
+            mostrarPegman: !modoTour,
           ),
         ),
-        const Positioned(
-          top: 74,
-          right: 16,
-          child: _BotonRedondo(icono: Icons.explore_outlined, etiqueta: 'Brújula'),
-        ),
-        Positioned(
-          bottom: 24,
-          right: 16,
-          child: _ControlesZoom(alAcercar: alAcercar, alAlejar: alAlejar),
-        ),
-        if (panelInferior == null)
+        if (modoTour) ...[
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 18,
+            child: Center(child: _BotonInicio(alPresionar: alInicio)),
+          ),
+          Positioned(
+            right: 14,
+            bottom: 14,
+            child: minimapaTour ?? const SizedBox.shrink(),
+          ),
+          ?contenidoTour,
+          if (barraTour != null) Positioned.fill(child: barraTour!),
+        ] else if (panelInferior == null)
           const Positioned(left: 16, bottom: 16, child: MiniMapa())
         else
           Positioned(left: 0, right: 0, bottom: 0, child: panelInferior!),
       ],
+    );
+  }
+}
+
+class _BotonInicio extends StatelessWidget {
+  const _BotonInicio({required this.alPresionar});
+
+  final VoidCallback? alPresionar;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: const Color(0xD9283544),
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: alPresionar,
+        child: const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 21, vertical: 12),
+          child: Text(
+            'Inicio',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BotonMapaTour extends StatelessWidget {
+  const _BotonMapaTour({required this.alPresionar});
+
+  final VoidCallback alPresionar;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: const Color(0xD923302A),
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: alPresionar,
+        child: const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 15, vertical: 11),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.map_outlined, color: Colors.white, size: 18),
+              SizedBox(width: 7),
+              Text(
+                'Mapa',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -463,10 +662,15 @@ class _ChipDireccion extends StatelessWidget {
 }
 
 class _ControlesZoom extends StatelessWidget {
-  const _ControlesZoom({required this.alAcercar, required this.alAlejar});
+  const _ControlesZoom({
+    required this.alAcercar,
+    required this.alAlejar,
+    this.mostrarPegman = true,
+  });
 
   final VoidCallback alAcercar;
   final VoidCallback alAlejar;
+  final bool mostrarPegman;
 
   @override
   Widget build(BuildContext context) {
@@ -489,11 +693,13 @@ class _ControlesZoom extends StatelessWidget {
             etiqueta: 'Alejar',
             alPresionar: alAlejar,
           ),
-          const Divider(height: 1),
-          const _BotonIcono(
-            icono: Icons.accessibility_new,
-            etiqueta: 'Pegman',
-          ),
+          if (mostrarPegman) ...[
+            const Divider(height: 1),
+            const _BotonIcono(
+              icono: Icons.accessibility_new,
+              etiqueta: 'Pegman',
+            ),
+          ],
         ],
       ),
     );
@@ -528,7 +734,11 @@ class _BotonIcono extends StatelessWidget {
 }
 
 class _BotonRedondo extends StatelessWidget {
-  const _BotonRedondo({required this.icono, required this.etiqueta, this.alPresionar});
+  const _BotonRedondo({
+    required this.icono,
+    required this.etiqueta,
+    this.alPresionar,
+  });
 
   final IconData icono;
   final String etiqueta;
@@ -718,7 +928,10 @@ class _InfoLugar extends StatelessWidget {
                 children: [
                   Text(
                     espacio.categoria,
-                    style: TextStyle(color: tema.colorScheme.primary, fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                      color: tema.colorScheme.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   const Text(' · Campus'),
                 ],
@@ -897,7 +1110,10 @@ class _DatoFila extends StatelessWidget {
             ),
           ),
           Expanded(
-            child: Text(valor, style: const TextStyle(fontWeight: FontWeight.w500)),
+            child: Text(
+              valor,
+              style: const TextStyle(fontWeight: FontWeight.w500),
+            ),
           ),
         ],
       ),
@@ -946,14 +1162,26 @@ class _PanelInferior extends StatelessWidget {
                       espacio.nombre,
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
-                    Text('${espacio.codigo} · ${espacio.bloque} · ${espacio.nivel}'),
+                    Text(
+                      '${espacio.codigo} · ${espacio.bloque} · ${espacio.nivel}',
+                    ),
                     const SizedBox(height: 12),
                     const Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        _AccionRedonda(icono: Icons.directions, etiqueta: 'Indicaciones', primario: true),
-                        _AccionRedonda(icono: Icons.schedule, etiqueta: 'Horarios'),
-                        _AccionRedonda(icono: Icons.share_outlined, etiqueta: 'Compartir'),
+                        _AccionRedonda(
+                          icono: Icons.directions,
+                          etiqueta: 'Indicaciones',
+                          primario: true,
+                        ),
+                        _AccionRedonda(
+                          icono: Icons.schedule,
+                          etiqueta: 'Horarios',
+                        ),
+                        _AccionRedonda(
+                          icono: Icons.share_outlined,
+                          etiqueta: 'Compartir',
+                        ),
                       ],
                     ),
                     const SizedBox(height: 12),
@@ -985,9 +1213,7 @@ class _MiniMapaInline extends StatelessWidget {
       children: [
         MiniMapa(),
         SizedBox(width: 12),
-        Expanded(
-          child: Text('Toca el minimapa para ver el plano del campus.'),
-        ),
+        Expanded(child: Text('Toca el minimapa para ver el plano del campus.')),
       ],
     );
   }

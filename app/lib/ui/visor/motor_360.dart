@@ -6,10 +6,10 @@ import 'package:material_ui/material_ui.dart';
 
 /// Motor de proyección 360°.
 ///
-/// Toma una **foto equirectangular** (2:1) y la pega sobre una esfera; al girar
-/// la vista se recalcula la posición de cada vértice de la malla y se proyecta
-/// en perspectiva, igual que en Google Street View. No usa dependencias: se
-/// apoya en `Canvas.drawVertices` con la foto como textura.
+/// Proyecta una foto panorámica sobre una esfera. La cobertura vertical se
+/// calcula desde la proporción de la imagen para no deformar fotos anchas; al
+/// girar la vista, la malla se vuelve a proyectar en perspectiva. No usa
+/// dependencias: se apoya en `Canvas.drawVertices` con la foto como textura.
 class Motor360 {
   Motor360(this.imagen) {
     _construirEsfera();
@@ -28,28 +28,45 @@ class Motor360 {
 
   late final int columnas;
   late final int filas;
+  late final double latitudMaxima;
   late final Float32List _direcciones; // x, y, z por vértice
   late final Float32List _uv; // u, v en píxeles de la foto, por vértice
 
   static final Float64List _identidad = Float64List.fromList(<double>[
-    1, 0, 0, 0,
-    0, 1, 0, 0,
-    0, 0, 1, 0,
-    0, 0, 0, 1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    1,
+    0,
+    0,
+    0,
+    0,
+    1,
+    0,
+    0,
+    0,
+    0,
+    1,
   ]);
 
   void _construirEsfera() {
     columnas = (2 * math.pi / _paso).round() + 1; // de -180° a +180°
-    filas = (math.pi / _paso).round() + 1; // de +90° a -90°
+    final anchoFoto = imagen.width.toDouble();
+    final altoFoto = imagen.height.toDouble();
+    // Las fotos panorámicas no siempre son equirectangulares 2:1. Calculamos
+    // su cobertura vertical desde la relación de aspecto para conservar la
+    // proporción de una panorámica ancha, sin estirarla hasta los polos.
+    latitudMaxima = math.min(math.pi / 2, (altoFoto / anchoFoto) * math.pi);
+    filas = (2 * latitudMaxima / _paso).ceil() + 1;
+    final pasoLatitud = (2 * latitudMaxima) / (filas - 1);
     _direcciones = Float32List(columnas * filas * 3);
     _uv = Float32List(columnas * filas * 2);
 
-    final anchoFoto = imagen.width.toDouble();
-    final altoFoto = imagen.height.toDouble();
-
     var v = 0;
     for (var r = 0; r < filas; r++) {
-      final lat = math.pi / 2 - r * _paso;
+      final lat = latitudMaxima - r * pasoLatitud;
       final cosLat = math.cos(lat);
       final sinLat = math.sin(lat);
       for (var c = 0; c < columnas; c++) {
@@ -115,7 +132,10 @@ class Motor360 {
         final b = a + 1;
         final d = a + columnas;
         final e = d + 1;
-        if (delante[a] == 1 && delante[b] == 1 && delante[d] == 1 && delante[e] == 1) {
+        if (delante[a] == 1 &&
+            delante[b] == 1 &&
+            delante[d] == 1 &&
+            delante[e] == 1) {
           indices
             ..add(a)
             ..add(b)

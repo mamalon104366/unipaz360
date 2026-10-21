@@ -46,4 +46,17 @@ class DronViewModel extends ChangeNotifier {
     }
     notifyListeners();
   }
+
+  /// Guarda los marcadores del mapa en la fuente editable configurada.
+  Future<void> guardarPuntos(List<PuntoMapa> puntos) async {
+    final repositorio = _repositorio;
+    if (repositorio is! MapaDronEditableRepository) {
+      throw StateError('La fuente del mapa no permite editar puntos.');
+    }
+    await (repositorio as MapaDronEditableRepository).guardarPuntos(puntos);
+    final mapa = _mapa;
+    if (mapa == null) return;
+    _mapa = mapa.conPuntos(puntos);
+    notifyListeners();
+  }
 }

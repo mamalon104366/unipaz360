@@ -1,3 +1,7 @@
+import 'dart:convert';
+
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../domain/mapa_dron.dart';
 
 /// De dónde salen la foto del dron y sus puntos.
@@ -5,11 +9,69 @@ abstract interface class MapaDronRepository {
   Future<MapaDron> cargar();
 }
 
+/// Extensión opcional para fuentes de mapa que permiten administrar puntos.
+abstract interface class MapaDronEditableRepository {
+  Future<void> guardarPuntos(List<PuntoMapa> puntos);
+}
+
+/// Conserva la foto de una fuente y guarda los puntos editados en el equipo.
+///
+/// Es adecuado para preparar el mapa sin publicar coordenadas preliminares
+/// en la base de datos compartida ni en el almacenamiento de imágenes.
+class MapaDronEnDispositivo
+    implements MapaDronRepository, MapaDronEditableRepository {
+  MapaDronEnDispositivo(this._base);
+
+  static const String _clave = 'unipaz360.mapaDron.puntos';
+
+  final MapaDronRepository _base;
+
+  @override
+  Future<MapaDron> cargar() async {
+    final mapa = await _base.cargar();
+    final preferencias = await SharedPreferences.getInstance();
+    final texto = preferencias.getString(_clave);
+    if (texto == null || texto.isEmpty) return mapa;
+
+    try {
+      final filas = jsonDecode(texto) as List<Object?>;
+      final puntos = filas
+          .map(
+            (fila) =>
+                PuntoMapa.desdeJson((fila! as Map).cast<String, Object?>()),
+          )
+          .toList(growable: false);
+      if (puntos.isEmpty) return mapa;
+      return mapa.conPuntos(puntos);
+    } on FormatException {
+      return mapa;
+    } on TypeError {
+      return mapa;
+    } on NoSuchMethodError {
+      return mapa;
+    }
+  }
+
+  @override
+  Future<void> guardarPuntos(List<PuntoMapa> puntos) async {
+    final preferencias = await SharedPreferences.getInstance();
+    final guardado = await preferencias.setString(
+      _clave,
+      jsonEncode(puntos.map((punto) => punto.aJson()).toList()),
+    );
+    if (!guardado) {
+      throw StateError(
+        'No se pudieron guardar los puntos en este dispositivo.',
+      );
+    }
+  }
+}
+
 /// Versión de ejemplo, mientras llega el paquete con la foto del campus.
 ///
 /// Las posiciones (`x`, `y`) son aproximadas: se sacaron mirando la foto y se
-/// ajustan desde el panel de administración cuando el cliente marque los
-/// puntos reales.
+/// pueden corregir con el editor local del mapa. La administración central
+/// llegará después, cuando el panel de edición esté conectado.
 class MapaDronSimulado implements MapaDronRepository {
   const MapaDronSimulado();
 
@@ -109,8 +171,9 @@ class MapaDronSimulado implements MapaDronRepository {
         id: 'p-porteria',
         nombre: 'Portería principal',
         tipo: TipoPunto.acceso,
-        x: 0.615,
-        y: 0.905,
+        // La entrada visible en la foto está junto a la glorieta del acceso sur.
+        x: 0.515,
+        y: 0.805,
         zona: 'Entrada principal',
         descripcion:
             'Entrada desde la vía nacional. Aquí se recibe a los visitantes.',

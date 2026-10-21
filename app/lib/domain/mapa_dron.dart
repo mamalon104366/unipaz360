@@ -23,12 +23,9 @@ enum TipoPunto {
 
   /// Explicación de la leyenda: qué significa ese punto en el mapa.
   String get explicacion => switch (this) {
-    TipoPunto.aulas =>
-      'Salones y bloques donde está la actividad académica.',
-    TipoPunto.investigacion =>
-      'Laboratorios y centros donde se investiga.',
-    TipoPunto.servicios =>
-      'Cafetería, bienestar, baños y otros servicios.',
+    TipoPunto.aulas => 'Salones y bloques donde está la actividad académica.',
+    TipoPunto.investigacion => 'Laboratorios y centros donde se investiga.',
+    TipoPunto.servicios => 'Cafetería, bienestar, baños y otros servicios.',
     TipoPunto.deportes => 'Canchas y zonas para hacer deporte.',
     TipoPunto.salud => 'Puntos de atención en salud (hospital MVZ).',
     TipoPunto.parqueadero => 'Dónde dejar el vehículo o la bicicleta.',
@@ -68,6 +65,36 @@ class PuntoMapa {
   /// Espacio con recorrido 360° que corresponde a este punto, si lo tiene.
   final String? espacioId;
 
+  Map<String, Object?> aJson() => <String, Object?>{
+    'id': id,
+    'nombre': nombre,
+    'tipo': tipo.name,
+    'x': x,
+    'y': y,
+    'zona': zona,
+    'descripcion': descripcion,
+    'espacioId': espacioId,
+  };
+
+  static PuntoMapa desdeJson(Map<String, Object?> json) {
+    final tipoGuardado = json['tipo'];
+    final tipo = TipoPunto.values.firstWhere(
+      (opcion) => opcion.name == tipoGuardado,
+      orElse: () => TipoPunto.servicios,
+    );
+
+    return PuntoMapa(
+      id: json['id']! as String,
+      nombre: json['nombre']! as String,
+      tipo: tipo,
+      x: (json['x']! as num).toDouble(),
+      y: (json['y']! as num).toDouble(),
+      zona: json['zona'] as String? ?? '',
+      descripcion: json['descripcion'] as String? ?? '',
+      espacioId: json['espacioId'] as String?,
+    );
+  }
+
   /// ¿Este punto tiene un recorrido 360° al que se pueda entrar?
   bool get tieneRecorrido => espacioId != null;
 }
@@ -91,6 +118,13 @@ class MapaDron {
   final String descripcion;
 
   final List<PuntoMapa> puntos;
+
+  MapaDron conPuntos(List<PuntoMapa> nuevosPuntos) => MapaDron(
+    imagen: imagen,
+    titulo: titulo,
+    descripcion: descripcion,
+    puntos: List<PuntoMapa>.unmodifiable(nuevosPuntos),
+  );
 
   /// Tipos de punto que aparecen en el mapa, sin repetir y en orden.
   List<TipoPunto> get tiposPresentes {

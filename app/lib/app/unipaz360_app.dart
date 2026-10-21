@@ -9,11 +9,8 @@ import '../data/mapa_dron_repositorio.dart';
 import '../data/recientes_repositorio.dart';
 import '../data/repositorio_simulado.dart';
 import '../data/sesion_repositorio.dart';
-import '../ui/detalle/pantalla_detalle.dart';
 import '../ui/dron/dron_viewmodel.dart';
-import '../ui/dron/pantalla_dron.dart';
 import '../ui/espacios/espacios_viewmodel.dart';
-import '../ui/espacios/pantalla_espacios.dart';
 import '../ui/recientes/recientes_viewmodel.dart';
 import '../ui/sesion/pantalla_ingreso.dart';
 import '../ui/sesion/sesion_viewmodel.dart';
@@ -28,7 +25,7 @@ class UniPaz360App extends StatelessWidget {
     return Provider<EspacioRepository>(
       create: (_) => RepositorioSimulado(),
       child: Provider<MapaDronRepository>(
-        create: (_) => const MapaDronSimulado(),
+        create: (_) => MapaDronEnDispositivo(const MapaDronSimulado()),
         child: Provider<RecientesRepository>(
           create: (_) => RecientesEnDispositivo(),
           child: Provider<SesionRepository>(
@@ -78,27 +75,16 @@ class _RaizUniPazState extends State<_RaizUniPaz> {
         path: '/ingreso',
         builder: (context, state) => const PantallaIngreso(),
       ),
-      GoRoute(path: '/', builder: (context, state) => const PantallaDron()),
       GoRoute(
-        path: '/espacios',
-        builder: (context, state) => const PantallaEspacios(),
+        path: '/',
+        builder: (context, state) =>
+            const PantallaVisor(espacioId: 'b1-101', escenaPrincipal: true),
       ),
-      GoRoute(
-        path: '/espacios/:id',
-        builder: (context, state) => PantallaDetalle(
-          key: ValueKey(state.pathParameters['id']),
-          espacioId: state.pathParameters['id']!,
-        ),
-      ),
-      GoRoute(
-        path: '/espacios/:id/360',
-        builder: (context, state) => PantallaVisor(
-          // La clave obliga a crear la pantalla de cero al cambiar de espacio:
-          // sin ella Flutter reutiliza el estado y no se registra la visita.
-          key: ValueKey(state.pathParameters['id']),
-          espacioId: state.pathParameters['id']!,
-        ),
-      ),
+      // Las rutas antiguas vuelven a la experiencia única del tour.
+      GoRoute(path: '/mapa', redirect: (context, state) => '/'),
+      GoRoute(path: '/espacios', redirect: (context, state) => '/'),
+      GoRoute(path: '/espacios/:id', redirect: (context, state) => '/'),
+      GoRoute(path: '/espacios/:id/360', redirect: (context, state) => '/'),
     ],
   );
 
