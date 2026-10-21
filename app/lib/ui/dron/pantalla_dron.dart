@@ -307,7 +307,7 @@ class _PantallaDronState extends State<PantallaDron> {
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<TipoPunto>(
-                      value: tipo,
+                      initialValue: tipo,
                       decoration: const InputDecoration(labelText: 'Categoría'),
                       items: [
                         for (final opcion in TipoPunto.values)
@@ -426,7 +426,7 @@ class _PantallaDronState extends State<PantallaDron> {
           ],
         ),
       );
-      if (confirmar != true) return;
+      if (!mounted || confirmar != true) return;
       puntos.removeWhere((punto) => punto.id == existente!.id);
     } else if (existente == null && posicion != null) {
       puntos.add(
