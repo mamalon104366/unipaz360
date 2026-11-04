@@ -9,6 +9,12 @@ import {
   ChevronDown,
   CircleDashed,
   History,
+  Image,
+  Map as MapIcon,
+  Palette,
+  PanelLeft,
+  PanelTop,
+  Play,
   LayoutDashboard,
   LogOut,
   Orbit,
@@ -23,6 +29,10 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { ETIQUETA_ROL, type Resumen, type Usuario } from '@/lib/tipos';
+import { CAPAS, type Capa } from '@/lib/configApp';
+import { areaDe } from './areas';
+
+const ICONO_CAPA: Record<Capa, LucideIcon> = { marca: Palette, encabezado: PanelTop, barra: PanelLeft, minimapa: MapIcon, inicio: Play };
 
 interface Item {
   href: string;
@@ -49,32 +59,68 @@ export function BarraLateral({
   const r = use(resumen);
   const u = use(usuario);
 
-  const campus: Item[] = [
-    { href: '/', icono: LayoutDashboard, nombre: 'Inicio' },
-    { href: '/mapa', icono: Route, nombre: 'Mapa y rutas', cuenta: r?.vertices },
-    { href: '/panoramicas', icono: Orbit, nombre: 'Panorámicas 360°', cuenta: r?.panoramicas },
-    { href: '/espacios', icono: Building2, nombre: 'Espacios', cuenta: r?.espacios },
-    { href: '/anclajes', icono: QrCode, nombre: 'Anclajes QR', cuenta: r?.anclajes },
-  ];
-  const estado: Item[] = [
+  const area = areaDe(ruta);
+  const estadoGrafo: Item[] = [
     { href: '/mapa?ver=por-verificar', icono: CircleDashed, nombre: 'Tramos por verificar', cuenta: r?.porVerificar, tono: 'alerta' },
     { href: '/mapa?ver=aislados', icono: Unlink, nombre: 'Nodos aislados', cuenta: r?.aislados, tono: 'alerta' },
     { href: '/mapa?ver=accesibles', icono: Accessibility, nombre: 'Tramos accesibles', cuenta: r?.accesibles, tono: 'acento' },
   ];
-  const publicacion: Item[] = [
-    { href: '/publicar', icono: Send, nombre: 'Publicar versión', cuenta: r?.cambiosPendientes, tono: 'info' },
-    { href: '/publicar/historial', icono: History, nombre: 'Historial' },
-  ];
-  const administracion: Item[] =
-    u?.rol === 'superadmin'
+  const grupos: { titulo: string; items: Item[] }[] =
+    area.id === 'inicio'
       ? [
-          { href: '/ajustes', icono: Users, nombre: 'Cuentas y roles' },
-          { href: '/ajustes/auditoria', icono: ScrollText, nombre: 'Auditoría' },
+          { titulo: 'Resumen', items: [{ href: '/', icono: LayoutDashboard, nombre: 'Estado del campus' }] },
+          { titulo: 'Estado del grafo', items: estadoGrafo },
+          { titulo: 'Pendiente', items: [{ href: '/publicar', icono: Send, nombre: 'Cambios sin publicar', cuenta: r?.cambiosPendientes, tono: 'info' }] },
         ]
-      : [];
+      : area.id === 'campus'
+        ? [
+            {
+              titulo: 'Campus',
+              items: [
+                { href: '/mapa', icono: Route, nombre: 'Mapa y rutas', cuenta: r?.vertices },
+                { href: '/espacios', icono: Building2, nombre: 'Espacios', cuenta: r?.espacios },
+                { href: '/anclajes', icono: QrCode, nombre: 'Anclajes QR', cuenta: r?.anclajes },
+              ],
+            },
+            { titulo: 'Estado del grafo', items: estadoGrafo },
+          ]
+        : area.id === 'tour'
+          ? [
+              { titulo: 'Recorrido', items: [{ href: '/panoramicas', icono: Orbit, nombre: 'Todas las panorámicas', cuenta: r?.panoramicas }] },
+              {
+                titulo: 'Panorámicas',
+                items: (r?.listaPanoramicas ?? []).map((p) => ({ href: `/panoramicas/${p.id}`, icono: Image, nombre: p.titulo, cuenta: p.puntos })),
+              },
+            ]
+          : area.id === 'cliente'
+            ? [{ titulo: 'Capas de la app', items: CAPAS.map((c) => ({ href: `/cliente?capa=${c.id}`, icono: ICONO_CAPA[c.id], nombre: c.nombre })) }]
+            : area.id === 'publicacion'
+              ? [
+                  {
+                    titulo: 'Publicación',
+                    items: [
+                      { href: '/publicar', icono: Send, nombre: 'Publicar versión', cuenta: r?.cambiosPendientes, tono: 'info' },
+                      { href: '/publicar/historial', icono: History, nombre: 'Historial' },
+                    ],
+                  },
+                ]
+              : [
+                  {
+                    titulo: 'Ajustes',
+                    items: [
+                      { href: '/cuenta', icono: UserRound, nombre: 'Mi cuenta' },
+                      ...(u?.rol === 'superadmin'
+                        ? [
+                            { href: '/ajustes', icono: Users, nombre: 'Cuentas y roles' },
+                            { href: '/ajustes/auditoria', icono: ScrollText, nombre: 'Auditoría' },
+                          ]
+                        : []),
+                    ],
+                  },
+                ];
 
   const esActivo = (href: string) =>
-    href.includes('?') ? actual === href : href === '/' ? ruta === '/' : ruta === href && !params.get('ver');
+    href.startsWith('/cliente?') ? actual === href || (ruta === '/cliente' && !params.get('capa') && href.endsWith('=marca')) : href.includes('?') ? actual === href : href === '/' ? ruta === '/' : ruta === href && !params.get('ver');
 
   return (
     <aside
@@ -102,17 +148,14 @@ export function BarraLateral({
         <Perfil usuario={u} />
 
         <nav className="mt-1 flex-1 overflow-y-auto pr-1">
-          <Seccion titulo="Campus" items={campus} esActivo={esActivo} />
-          <Separador />
-          <Seccion titulo="Estado del grafo" items={estado} esActivo={esActivo} />
-          <Separador />
-          <Seccion titulo="Publicación" items={publicacion} esActivo={esActivo} />
-          {administracion.length > 0 && (
-            <>
-              <Separador />
-              <Seccion titulo="Administración" items={administracion} esActivo={esActivo} />
-            </>
-          )}
+          <div className="px-3 pt-4 text-[22px] font-medium tracking-tight">{area.nombre}</div>
+          {grupos.map((g, i) => (
+            <div key={g.titulo}>
+              {i > 0 && <Separador />}
+              <Seccion titulo={g.titulo} items={g.items} esActivo={esActivo} />
+              {g.items.length === 0 && <p className="px-3 text-[13px] text-tinta-tenue">Aún no hay elementos.</p>}
+            </div>
+          ))}
         </nav>
 
         <div className="hundido mt-3 rounded-2xl p-4">

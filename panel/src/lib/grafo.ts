@@ -62,7 +62,12 @@ export async function ultimaPublicacion(): Promise<string | null> {
 export async function leerResumen(): Promise<Resumen> {
   const g = await leerGrafo();
   const [pan, esp, anc, ultima] = await Promise.all([
-    pool.query('SELECT count(*)::int AS n FROM panoramica WHERE campus_id = $1', [CAMPUS_ID]),
+    pool.query<{ id: string; titulo: string; puntos: number }>(
+      `SELECT p.id, coalesce(p.titulo, v.descripcion, p.vertice_id) AS titulo,
+              (SELECT count(*)::int FROM punto_informacion h WHERE h.panoramica_id = p.id) AS puntos
+         FROM panoramica p JOIN vertice v ON v.id = p.vertice_id WHERE p.campus_id = $1 ORDER BY p.id`,
+      [CAMPUS_ID],
+    ),
     pool.query('SELECT count(*)::int AS n FROM espacio WHERE campus_id = $1', [CAMPUS_ID]),
     pool.query('SELECT count(*)::int AS n FROM anclaje WHERE campus_id = $1 AND retirado_en IS NULL', [CAMPUS_ID]),
     ultimaPublicacion(),
@@ -74,13 +79,14 @@ export async function leerResumen(): Promise<Resumen> {
     tramos: g.tramos.length,
     accesibles: g.tramos.filter((t) => t.accesible).length,
     porVerificar: g.tramos.filter((t) => !t.verificado).length,
-    panoramicas: pan.rows[0].n,
+    panoramicas: pan.rows.length,
     espacios: esp.rows[0].n,
     anclajes: anc.rows[0].n,
     componentes: grupos.length,
     aislados: grupos.slice(1).flat().length,
     ultimaPublicacion: ultima,
     cambiosPendientes: cambios.reduce((s, c) => s + c.n, 0),
+    listaPanoramicas: pan.rows,
   };
 }
 

@@ -2,7 +2,6 @@ import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { sesionPagina } from '@/lib/pagina';
 import { Cargando, Pagina } from '@/components/ui/Pagina';
-import { FormCuenta } from '@/components/ajustes/FormCuenta';
 import { DESCRIPCION_ROL, ETIQUETA_ROL } from '@/lib/tipos';
 
 export const metadata: Metadata = { title: 'Mi cuenta' };
@@ -16,14 +15,9 @@ export default function Cuenta({ searchParams }: PageProps<'/cuenta'>) {
 }
 
 async function Contenido({ searchParams }: Pick<PageProps<'/cuenta'>, 'searchParams'>) {
-  const [{ usuario }, { cambiar }] = await Promise.all([sesionPagina(), searchParams]);
+  const [{ usuario }] = await Promise.all([sesionPagina(), searchParams]);
   return (
     <Pagina titulo="Mi cuenta" subtitulo="Tus datos de acceso al panel." ancho="max-w-[880px]">
-      {(usuario.debe_cambiar_clave || cambiar) && (
-        <div className="mb-6 rounded-2xl bg-alerta-suave px-5 py-4 text-[14px] text-alerta">
-          Estás usando una contraseña temporal. Cámbiala por una propia antes de continuar.
-        </div>
-      )}
       <div className="grid gap-5 md:grid-cols-[1fr_1.2fr]">
         <section className="relieve rounded-[24px] p-6">
           <div className="text-[13px] text-tinta-tenue">Correo</div>
@@ -38,9 +32,11 @@ async function Contenido({ searchParams }: Pick<PageProps<'/cuenta'>, 'searchPar
           <p className="mt-1 text-[14px] text-tinta-suave">{DESCRIPCION_ROL[usuario.rol]}</p>
         </section>
         <section className="relieve rounded-[24px] p-6">
-          <h2 className="text-[19px] font-medium">Cambiar contraseña</h2>
-          <p className="mt-1 text-[14px] text-tinta-suave">Mínimo 10 caracteres. Mejor una frase larga que símbolos raros.</p>
-          <FormCuenta />
+          <h2 className="text-[19px] font-medium">Acceso con Google</h2>
+          <p className="mt-2 text-[14px] leading-relaxed text-tinta-suave">
+            Entras con tu cuenta institucional de Google. El panel no guarda contraseñas: si cambias la clave de tu correo, no hay que hacer nada aquí.
+            Para dar acceso a otra persona, un superadministrador autoriza su correo @unipaz.edu.co en Cuentas y roles.
+          </p>
         </section>
       </div>
     </Pagina>

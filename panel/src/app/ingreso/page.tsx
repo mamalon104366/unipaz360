@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { connection } from 'next/server';
 import { FormIngreso } from '@/components/ingreso/FormIngreso';
-import { hayCuentas, PERMITE_PRIMERA_CUENTA, usuarioActual } from '@/lib/sesion';
+import { usuarioActual } from '@/lib/sesion';
 
 export const metadata: Metadata = { title: 'Iniciar sesión' };
 
@@ -24,23 +24,10 @@ export default function Ingreso({ searchParams }: PageProps<'/ingreso'>) {
 
 async function Contenido({ searchParams }: Pick<PageProps<'/ingreso'>, 'searchParams'>) {
   await connection();
-  const [{ volver }, u] = await Promise.all([searchParams, usuarioActual().catch(() => null)]);
+  const [{ volver, error }, u] = await Promise.all([searchParams, usuarioActual().catch(() => null)]);
   const destino = typeof volver === 'string' && volver.startsWith('/') && !volver.startsWith('//') ? volver : '/';
   if (u) redirect(destino);
-  let primera = false;
-  let errorBase = false;
-  try {
-    primera = !(await hayCuentas());
-  } catch {
-    errorBase = true;
-  }
-  return (
-    <FormIngreso
-      modo={primera ? (PERMITE_PRIMERA_CUENTA ? 'instalar' : 'sin-cuentas') : 'ingresar'}
-      volver={destino}
-      errorBase={errorBase}
-    />
-  );
+  return <FormIngreso volver={destino} error={typeof error === 'string' ? error : null} />;
 }
 
 function Portada() {

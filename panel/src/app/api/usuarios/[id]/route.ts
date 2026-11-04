@@ -6,7 +6,7 @@ export async function PATCH(request: Request, ctx: RouteContext<'/api/usuarios/[
   try {
     const admin = await requerir('superadmin');
     const { id } = await ctx.params;
-    return Response.json(await actualizarUsuario(admin, id, await request.json()));
+    return Response.json({ usuario: await actualizarUsuario(admin, id, await request.json()) });
   } catch (e) {
     return respuestaError(e);
   }

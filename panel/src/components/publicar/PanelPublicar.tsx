@@ -19,6 +19,7 @@ const NOMBRE: Record<string, string> = {
   panoramica: 'Panorámicas',
   punto: 'Puntos 360°',
   medio: 'Medios',
+  configuracion_app: 'Apariencia de la app',
 };
 const VERBO: Record<string, string> = { crear: 'nuevos', actualizar: 'editados', borrar: 'borrados' };
 
