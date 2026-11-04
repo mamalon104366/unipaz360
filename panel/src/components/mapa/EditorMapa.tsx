@@ -59,7 +59,7 @@ const ESTILO: StyleSpecification = {
   ],
 };
 
-function aGeoJSON(g: { vertices: Vertice[]; tramos: Tramo[] }, aislados: Set<string>) {
+function aGeoJSON(g: { vertices: Vertice[]; tramos: Tramo[] }, aislados: Set<string>, con360: Set<string>) {
   const pos = new Map(g.vertices.map((v) => [v.id, [v.lon, v.lat] as [number, number]]));
   return {
     vertices: {
@@ -67,7 +67,7 @@ function aGeoJSON(g: { vertices: Vertice[]; tramos: Tramo[] }, aislados: Set<str
       features: g.vertices.map((v) => ({
         type: 'Feature' as const,
         id: v.id,
-        properties: { id: v.id, tipo: v.tipo, color: COLOR_TIPO[v.tipo] ?? '#fff', aislado: aislados.has(v.id) },
+        properties: { id: v.id, tipo: v.tipo, color: COLOR_TIPO[v.tipo] ?? '#fff', aislado: aislados.has(v.id), con360: con360.has(v.id) },
         geometry: { type: 'Point' as const, coordinates: [v.lon, v.lat] },
       })),
     },
@@ -89,7 +89,7 @@ function aGeoJSON(g: { vertices: Vertice[]; tramos: Tramo[] }, aislados: Set<str
   };
 }
 
-export function EditorMapa({ inicial, filtro }: { inicial: Grafo; filtro: string | null }) {
+export function EditorMapa({ inicial, filtro, soloLectura = false }: { inicial: Grafo; filtro: string | null; soloLectura?: boolean }) {
   const router = useRouter();
   const contenedor = useRef<HTMLDivElement>(null);
   const mapa = useRef<MapaLibre | null>(null);
@@ -103,9 +103,9 @@ export function EditorMapa({ inicial, filtro }: { inicial: Grafo; filtro: string
   const [listo, setListo] = useState(false);
 
   // Referencias para los manejadores del mapa (que se registran una sola vez).
-  const estado = useRef({ modo, inicioTramo, vertices, tramos, sel });
+  const estado = useRef({ modo, inicioTramo, vertices, tramos, sel, soloLectura });
   useEffect(() => {
-    estado.current = { modo, inicioTramo, vertices, tramos, sel };
+    estado.current = { modo, inicioTramo, vertices, tramos, sel, soloLectura };
   });
 
   const grupos = useMemo(() => componentes(vertices, tramos), [vertices, tramos]);
@@ -240,8 +240,8 @@ export function EditorMapa({ inicial, filtro }: { inicial: Grafo; filtro: string
           'circle-radius': ['interpolate', ['linear'], ['zoom'], 15, 6, 20, 15],
           'circle-color': ['case', ['get', 'aislado'], '#ef4444', 'rgba(20,20,22,0.6)'],
           'circle-opacity': ['case', ['boolean', ['feature-state', 'sel'], false], 1, 0.85],
-          'circle-stroke-width': ['case', ['boolean', ['feature-state', 'sel'], false], 3, 0],
-          'circle-stroke-color': '#ffffff',
+          'circle-stroke-width': ['case', ['boolean', ['feature-state', 'sel'], false], 3, ['get', 'con360'], 2.5, 0],
+          'circle-stroke-color': ['case', ['boolean', ['feature-state', 'sel'], false], '#ffffff', '#60a5fa'],
         },
       });
       m.addLayer({
@@ -281,10 +281,10 @@ export function EditorMapa({ inicial, filtro }: { inicial: Grafo; filtro: string
   useEffect(() => {
     const m = mapa.current;
     if (!m || !listo) return;
-    const gj = aGeoJSON({ vertices, tramos }, aislados);
+    const gj = aGeoJSON({ vertices, tramos }, aislados, new Set(inicial.conPanoramica));
     (m.getSource('vertices') as GeoJSONSource).setData(gj.vertices);
     (m.getSource('tramos') as GeoJSONSource).setData(gj.tramos);
-  }, [vertices, tramos, aislados, listo]);
+  }, [vertices, tramos, aislados, listo, inicial.conPanoramica]);
 
   // Selección → estado visual
   const selAnterior = useRef<Seleccion>(null);
@@ -417,7 +417,7 @@ export function EditorMapa({ inicial, filtro }: { inicial: Grafo; filtro: string
     let arrastrando: string | null = null;
     let movido = false;
     const alPresionar = (e: MapLayerMouseEvent) => {
-      if (estado.current.modo !== 'seleccionar') return;
+      if (estado.current.modo !== 'seleccionar' || estado.current.soloLectura) return;
       const id = verticeEn(e);
       if (!id) return;
       e.preventDefault();
@@ -462,6 +462,7 @@ export function EditorMapa({ inicial, filtro }: { inicial: Grafo; filtro: string
       const t = e.target as HTMLElement;
       if (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA') return;
       const k = e.key.toLowerCase();
+      if (estado.current.soloLectura && k !== 'escape') return;
       if (k === 'v') cambiarModo('seleccionar');
       else if (k === 'n') cambiarModo('nodo');
       else if (k === 't') cambiarModo('tramo');
@@ -504,8 +505,12 @@ export function EditorMapa({ inicial, filtro }: { inicial: Grafo; filtro: string
 
         <div className="vidrio pointer-events-auto flex items-center gap-1 rounded-2xl p-1.5">
           <BotonModo activo={modo === 'seleccionar'} onClick={() => cambiarModo('seleccionar')} icono={<MousePointer2 size={17} />} texto="Seleccionar" tecla="V" />
-          <BotonModo activo={modo === 'nodo'} onClick={() => cambiarModo('nodo')} icono={<CircleDot size={17} />} texto="Nodo" tecla="N" />
-          <BotonModo activo={modo === 'tramo'} onClick={() => cambiarModo('tramo')} icono={<Spline size={17} />} texto="Ruta" tecla="T" />
+          {!soloLectura && (
+            <>
+              <BotonModo activo={modo === 'nodo'} onClick={() => cambiarModo('nodo')} icono={<CircleDot size={17} />} texto="Nodo" tecla="N" />
+              <BotonModo activo={modo === 'tramo'} onClick={() => cambiarModo('tramo')} icono={<Spline size={17} />} texto="Ruta" tecla="T" />
+            </>
+          )}
           <span className="mx-1 h-6 w-px bg-black/10" />
           <button
             onClick={() => setFondo((f) => (f === 'satelite' ? 'calles' : 'satelite'))}
@@ -538,7 +543,7 @@ export function EditorMapa({ inicial, filtro }: { inicial: Grafo; filtro: string
       {/* Ayuda contextual del modo */}
       <div className="pointer-events-none absolute bottom-6 left-1/2 z-10 -translate-x-1/2">
         <div className="vidrio rounded-full px-5 py-2.5 text-[13px] text-tinta-suave">
-          {modo === 'seleccionar' && 'Clic para seleccionar · arrastra un nodo para moverlo · Supr para eliminar'}
+          {modo === 'seleccionar' && (soloLectura ? 'Solo lectura: clic en un nodo o tramo para ver sus datos' : 'Clic para seleccionar · arrastra un nodo para moverlo · Supr para eliminar')}
           {modo === 'nodo' && 'Clic en el mapa para poner un nodo'}
           {modo === 'tramo' &&
             (inicioTramo
@@ -554,6 +559,7 @@ export function EditorMapa({ inicial, filtro }: { inicial: Grafo; filtro: string
         <Leyenda color="#fbbf24" texto="Con escaleras" />
         <Leyenda color="#a1a1aa" texto="Normal" />
         <Leyenda color="#a1a1aa" texto="Sin verificar" punteada />
+        <div className="mt-1.5 flex items-center gap-2 py-0.5"><span className="h-3 w-3 rounded-full border-[2.5px] border-[#60a5fa]" /> Nodo con foto 360°</div>
       </div>
 
       {(vSel || tSel) && (
@@ -562,6 +568,10 @@ export function EditorMapa({ inicial, filtro }: { inicial: Grafo; filtro: string
           tramo={tSel}
           vertices={vertices}
           aislado={vSel ? aislados.has(vSel.id) : false}
+          soloLectura={soloLectura}
+          tieneAnclaje={vSel ? inicial.conAnclaje.includes(vSel.id) : false}
+          tienePanoramica={vSel ? inicial.conPanoramica.includes(vSel.id) : false}
+          panoramica={vSel ? inicial.panoramicas.find((p) => p.vertice_id === vSel.id) : undefined}
           alCerrar={() => setSel(null)}
           alEliminar={eliminarSeleccion}
           alGuardarVertice={async (id, datos) => {

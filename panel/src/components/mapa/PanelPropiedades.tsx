@@ -1,7 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { Accessibility, Trash2, TriangleAlert, X } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { api } from '@/components/ui/api';
+import { medirImagen, subirArchivo } from '@/components/ui/subida';
+import Link from 'next/link';
+import { Accessibility, Orbit, QrCode, Trash2, TriangleAlert, X } from 'lucide-react';
 import { ETIQUETA_TIPO, SUPERFICIES, TIPOS_VERTICE, type Tramo, type Vertice } from '@/lib/tipos';
 
 interface Props {
@@ -9,6 +13,10 @@ interface Props {
   tramo?: Tramo;
   vertices: Vertice[];
   aislado: boolean;
+  soloLectura?: boolean;
+  tieneAnclaje?: boolean;
+  tienePanoramica?: boolean;
+  panoramica?: { id: string; miniatura: string | null };
   alCerrar: () => void;
   alEliminar: () => void;
   alGuardarVertice: (id: string, datos: Partial<Vertice>) => Promise<void>;
@@ -30,18 +38,32 @@ export function PanelPropiedades(p: Props) {
           <X size={18} />
         </button>
       </div>
-      <div className="flex-1 overflow-y-auto px-5 pb-5">
+      <fieldset disabled={p.soloLectura} className="flex-1 overflow-y-auto px-5 pb-5">
+        {p.vertice && <Foto360 vertice={p.vertice} panoramica={p.panoramica} puedeEditar={!p.soloLectura} />}
+        {p.vertice && (
+          <div className="mb-4 flex flex-wrap gap-2">
+            {p.tieneAnclaje && (
+              <Link href="/anclajes" className="chip bg-acento-suave text-acento">
+                <QrCode size={13} /> Placa QR
+              </Link>
+            )}
+          </div>
+        )}
         {p.vertice && <FormVertice key={p.vertice.id} v={p.vertice} aislado={p.aislado} guardar={p.alGuardarVertice} />}
         {p.tramo && <FormTramo key={p.tramo.id} t={p.tramo} vertices={p.vertices} guardar={p.alGuardarTramo} />}
-      </div>
-      <div className="border-t border-black/5 p-4">
-        <button
-          onClick={p.alEliminar}
-          className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-medium text-peligro transition hover:bg-peligro/10"
-        >
-          <Trash2 size={16} /> Eliminar {p.vertice ? 'nodo' : 'tramo'}
-        </button>
-      </div>
+      </fieldset>
+      {!p.soloLectura && (
+        <div className="border-t border-black/5 p-4">
+          <button
+            onClick={p.alEliminar}
+            disabled={p.tieneAnclaje}
+            title={p.tieneAnclaje ? 'Tiene una placa QR instalada: retírala primero en Anclajes QR' : undefined}
+            className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-medium text-peligro transition hover:bg-peligro/10 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Trash2 size={16} /> Eliminar {p.vertice ? 'nodo' : 'tramo'}
+          </button>
+        </div>
+      )}
     </aside>
   );
 }
@@ -227,5 +249,56 @@ function Numero({ etiqueta, valor, alGuardar }: { etiqueta: string; valor: numbe
         className="hundido w-full rounded-lg px-2 py-2 text-[14px] tabular-nums outline-none"
       />
     </label>
+  );
+}
+
+/** La foto 360° del nodo: se ve, se abre en el editor o se sube aquí mismo. */
+function Foto360({ vertice, panoramica, puedeEditar }: { vertice: Vertice; panoramica?: { id: string; miniatura: string | null }; puedeEditar: boolean }) {
+  const router = useRouter();
+  const [estado, setEstado] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function subir(archivo: File | undefined) {
+    if (!archivo) return;
+    setError(null);
+    try {
+      const { ancho, alto } = await medirImagen(archivo);
+      if (Math.abs(ancho / alto - 2) > 0.06) throw new Error(`La foto mide ${ancho}×${alto}: una 360° completa debe ser 2:1.`);
+      setEstado('Subiendo…');
+      const clave = await subirArchivo(archivo, 'panoramica', (x) => setEstado(`Subiendo… ${Math.round(x * 100)} %`));
+      setEstado('Generando versiones…');
+      const pano = await api<{ id: string }>('/api/panoramicas', 'POST', { vertice_id: vertice.id, clave, titulo: vertice.descripcion ?? '' });
+      router.push(`/panoramicas/${pano.id}`);
+    } catch (e) {
+      setError((e as Error).message);
+      setEstado(null);
+    }
+  }
+
+  if (panoramica) {
+    return (
+      <a href={`/panoramicas/${panoramica.id}`} className="group mb-4 block overflow-hidden rounded-2xl bg-riel">
+        {panoramica.miniatura && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={`/api/medios/archivo?clave=${encodeURIComponent(panoramica.miniatura)}`} alt="" className="aspect-[2/1] w-full object-cover transition duration-500 group-hover:scale-105" />
+        )}
+        <div className="flex items-center justify-between px-3 py-2.5 text-[13px] text-white">
+          <span className="flex items-center gap-2"><Orbit size={15} /> Foto 360° · {panoramica.id}</span>
+          <span className="text-white/70">Abrir editor →</span>
+        </div>
+      </a>
+    );
+  }
+  if (!puedeEditar) return null;
+  return (
+    <div className="mb-4">
+      <label className="hundido flex cursor-pointer flex-col items-center justify-center gap-1 rounded-2xl px-3 py-5 text-center">
+        <Orbit size={22} className="text-tinta-tenue" />
+        <span className="text-[14px] font-medium">{estado ?? 'Agregar foto 360° a este nodo'}</span>
+        {!estado && <span className="text-[12px] text-tinta-tenue">Equirrectangular 2:1 (JPG, PNG o WEBP)</span>}
+        <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" disabled={!!estado} onChange={(e) => subir(e.target.files?.[0])} />
+      </label>
+      {error && <p className="mt-2 text-[12px] text-peligro">{error}</p>}
+    </div>
   );
 }

@@ -1,23 +1,8 @@
 import 'server-only';
-import os from 'node:os';
-import path from 'node:path';
-import fs from 'node:fs';
-import { Pool } from 'pg';
+import { Pool, type PoolClient } from 'pg';
+import { cargarSecretos } from './secretos';
 
-/**
- * Conexión a la base central (Neon · PostgreSQL + PostGIS).
- *
- * Las credenciales nunca viven en el repositorio. Si no llegan por el entorno
- * (Vercel en producción), se cargan del archivo de secretos local
- * `~/dev/unipaz360.secretos.env`, el mismo que usa `db/`.
- */
-function cargarSecretos() {
-  if (process.env.DATABASE_URL) return;
-  const archivo =
-    process.env.UNIPAZ_SECRETOS ?? path.join(os.homedir(), 'dev', 'unipaz360.secretos.env');
-  if (fs.existsSync(/* turbopackIgnore: true */ archivo)) process.loadEnvFile(/* turbopackIgnore: true */ archivo);
-}
-
+/** Conexión a la base central (Neon · PostgreSQL + PostGIS). */
 function cadenaConexion(): string {
   cargarSecretos();
   const url = process.env.DATABASE_URL;
@@ -55,6 +40,25 @@ export const pool = {
     (obtenerPool().query as (...a: unknown[]) => unknown)(...args)) as Pool['query'],
   connect: () => obtenerPool().connect(),
 };
+
+/** Cliente de una transacción (o el pool, para consultas sueltas). */
+export type Consultor = Pick<PoolClient, 'query'>;
+
+/** Ejecuta `fn` dentro de una transacción: COMMIT si termina, ROLLBACK si lanza. */
+export async function transaccion<T>(fn: (c: PoolClient) => Promise<T>): Promise<T> {
+  const cliente = await pool.connect();
+  try {
+    await cliente.query('BEGIN');
+    const r = await fn(cliente);
+    await cliente.query('COMMIT');
+    return r;
+  } catch (e) {
+    await cliente.query('ROLLBACK');
+    throw e;
+  } finally {
+    cliente.release();
+  }
+}
 
 /** Campus con el que trabaja el panel (multi-sede queda preparado en el esquema). */
 export const CAMPUS_ID = process.env.UNIPAZ_CAMPUS ?? 'santa-lucia';

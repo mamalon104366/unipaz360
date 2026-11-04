@@ -30,7 +30,7 @@ const ahora = new Date();
 const dosDigitos = (n) => String(n).padStart(2, '0');
 const sello = `${ahora.getUTCFullYear()}.${dosDigitos(ahora.getUTCMonth() + 1)}.${dosDigitos(ahora.getUTCDate())}-${dosDigitos(ahora.getUTCHours())}${dosDigitos(ahora.getUTCMinutes())}`;
 const version = arg('--version', process.env.UNIPAZ360_VERSION ?? sello);
-const ESQUEMA_VERSION = '2';
+const ESQUEMA_VERSION = '3';
 
 const sha256 = (dato) => createHash('sha256').update(dato).digest('hex');
 const b = (valor) => (valor ? 1 : 0);

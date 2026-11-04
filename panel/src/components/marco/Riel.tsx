@@ -51,8 +51,8 @@ export function Riel() {
         UNIPAZ360 · PANEL
       </span>
       <Link
-        href="/ajustes"
-        title="Ajustes"
+        href="/cuenta"
+        title="Mi cuenta"
         className="grid h-14 w-14 place-items-center rounded-2xl bg-riel text-white/80 shadow-[0_14px_30px_-12px_rgb(0_0_0/0.55)] transition hover:text-white"
       >
         <Settings size={21} strokeWidth={1.7} />

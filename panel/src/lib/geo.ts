@@ -11,6 +11,23 @@ export function distanciaM(a: { lat: number; lon: number }, b: { lat: number; lo
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
+/** Rumbo inicial de A hacia B en grados (0 = norte, 90 = este). */
+export function rumbo(a: { lat: number; lon: number }, b: { lat: number; lon: number }) {
+  const rad = Math.PI / 180;
+  const f1 = a.lat * rad;
+  const f2 = b.lat * rad;
+  const dl = (b.lon - a.lon) * rad;
+  const y = Math.sin(dl) * Math.cos(f2);
+  const x = Math.cos(f1) * Math.sin(f2) - Math.sin(f1) * Math.cos(f2) * Math.cos(dl);
+  return ((Math.atan2(y, x) / rad) + 360) % 360;
+}
+
+/** Lleva un ángulo a (-180, 180]. */
+export function normalizarGrados(g: number) {
+  const x = ((((g + 180) % 360) + 360) % 360) - 180;
+  return x === -180 ? 180 : x;
+}
+
 /**
  * Componentes conexas del grafo (BFS, tramos como no dirigidos).
  * Es la misma regla 1 de `scripts/lib/reglas.mjs`: si hay más de una, hay islas.
