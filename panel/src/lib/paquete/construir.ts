@@ -96,6 +96,8 @@ export async function construirSqlite(d: DatosPaquete, version: string) {
     const insC = db.prepare('INSERT OR REPLACE INTO calendario_academico (fecha, tipo, descripcion) VALUES (?, ?, ?)');
     for (const c of d.calendario) insC.run(c.fecha, c.tipo, c.descripcion);
 
+    db.prepare('INSERT INTO configuracion_app (clave, valor) VALUES (?, ?)').run('app', JSON.stringify(d.configApp));
+
     const insMeta = db.prepare('INSERT INTO metadatos (clave, valor) VALUES (?, ?)');
     const meta = {
       version,

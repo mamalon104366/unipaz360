@@ -2,16 +2,10 @@ import { respuestaError } from '@/lib/errores';
 import { auditar } from '@/lib/auditoria';
 import { pool } from '@/lib/db';
 import { cerrarSesion, usuarioActual } from '@/lib/sesion';
-import { iniciarSesion } from '@/lib/usuarios';
 
-/** Iniciar sesión. */
-export async function POST(request: Request) {
-  try {
-    const { correo, clave } = await request.json();
-    return Response.json(await iniciarSesion(correo, clave));
-  } catch (e) {
-    return respuestaError(e);
-  }
+/** El panel solo admite Google: el ingreso con contraseña quedó desactivado. */
+export async function POST() {
+  return Response.json({ error: 'Ingresa con tu cuenta de Google @unipaz.edu.co.' }, { status: 410 });
 }
 
 /** Cerrar sesión. */

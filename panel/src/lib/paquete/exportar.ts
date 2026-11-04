@@ -2,6 +2,8 @@ import 'server-only';
 import { pool, CAMPUS_ID } from '../db';
 import { AJUSTES_POR_DEFECTO, type Ajustes, type TipoPunto } from '../tipos';
 import { normalizarGrados, rumbo } from '../geo';
+import { leerConfigApp } from '../cliente';
+import type { ConfigApp } from '../configApp';
 
 /** Lo que entra en el paquete, con la misma forma que usa `scripts/` (datos.mjs). */
 export interface DatosPaquete {
@@ -57,6 +59,7 @@ export interface DatosPaquete {
   }[];
   horarios: { id: string; espacio_id: string; dia: number; hora_inicio: string; hora_fin: string; materia: string | null; programa: string | null; semestre: number | null; grupo: string | null; docente: string | null }[];
   calendario: { fecha: string; tipo: string; descripcion: string | null }[];
+  configApp: ConfigApp;
 }
 
 interface Lods {
@@ -165,5 +168,6 @@ export async function exportarDatos(): Promise<DatosPaquete> {
     puntos,
     horarios,
     calendario,
+    configApp: await leerConfigApp(),
   };
 }

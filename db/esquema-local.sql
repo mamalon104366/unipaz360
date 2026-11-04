@@ -145,6 +145,12 @@ CREATE TABLE punto_informacion (
     estilo                 TEXT               -- JSON: {forma, ancho, alto, rotacion{yaw,pitch,roll}, animacion}; ancho angular (rad) ≈ ancho/1000
 );
 
+-- v3: apariencia de la app (marca, colores, encabezado, barra lateral…), editada en el panel.
+CREATE TABLE configuracion_app (
+    clave  TEXT PRIMARY KEY,      -- 'app'
+    valor  TEXT NOT NULL          -- JSON (ver panel/src/lib/tipos.ts → ConfigApp)
+);
+
 CREATE TABLE horario (
     id           TEXT PRIMARY KEY,
     espacio_id   TEXT NOT NULL REFERENCES espacio(id),

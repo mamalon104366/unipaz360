@@ -66,6 +66,7 @@ export interface Resumen {
   aislados: number;
   ultimaPublicacion: string | null;
   cambiosPendientes: number;
+  listaPanoramicas: { id: string; titulo: string; puntos: number }[];
 }
 
 // ------------------------------------------------------------------ cuentas

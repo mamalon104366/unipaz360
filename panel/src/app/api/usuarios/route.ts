@@ -16,7 +16,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const admin = await requerir('superadmin');
-    return Response.json(await crearUsuario(admin, await request.json()), { status: 201 });
+    return Response.json({ usuario: await crearUsuario(admin, await request.json()) }, { status: 201 });
   } catch (e) {
     return respuestaError(e);
   }

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Copy, KeyRound, Plus, ShieldCheck, UserRoundX, UserRoundCheck } from 'lucide-react';
+import { Plus, ShieldCheck, UserRoundX, UserRoundCheck } from 'lucide-react';
 import { api } from '@/components/ui/api';
 import { Campo, Modal } from '@/components/ui/Modal';
 import { Pagina } from '@/components/ui/Pagina';
@@ -17,14 +17,12 @@ export function GestionUsuarios({ inicial, yo }: { inicial: UsuarioFila[]; yo: s
   const { avisar, nodo } = useAvisos();
   const [usuarios, setUsuarios] = useState(inicial);
   const [nueva, setNueva] = useState(false);
-  const [temporal, setTemporal] = useState<{ correo: string; clave: string } | null>(null);
 
-  async function cambiar(u: UsuarioFila, datos: Partial<{ rol: Rol; activo: boolean; restablecer: boolean }>) {
+  async function cambiar(u: UsuarioFila, datos: Partial<{ rol: Rol; activo: boolean }>) {
     try {
-      const r = await api<{ usuario: UsuarioFila; claveTemporal: string | null }>(`/api/usuarios/${u.id}`, 'PATCH', datos);
+      const r = await api<{ usuario: UsuarioFila }>(`/api/usuarios/${u.id}`, 'PATCH', datos);
       setUsuarios((us) => us.map((x) => (x.id === u.id ? r.usuario : x)));
-      if (r.claveTemporal) setTemporal({ correo: u.correo, clave: r.claveTemporal });
-      else avisar('Cambios guardados.', 'ok');
+      avisar('Cambios guardados.', 'ok');
       router.refresh();
     } catch (e) {
       avisar((e as Error).message);
@@ -34,10 +32,10 @@ export function GestionUsuarios({ inicial, yo }: { inicial: UsuarioFila[]; yo: s
   return (
     <Pagina
       titulo="Cuentas y roles"
-      subtitulo="Quién puede entrar al panel y qué puede hacer."
+      subtitulo="Solo entran con Google los correos @unipaz.edu.co autorizados aquí."
       acciones={
         <button onClick={() => setNueva(true)} className="boton-primario">
-          <Plus size={17} /> Nueva cuenta
+          <Plus size={17} /> Autorizar correo
         </button>
       }
     >
@@ -98,14 +96,6 @@ export function GestionUsuarios({ inicial, yo }: { inicial: UsuarioFila[]; yo: s
                 <td className="hidden px-3 py-3.5 text-tinta-suave lg:table-cell">{fecha(u.ultimo_acceso)}</td>
                 <td className="px-5 py-3.5">
                   <div className="flex justify-end gap-1">
-                    <button
-                      onClick={() => cambiar(u, { restablecer: true })}
-                      disabled={!u.activo}
-                      title="Restablecer contraseña"
-                      className="rounded-xl p-2 text-tinta-suave hover:bg-black/5 disabled:opacity-40"
-                    >
-                      <KeyRound size={17} />
-                    </button>
                     {u.id !== yo &&
                       (u.activo ? (
                         <button onClick={() => cambiar(u, { activo: false })} title="Desactivar cuenta" className="rounded-xl p-2 text-peligro hover:bg-peligro/10">
@@ -127,40 +117,15 @@ export function GestionUsuarios({ inicial, yo }: { inicial: UsuarioFila[]; yo: s
       <NuevaCuenta
         abierto={nueva}
         alCerrar={() => setNueva(false)}
-        alCrear={(u, clave) => {
+        alCrear={(u) => {
           setUsuarios((us) => [...us, u]);
           setNueva(false);
-          setTemporal({ correo: u.correo, clave });
+          avisar(`${u.correo} ya puede entrar con Google.`, 'ok');
           router.refresh();
         }}
         avisar={avisar}
       />
 
-      <Modal
-        titulo="Contraseña temporal"
-        subtitulo="Compártela por un canal seguro. Solo se muestra esta vez: al entrar, la persona deberá cambiarla."
-        abierto={!!temporal}
-        alCerrar={() => setTemporal(null)}
-      >
-        {temporal && (
-          <div>
-            <div className="text-[13px] text-tinta-tenue">{temporal.correo}</div>
-            <div className="hundido mt-2 flex items-center justify-between rounded-2xl px-4 py-3">
-              <code className="font-mono text-[20px] tracking-wider">{temporal.clave}</code>
-              <button
-                onClick={() => navigator.clipboard.writeText(temporal.clave).then(() => avisar('Copiada.', 'ok'))}
-                className="rounded-xl p-2 text-tinta-suave hover:bg-black/5"
-                title="Copiar"
-              >
-                <Copy size={18} />
-              </button>
-            </div>
-            <button onClick={() => setTemporal(null)} className="boton-primario mt-5 w-full">
-              Listo
-            </button>
-          </div>
-        )}
-      </Modal>
       {nodo}
     </Pagina>
   );
@@ -174,7 +139,7 @@ function NuevaCuenta({
 }: {
   abierto: boolean;
   alCerrar: () => void;
-  alCrear: (u: UsuarioFila, clave: string) => void;
+  alCrear: (u: UsuarioFila) => void;
   avisar: (t: string) => void;
 }) {
   const [correo, setCorreo] = useState('');
@@ -186,10 +151,10 @@ function NuevaCuenta({
     e.preventDefault();
     setEnviando(true);
     try {
-      const r = await api<{ usuario: UsuarioFila; claveTemporal: string }>('/api/usuarios', 'POST', { correo, nombre, rol });
+      const r = await api<{ usuario: UsuarioFila }>('/api/usuarios', 'POST', { correo, nombre, rol });
       setCorreo('');
       setNombre('');
-      alCrear(r.usuario, r.claveTemporal);
+      alCrear(r.usuario);
     } catch (err) {
       avisar((err as Error).message);
     } finally {
@@ -198,9 +163,9 @@ function NuevaCuenta({
   }
 
   return (
-    <Modal titulo="Nueva cuenta" subtitulo="Se genera una contraseña temporal que la persona cambiará al entrar." abierto={abierto} alCerrar={alCerrar}>
+    <Modal titulo="Autorizar correo" subtitulo="La persona entrará con su cuenta de Google institucional." abierto={abierto} alCerrar={alCerrar}>
       <form onSubmit={crear} className="space-y-4">
-        <Campo etiqueta="Correo" ayuda={correo && !correo.toLowerCase().endsWith('@unipaz.edu.co') ? 'No es un correo @unipaz.edu.co: quedará marcado como externo.' : undefined}>
+        <Campo etiqueta="Correo" ayuda={correo && !correo.toLowerCase().endsWith('@unipaz.edu.co') ? 'Solo se admiten correos @unipaz.edu.co.' : undefined}>
           <input type="email" required value={correo} onChange={(e) => setCorreo(e.target.value)} placeholder="nombre@unipaz.edu.co" className="campo" />
         </Campo>
         <Campo etiqueta="Nombre">
@@ -216,7 +181,7 @@ function NuevaCuenta({
           </select>
         </Campo>
         <button type="submit" disabled={enviando} className="boton-primario w-full">
-          {enviando ? 'Creando…' : 'Crear cuenta'}
+          {enviando ? 'Autorizando…' : 'Autorizar'}
         </button>
       </form>
     </Modal>
