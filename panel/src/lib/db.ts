@@ -35,11 +35,26 @@ function cadenaConexion(): string {
 const global = globalThis as unknown as { __unipazPool?: Pool };
 
 // Neon usa certificados públicos válidos: TLS con verificación completa.
-export const pool: Pool =
-  global.__unipazPool ??
-  new Pool({ connectionString: cadenaConexion(), ssl: { rejectUnauthorized: true }, max: 5 });
+/**
+ * El pool se crea en la primera consulta, no al importar el módulo: así el
+ * build (Vercel, CI) no necesita credenciales para compilar.
+ */
+function obtenerPool(): Pool {
+  if (!global.__unipazPool) {
+    global.__unipazPool = new Pool({
+      connectionString: cadenaConexion(),
+      ssl: { rejectUnauthorized: true },
+      max: 5,
+    });
+  }
+  return global.__unipazPool;
+}
 
-if (process.env.NODE_ENV !== 'production') global.__unipazPool = pool;
+export const pool = {
+  query: ((...args: Parameters<Pool['query']>) =>
+    (obtenerPool().query as (...a: unknown[]) => unknown)(...args)) as Pool['query'],
+  connect: () => obtenerPool().connect(),
+};
 
 /** Campus con el que trabaja el panel (multi-sede queda preparado en el esquema). */
 export const CAMPUS_ID = process.env.UNIPAZ_CAMPUS ?? 'santa-lucia';
