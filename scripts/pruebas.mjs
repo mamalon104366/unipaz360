@@ -85,7 +85,7 @@ db.close();
 console.log('\nManifiesto');
 const manifest = JSON.parse(await readFile(path.join(destino, 'manifest.json'), 'utf8'));
 comprobar(manifest.version === version, `manifest.version = ${version}`);
-comprobar(manifest.esquema_version === '2', 'manifest.esquema_version = 2');
+comprobar(manifest.esquema_version === '3', 'manifest.esquema_version = 3');
 const archivoSqlite = manifest.archivos.find((a) => a.ruta === 'datos.sqlite');
 comprobar(Boolean(archivoSqlite), 'manifest incluye datos.sqlite');
 if (archivoSqlite) {
