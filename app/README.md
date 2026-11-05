@@ -43,6 +43,7 @@ flutter build windows --release
 | `lib/domain/` | Entidades y contratos (Dart puro) |
 | `lib/data/` | Repositorios (hoy simulado; luego SQLite y el paquete de datos) |
 | `lib/core/modelo/` | La apariencia (`ConfigApp`, con las mismas reglas del panel) y el recorrido 360° |
+| `lib/core/marca/` | El logo de UNIPAZ dibujado con sus trazos (`LogoUnipaz`); los trazos los genera `node panel/scripts/marca.mjs` desde `marca/` |
 | `lib/core/paquete/` | Leer el paquete (`datos.sqlite`) y ubicar cada recurso (semilla o internet) |
 | `lib/features/cliente/` | La app del visitante tal como la diseña el apartado Cliente (`vista_cliente.dart`) |
 | `lib/features/visor360/` | El recorrido 360°: geometría, puntos 2D y 3D, animaciones y flechas |

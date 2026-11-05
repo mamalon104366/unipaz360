@@ -2,6 +2,7 @@ import 'server-only';
 import sharp, { type OverlayOptions } from 'sharp';
 import { ErrorDatos } from './errores';
 import type { Ajustes, Difuminado } from './tipos';
+import { NADIR_SVG } from './marca.generado';
 
 /**
  * Procesado de panorámicas equirrectangulares (2:1) con edición NO destructiva:
@@ -42,14 +43,8 @@ export function validarEquirrectangular(ancho: number, alto: number) {
   if (ancho < 2048) throw new ErrorDatos('La panorámica es muy pequeña: se necesitan al menos 2048 px de ancho.');
 }
 
-const LOGO = `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 100 100">
-  <defs><radialGradient id="g" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#2c2c31"/><stop offset="1" stop-color="#1c1c1f"/></radialGradient></defs>
-  <circle cx="50" cy="50" r="50" fill="url(#g)"/>
-  <circle cx="50" cy="50" r="45" fill="none" stroke="#ffffff" stroke-opacity=".22" stroke-width="1.2"/>
-  <circle cx="50" cy="50" r="7.5" fill="#ffffff"/>
-  <ellipse cx="50" cy="50" rx="29" ry="12" fill="none" stroke="#ffffff" stroke-opacity=".9" stroke-width="3.4"/>
-  <ellipse cx="50" cy="50" rx="12" ry="29" fill="none" stroke="#ffffff" stroke-opacity=".38" stroke-width="3.4"/>
-</svg>`;
+/** Logo del nadir: el símbolo de UNIPAZ en blanco sobre un disco oscuro (lo genera panel/scripts/marca.mjs). */
+const LOGO = NADIR_SVG;
 
 let logoCache: Buffer | null = null;
 async function logoRGBA() {

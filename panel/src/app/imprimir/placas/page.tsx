@@ -40,11 +40,8 @@ async function Hoja({ searchParams }: Pick<PageProps<'/imprimir/placas'>, 'searc
             style={{ height: '3.2in' }}
           >
             <div className="flex items-center gap-2 text-[13px] font-semibold tracking-[0.18em]">
-              <svg width="18" height="18" viewBox="0 0 26 26" fill="none" aria-hidden>
-                <circle cx="13" cy="13" r="4" fill="#1c1c1f" />
-                <ellipse cx="13" cy="13" rx="11" ry="4.6" stroke="#1c1c1f" strokeWidth="1.8" />
-                <ellipse cx="13" cy="13" rx="4.6" ry="11" stroke="#1c1c1f" strokeOpacity=".4" strokeWidth="1.8" />
-              </svg>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/marca/isotipo.svg" alt="" width={24} height={24} />
               UNIPAZ360
             </div>
             <div className="mt-3 h-[1.65in] w-[1.65in]" dangerouslySetInnerHTML={{ __html: svgs[i] }} />

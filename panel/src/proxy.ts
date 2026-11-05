@@ -22,6 +22,7 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Todo menos los archivos estáticos (incluidas las imágenes y videos de la app en /app/).
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|maplibre/|marca/|app/).*)'],
+  // Todo menos los archivos estáticos (incluidas las imágenes y videos de la app en /app/, y el
+  // logo y los íconos, que también se ven en la pantalla de ingreso).
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|icon.svg|apple-icon.png|maplibre/|marca/|app/).*)'],
 };

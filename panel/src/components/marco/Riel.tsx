@@ -51,10 +51,7 @@ export function Riel() {
 
 function Marca() {
   return (
-    <svg width="26" height="26" viewBox="0 0 26 26" fill="none" aria-hidden>
-      <circle cx="13" cy="13" r="4" fill="white" />
-      <ellipse cx="13" cy="13" rx="11" ry="4.6" stroke="white" strokeOpacity=".85" strokeWidth="1.4" />
-      <ellipse cx="13" cy="13" rx="4.6" ry="11" stroke="white" strokeOpacity=".35" strokeWidth="1.4" />
-    </svg>
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src="/marca/isotipo-blanco.svg" alt="UNIPAZ" width={32} height={32} />
   );
 }

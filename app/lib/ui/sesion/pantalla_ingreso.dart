@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/marca/logo_unipaz.dart';
 import '../../domain/sesion.dart';
 import 'ingreso_institucional.dart';
 import 'sesion_viewmodel.dart';
@@ -113,21 +114,8 @@ class _Encabezado extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Container(
-          width: 62,
-          height: 62,
-          decoration: BoxDecoration(
-            color: const Color(0x1FFFFFFF),
-            shape: BoxShape.circle,
-            border: Border.all(color: const Color(0x33FFFFFF)),
-          ),
-          child: const Icon(
-            Icons.school_outlined,
-            size: 30,
-            color: Colors.white,
-          ),
-        ),
-        const SizedBox(height: 16),
+        const LogoUnipaz(tinta: TintaLogo.blanco, ancho: 230),
+        const SizedBox(height: 18),
         const Text(
           'UniPaz360',
           style: TextStyle(

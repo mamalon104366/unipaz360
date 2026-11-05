@@ -32,20 +32,14 @@ async function Contenido({ searchParams }: Pick<PageProps<'/ingreso'>, 'searchPa
 
 function Portada() {
   return (
-    <div className="relative hidden flex-col justify-between overflow-hidden bg-riel p-10 text-white md:flex">
+    <div className="relative hidden flex-col justify-between gap-8 overflow-hidden bg-riel p-10 text-white md:flex">
       <svg className="absolute -right-24 -top-24 opacity-[0.12]" width="420" height="420" viewBox="0 0 26 26" fill="none" aria-hidden>
         <ellipse cx="13" cy="13" rx="11" ry="4.6" stroke="white" strokeWidth=".35" />
         <ellipse cx="13" cy="13" rx="4.6" ry="11" stroke="white" strokeWidth=".35" />
         <circle cx="13" cy="13" r="11" stroke="white" strokeWidth=".2" />
       </svg>
-      <div className="flex items-center gap-3">
-        <svg width="34" height="34" viewBox="0 0 26 26" fill="none" aria-hidden>
-          <circle cx="13" cy="13" r="4" fill="white" />
-          <ellipse cx="13" cy="13" rx="11" ry="4.6" stroke="white" strokeOpacity=".85" strokeWidth="1.4" />
-          <ellipse cx="13" cy="13" rx="4.6" ry="11" stroke="white" strokeOpacity=".35" strokeWidth="1.4" />
-        </svg>
-        <span className="text-lg font-medium tracking-wide">UniPaz360</span>
-      </div>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/marca/logo-horizontal-blanco.svg" alt="UNIPAZ - Instituto Universitario de la Paz" width={200} height={69} className="relative" />
       <div>
         <h1 className="text-[40px] font-light leading-[1.1] tracking-tight">
           El campus,
@@ -58,7 +52,7 @@ function Portada() {
           internet.
         </p>
       </div>
-      <div className="text-[12px] tracking-[0.25em] text-white/35">INSTITUTO UNIVERSITARIO DE LA PAZ · UNIPAZ</div>
+      <div className="text-[12px] tracking-[0.25em] text-white/35">UNIPAZ360 · PLATAFORMA DE GESTIÓN</div>
     </div>
   );
 }
