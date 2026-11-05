@@ -1,0 +1,5 @@
+# La semilla (assets/paquete) se guarda tal cual la arma panel/scripts/semilla-app.mjs: sin
+# cambiar finales de línea, para que sus archivos sean idénticos byte a byte en cualquier PC.
+assets/paquete/** -text
+assets/fuentes/*.ttf binary
+web/sqlite3.wasm binary
