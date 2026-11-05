@@ -135,3 +135,24 @@ Separador `;`. Los encabezados y su significado:
 - **Origen por QR:** la placa contiene la URI del anclaje, y la app la traduce al vértice de origen.
 - **Búsqueda y chatbot:** `espacio_fts` y `materia_fts` permiten buscar sin conexión con tolerancia a tildes y errores.
 - **Actualización (HU-09):** la app consulta `version.json`; si hay una versión nueva, descarga el paquete, verifica el `sha256` y reemplaza la base local.
+
+## Semilla de la app (el paquete con el que arranca sin internet)
+
+La app trae un paquete dentro (`app/assets/paquete/`): con él abre la primera vez, sin red. Se arma con
+el mismo exportador y el mismo constructor de `datos.sqlite` que el botón «Publicar», así que trae
+exactamente lo que vería con una publicación, pero **no publica nada** (no sube a R2, no mueve
+`version.json` y solo lee la base):
+
+```bash
+node --conditions=react-server --experimental-transform-types panel/scripts/semilla-app.mjs
+```
+
+- Deja `datos.sqlite`, `manifest.json`, `version.json` y `medios/<archivo>` (cada medio se baja de R2 y se
+  verifica con su SHA-256). Si la plataforma no dejaría publicar (hay errores), el script tampoco arma la semilla.
+- La versión es `semilla-AAAA.MM.DD-HHMM`: cuando haya una publicación real, la app la verá distinta y
+  ofrecerá actualizar.
+- La app abre `datos.sqlite` en memoria y solo para leer (`app/lib/core/paquete/`). En Android, Windows,
+  macOS e iOS usa la biblioteca nativa del paquete `sqlite3`; en la web, `app/web/sqlite3.wasm` (de la
+  misma versión del paquete).
+- La prueba `app/test/cliente/paquete_semilla_test.dart` exige que cada foto 360° y cada medio citado
+  estén dentro de la app.

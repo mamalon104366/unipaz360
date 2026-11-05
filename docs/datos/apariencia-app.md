@@ -70,7 +70,9 @@ diseño), `rotacion` (grados, alrededor del centro), `opacidad` (0–1),
 | `mapa` | `lat`, `lon`, `zoomMapa`, `radio`, `src`. Con internet: Google Maps (`https://www.google.com/maps?q=lat,lon&z=zoom&output=embed&hl=es`); sin conexión: la imagen `src`. |
 
 - **Colores**: `#rrggbb`. En `relleno` y `borde`, la cadena vacía significa "sin color".
-- **Sombra**: `BoxShadow(offset: (0, 8k), blurRadius: 24k, spreadRadius: −10k, color: negro 25 %)`.
+- **Sombra**: en CSS `0 8k 24k −10k` negro al 25 %. En Flutter el desenfoque no es el mismo número: CSS usa
+  sigma = desenfoque / 2 y Flutter sigma = blurRadius · 0.57735 + 0.5, así que la app lo convierte
+  (`desenfoqueCss()` en `app/lib/features/visor360/animacion_punto.dart`). Vale para todas las sombras.
 - **Recursos (`src`)**: `app://imagenes/<archivo>` y `app://videos/<archivo>` vienen
   dentro de la app (`app/assets/imagenes`, `app/assets/videos`); lo demás es `https://`
   (medios subidos a R2, que el paquete lista en `medio` para descargarlos y verlos sin conexión).
@@ -101,3 +103,30 @@ se agrandan con el encuadre (se dibujan con la rotación y la escala inversas).
 En el panel, **Ubicar nodos en el mapa** permite arrastrarlos sobre la foto. Con 3
 o más ubicados, el resto se calcula con un ajuste afín por mínimos cuadrados de
 (lat, lon) a (x, y).
+
+## Cómo lo hace la app Flutter
+
+La vista del visitante está en `app/lib/features/cliente/` (`vista_cliente.dart` arma todo) y el
+recorrido en `app/lib/features/visor360/`.
+
+- **Normalización**: `app/lib/core/modelo/normalizar_config.dart` aplica las mismas reglas que
+  `normalizarConfig`. La prueba `app/test/cliente/normalizar_config_test.dart` compara su resultado con
+  casos que se generan corriendo el código del panel:
+  `node --conditions=react-server --experimental-transform-types panel/scripts/config-app-flutter.mjs`.
+  El mismo script escribe `app/assets/config/por_defecto.json` (la configuración por defecto con las
+  páginas iniciales), que la app usa si un paquete no trae apariencia.
+- **Fuentes**: Roboto y Noto Serif (normal e itálica) variables, recortadas al alfabeto latino de Google
+  Fonts, en `app/assets/fuentes/` con sus licencias OFL. Cada peso apunta al mismo archivo y el grosor
+  real lo pone el eje `wght`, así Flutter no inventa negritas. Roboto no trae itálica: igual que el
+  navegador, la cursiva se inclina sola.
+- **Interfaz de la vista previa**: el encabezado, la barra y la ficha también usan Roboto en el panel,
+  para que se vean como en la app.
+- **Celular**: la app se considera celular cuando el lado corto de la pantalla mide menos de 600 dp.
+- **Tamaño del texto**: la vista no sigue el tamaño de letra del sistema (el lienzo es fijo y se rompería);
+  el tamaño lo da `interfaz.escala`.
+- **Lo que solo es del editor** no aparece en la app: los contornos de selección y el aviso «Ubica los
+  nodos…» del minimapa sin nodos.
+- **Sección `rutas`**: en la vista previa es un ejemplo; en la app funciona de verdad y sin internet
+  (busca entre los espacios y los nodos con nombre del paquete y arma la ruta con el motor de rutas).
+- **Botón de inicio**: vuelve a la primera panorámica (o al encuadre inicial si ya está en ella).
+- **Atrás (Android)**: cierra primero la ficha, la página o el mapa maximizado.

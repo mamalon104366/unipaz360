@@ -607,7 +607,8 @@ export function EditorCliente({
             {/* Fondo: el recorrido 360° real */}
             {hayFondo ? <div ref={esfera} className="absolute inset-0" /> : <div className="absolute inset-0 bg-gradient-to-b from-sky-400 via-sky-200 to-emerald-700" />}
 
-            <div className="pointer-events-none absolute inset-0" style={{ fontSize: textoBase }}>
+            {/* La interfaz de la app usa Roboto (la misma letra que empaqueta la app Flutter). */}
+            <div className="pointer-events-none absolute inset-0" style={{ fontSize: textoBase, fontFamily: 'var(--font-app-sans), Roboto, system-ui, sans-serif' }}>
               {/* Encabezado */}
               {seccionAbierta ? null : !encabezadoPlegado ? (
                 <div
