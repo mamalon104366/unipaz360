@@ -94,6 +94,11 @@ Así, mejorar el asistente **no exige** una versión nueva de la app: se edita e
 | **H3 · Capa «Asistente» en el apartado Cliente** | Nombre, saludo, color y posición del botón; se ve en la vista previa | La app muestra el asistente como en la vista previa |
 | **H4 · Conocimiento editable** | Sinónimos, lugares destacados y respuestas frecuentes en la plataforma, y un probador con las mismas pruebas doradas (`docs/datos/asistente-pruebas.json`) | Un sinónimo nuevo publicado hace que la app entienda una frase que antes no |
 
+> [!success] R1 hecha (5 de noviembre de 2026)
+> - **Código:** `app/lib/features/rutas/` (`grafo.dart`, `buscador.dart`, `pasos.dart`), en Dart puro y sin red.
+> - **Pruebas:** 11 en `app/test/rutas/rutas_test.dart`, con los datos de ejemplo y 2.000 comparaciones contra Dijkstra en grafos al azar (incluidos los casos sin camino). `flutter analyze` sin problemas; las 75 pruebas de la app pasan.
+> - **Decisiones:** un tramo nunca cuesta menos que la línea recta (así A* da la ruta óptima aunque haya una mala medida) y los giros se avisan desde 35°.
+
 **Pruebas que no pueden faltar:** «biblio», «bilbioteca» y «la biblioteca porfa» llevan al mismo lugar · «¿dónde es el 305?» encuentra B3-305 · «baño» encuentra «servicios» · con dos coincidencias pregunta cuál · un lugar sin ruta accesible lo dice claro · una pregunta fuera de tema responde con ayuda, **sin inventar** · nada de esto usa la red.
 
 ---

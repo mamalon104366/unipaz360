@@ -64,15 +64,15 @@ flowchart TD
 - [ ] **Dominio propio** para R2 con la caché de Cloudflare. Cambiar `R2_PUBLIC_URL` en Vercel (Preview y Production) y en el archivo de secretos local.
 - [ ] **Migrar las URL guardadas** con un script de una sola vez: `medio.url_publica` y los enlaces `https` de `configuracion_app`. Mientras tanto, `r2.dev` sigue encendido para que nada se rompa.
 - [ ] **CORS**: actualizar `panel/scripts/configurar-r2.mjs` para permitir el encabezado `range` y exponer `Content-Length`, `Content-Range` y `ETag`; luego correrlo. Para `GET` sirve cualquier origen (son datos públicos); `PUT` se puede limitar al dominio del panel.
-- [ ] **Candado al publicar y al revertir**: `pg_advisory_xact_lock` en `panel/src/lib/publicacion.ts`.
-- [ ] **`version.json` v2**: `canal`, `app_minima` y `resumen`. La versión mínima por plataforma se edita en Publicación (migración `0005`, tabla de ajustes de publicación).
-- [ ] **Regla nueva «apariencia válida»**: que cada `https` de `configuracion_app` sea un medio existente, que cada `app://` esté en la lista de recursos de la app y que los «Ir a» apunten a panorámicas publicadas.
-- [ ] **Documentar** el contrato v2 en `docs/datos/formato-paquete.md`.
+- [x] **Candado al publicar y al revertir**: `pg_try_advisory_xact_lock` en `panel/src/lib/publicacion.ts` (de transacción, porque Neon va por su pooler). ✅ 2026-11-05
+- [x] **`version.json` v2**: `canal`, `app_minima` y `resumen` (totales y cambios desde la publicación anterior). `app_minima` es una constante en `panel/src/lib/paquete/contrato.ts`: solo cambia cuando cambia el código de la app, así que vive con el código y no necesita migración. ✅ 2026-11-05
+- [x] **Regla nueva «apariencia válida»**: los `app://` tienen que venir en la app (error), los `https` que no son medios del paquete no se verán sin conexión (aviso), y los enlaces a secciones y a fotos 360° tienen que existir (error). Avisa también de nodos del minimapa que ya no existen. ✅ 2026-11-05
+- [x] **Documentar** el contrato v2 en `docs/datos/formato-paquete.md`. ✅ 2026-11-05
 
 **Pruebas**
 - [ ] `curl -I -H "Origin: https://app.ejemplo" https://datos.<dominio>/version.json` devuelve `Access-Control-Allow-Origin`.
-- [ ] Dos publicaciones al mismo tiempo: una espera a la otra y `version.json` queda con la última.
-- [ ] `node scripts/pruebas.mjs` sigue en verde.
+- [x] Dos publicaciones al mismo tiempo: la segunda recibe «hay otra en curso» (409) y no toca el puntero. Probado contra el pooler de Neon con dos conexiones. ✅
+- [x] `node scripts/pruebas.mjs` sigue en verde. ✅
 
 **Está lista cuando:** desde otro dominio se lee `version.json`, el manifiesto, el paquete y un medio, y ninguna URL vieja dejó de funcionar.
 

@@ -7,6 +7,33 @@ tags: [unipaz360, sistema, bitacora]
 >
 > **Repositorio real del proyecto:** `C:\Users\mamalon\Pictures\univerrsidadaddadada\unipaz360` (GitHub `mamalon104366/unipaz360`, rama `main`). La carpeta `C:\unipaz360` es solo evidencia.
 
+## 2026-11-05 · Motor de rutas sin conexión (fase R1, commit `b2a912e`)
+
+- **`app/lib/features/rutas/`** (Dart puro, sin red):
+  - El grafo se arma con los nodos y tramos del paquete.
+  - A* con la distancia en línea recta como heurística, en perfil **estándar** o **accesible** (solo tramos accesibles y sin escaleras; si no hay camino, lo dice).
+  - Indicaciones en español: «Sigue derecho 65 m hasta…», «Gira a la izquierda en…», «Sube por la escalera hasta el piso 1».
+  - Tiempo a 1,2 m/s, o 0,8 m/s en el perfil accesible.
+- **Regla para que siempre sea la ruta óptima:** ningún tramo cuesta menos que la línea recta entre sus nodos. Una mala medida no engaña a A*.
+- **Pruebas:** 11 nuevas con `datos/ejemplo` (la portería al Laboratorio de Redes gira a la izquierda; el Aula 101 solo por escalera, así que sin escaleras no hay ruta) y **2.000 comparaciones contra Dijkstra** en grafos al azar. La app entera: `flutter analyze` sin problemas y 75 pruebas pasan.
+- **Rama:** va en `plataforma` porque `main` espera el push forzado de limpieza (`main-limpio`). Llega a `main` con el próximo PR, sin conflictos: `app/` es igual en las dos ramas.
+- **Lo que sigue:** H1, el motor del asistente que usa este motor para guiar («¿cómo llego a la biblioteca?»).
+
+## 2026-11-05 · Fase A en el servidor: candado, `version.json` v2 y regla de apariencia (rama `plataforma`)
+
+- **Candado:** publicar y revertir toman `pg_try_advisory_xact_lock`. Si hay otra en curso, responden 409 sin tocar el puntero. Es de transacción porque `DATABASE_URL` usa el pooler de Neon (PgBouncer), donde los de sesión no sirven. Probado con dos conexiones reales: la segunda queda por fuera hasta que la primera termina.
+- **`version.json` v2:** agrega `canal` (`estable`), `app_minima` por plataforma (constante en `panel/src/lib/paquete/contrato.ts`) y `resumen` (totales del paquete y cambios desde la publicación anterior, sacados de la auditoría). La app debe tolerar que falten.
+- **Regla «apariencia válida»:**
+  - `app://` que no viene en la app → error.
+  - Imagen o video de otro sitio → aviso (sin conexión no se verá).
+  - Enlace a una sección o a una foto 360° que no existe → error.
+  - Nodos del minimapa que ya no existen → aviso.
+  - 7 casos probados.
+- La lista de recursos de la app pasó a `panel/src/lib/recursosApp.ts`, compartida por la vista previa y la validación. La revisión antes de publicar cuenta también las páginas.
+- **Docs:** contrato v2 en `docs/datos/formato-paquete.md`.
+- **Probado:** `tsc`, `eslint`, `next build` y `scripts/pruebas.mjs`. **No se publicó** una versión real. Commit `b6d8faf`; la vista previa quedó lista, y pasarla a producción espera el visto bueno del usuario.
+- **Sigue pendiente de la fase A** (necesita al usuario): dominio propio para los datos (D11), migrar las URL guardadas y correr el CORS del bucket (`node panel/scripts/configurar-r2.mjs`, con `range` y los encabezados expuestos).
+
 ## 2026-11-05 · Plan de actualizaciones a las apps y estructura del logo (solo documentación)
 
 - **Notas nuevas:** [[Flujo de actualización (plataforma → apps)]], [[Plan de trabajo - actualizaciones]] y [[Marca y logo]].
