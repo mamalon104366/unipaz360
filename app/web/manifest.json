@@ -1,12 +1,13 @@
 {
-    "name": "unipaz360",
-    "short_name": "unipaz360",
+    "name": "UniPaz360",
+    "short_name": "UniPaz360",
+    "lang": "es-CO",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
-    "orientation": "portrait-primary",
+    "background_color": "#155E49",
+    "theme_color": "#155E49",
+    "description": "Orientación en el Centro de Investigaciones Santa Lucía de UNIPAZ: recorrido 360°, mapa y guía que funcionan sin conexión.",
+    "orientation": "landscape",
     "prefer_related_applications": false,
     "icons": [
         {

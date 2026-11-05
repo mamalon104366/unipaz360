@@ -1,7 +1,7 @@
 import 'dart:ui' as ui;
 
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:unipaz360/ui/visor/motor_360.dart';
 
 /// Prueba del motor 360 con una foto sintética de bandas.
@@ -89,10 +89,13 @@ void main() {
     expect(motor.filas, greaterThan(30));
   });
 
-  test('de frente, el centro muestra la franja de longitud 0..90 (azul)', () async {
-    // yaw = -23° ⇒ el centro mira a lon = +23° (franja azul).
-    expect(await _pixelCentral(motor, -0.4, 0.4), _parecido(_azul));
-  });
+  test(
+    'de frente, el centro muestra la franja de longitud 0..90 (azul)',
+    () async {
+      // yaw = -23° ⇒ el centro mira a lon = +23° (franja azul).
+      expect(await _pixelCentral(motor, -0.4, 0.4), _parecido(_azul));
+    },
+  );
 
   test('girando a la izquierda aparece la franja verde (lon -90..0)', () async {
     // yaw = +45° ⇒ el centro mira a lon = -45°.
@@ -104,10 +107,13 @@ void main() {
     expect(await _pixelCentral(motor, 2.356, 0.4), _parecido(_rojo));
   });
 
-  test('girando al lado contrario aparece la franja amarilla (lon 90..180)', () async {
-    // yaw = -135° ⇒ el centro mira a lon = +135°.
-    expect(await _pixelCentral(motor, -2.356, 0.4), _parecido(_amarillo));
-  });
+  test(
+    'girando al lado contrario aparece la franja amarilla (lon 90..180)',
+    () async {
+      // yaw = -135° ⇒ el centro mira a lon = +135°.
+      expect(await _pixelCentral(motor, -2.356, 0.4), _parecido(_amarillo));
+    },
+  );
 
   test('mirando hacia abajo se ve la mitad oscurecida (latitud < 0)', () async {
     // pitch = -69° ⇒ el centro mira por debajo del ecuador (azul oscurecido).
@@ -126,7 +132,14 @@ void main() {
     const bordeInferior = 148;
     // Con la vista normal, el borde inferior cae bajo el ecuador (azul oscuro).
     expect(
-      await _pixel(motor, -0.4, 0.4, Motor360.fovPorDefecto, 100, bordeInferior),
+      await _pixel(
+        motor,
+        -0.4,
+        0.4,
+        Motor360.fovPorDefecto,
+        100,
+        bordeInferior,
+      ),
       _parecido(0xFF00007F, tolerancia: 60),
     );
     // Con el zoom al máximo, ese mismo borde sigue por encima del ecuador.

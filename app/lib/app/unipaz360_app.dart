@@ -119,6 +119,9 @@ class _RaizUniPazState extends State<_RaizUniPaz> {
       return MaterialApp(
         debugShowCheckedModeBanner: false,
         theme: temaUniPaz,
+        locale: _espanol,
+        supportedLocales: _idiomas,
+        localizationsDelegates: GlobalMaterialLocalizations.delegates,
         home: const Scaffold(
           backgroundColor: Color(0xFF20242B),
           body: Center(child: CircularProgressIndicator()),
@@ -130,7 +133,16 @@ class _RaizUniPazState extends State<_RaizUniPaz> {
       title: 'UniPaz360',
       debugShowCheckedModeBanner: false,
       theme: temaUniPaz,
+      locale: _espanol,
+      supportedLocales: _idiomas,
+      localizationsDelegates: GlobalMaterialLocalizations.delegates,
       routerConfig: _router,
     );
   }
 }
+
+/// La app está en español de Colombia: así lo anuncian los lectores de pantalla
+/// (en la web, `<html lang="es-CO">`) y así salen los textos del sistema
+/// («Atrás», «Copiar», «Cerrar»…).
+const _espanol = Locale('es', 'CO');
+const _idiomas = <Locale>[_espanol, Locale('es')];

@@ -5,6 +5,9 @@ import 'package:web/web.dart' as web;
 
 import 'mapa_google_config.dart';
 
+/// En la web el mapa va en un `<iframe>`, así que siempre se puede mostrar.
+bool get mapaEmbebidoDisponible => true;
+
 class GoogleMapsEmbed extends StatefulWidget {
   const GoogleMapsEmbed({super.key});
 

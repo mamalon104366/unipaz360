@@ -1,7 +1,7 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
 import 'package:internet_connection_checker_plus/internet_connection_checker_plus.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 
@@ -1317,18 +1317,24 @@ class _UbicacionState extends State<_Ubicacion> {
         final anchoTarjeta = constraints.maxWidth > 430
             ? 390.0
             : constraints.maxWidth - 36;
+        // Google Maps en vivo solo con internet y donde hay WebView (o en la web).
+        final mapaEnVivo = _hayInternet && mapaEmbebidoDisponible;
         return Stack(
           fit: StackFit.expand,
           children: [
             // Con conexión, Google Maps ocupa todo el espacio bajo el título.
-            // La imagen del dron queda como plano de respaldo sin conexión.
+            // La imagen del dron queda como plano de respaldo sin conexión
+            // y en Windows, donde no hay WebView.
             Positioned.fill(
-              child: _hayInternet ? const GoogleMapsEmbed() : _MapaAereo(),
+              child: mapaEnVivo ? const GoogleMapsEmbed() : _MapaAereo(),
             ),
             Positioned(
               top: 18,
               right: 18,
-              child: _InsigniaEstadoMapa(enLinea: _hayInternet),
+              child: _InsigniaEstadoMapa(
+                enLinea: _hayInternet,
+                mapaEnVivo: mapaEnVivo,
+              ),
             ),
             Positioned(
               left: 18,
@@ -1349,9 +1355,10 @@ class _UbicacionState extends State<_Ubicacion> {
 }
 
 class _InsigniaEstadoMapa extends StatelessWidget {
-  const _InsigniaEstadoMapa({required this.enLinea});
+  const _InsigniaEstadoMapa({required this.enLinea, required this.mapaEnVivo});
 
   final bool enLinea;
+  final bool mapaEnVivo;
 
   @override
   Widget build(BuildContext context) => DecoratedBox(
@@ -1372,13 +1379,21 @@ class _InsigniaEstadoMapa extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            enLinea ? Icons.wifi : Icons.wifi_off_outlined,
+            mapaEnVivo
+                ? Icons.wifi
+                : enLinea
+                ? Icons.map_outlined
+                : Icons.wifi_off_outlined,
             color: enLinea ? _verdeUnipaz : _grisTexto,
             size: 17,
           ),
           const SizedBox(width: 7),
           Text(
-            enLinea ? 'Google Maps en línea' : 'Plano del dron sin conexión',
+            mapaEnVivo
+                ? 'Google Maps en línea'
+                : enLinea
+                ? 'Plano del dron'
+                : 'Plano del dron sin conexión',
             style: const TextStyle(
               color: _azulUnipaz,
               fontSize: 12,

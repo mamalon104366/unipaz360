@@ -1,9 +1,18 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 import 'mapa_google_config.dart';
 
-/// Muestra el marco de Google Maps en Android y iOS cuando hay internet.
+/// `webview_flutter` solo existe en Android, iOS y macOS. En Windows (y Linux) no hay
+/// WebView: crear el control lanza un error, así que allí se muestra el plano del dron.
+bool get mapaEmbebidoDisponible => switch (defaultTargetPlatform) {
+  TargetPlatform.android || TargetPlatform.iOS || TargetPlatform.macOS => true,
+  _ => false,
+};
+
+/// Muestra el marco de Google Maps en Android, iOS y macOS cuando hay internet.
+/// Antes de usarlo, revisar [mapaEmbebidoDisponible].
 class GoogleMapsEmbed extends StatefulWidget {
   const GoogleMapsEmbed({super.key});
 
