@@ -94,8 +94,8 @@ Las cuentas `@unipaz.edu.co`, los roles (superadmin, editor y lector), la audito
 | 1 | Archivos gigantes: `pantalla_dron.dart` (2.084 líneas), `contenido_tour.dart` (1.507) y `pantalla_visor.dart` (1.220) | Partirlos en widgets de menos de 300 líneas, cada uno en su archivo |
 | 2 | Estructura por capas (`ui/`, `data/`, `domain/`) que mezcla funciones | Pasar a **una carpeta por función**: `features/mapa`, `features/visor360`, `features/rutas`, `features/espacios`, `features/sesion`, `features/tour`, más un `core/` compartido |
 | 3 | Los datos vienen de `repositorio_simulado.dart` y de texto escrito dentro de los widgets | Leer el **`datos.sqlite` del paquete** (drift o sqlite3). Los textos institucionales también van al paquete, así se cambian desde la plataforma |
-| 4 | `google_maps_embed` y `webview_flutter` | Chocan con el "sin conexión" y con el software libre del documento. Reemplazar por la ortofoto y el mapa propio (flutter_map con teselas locales) |
-| 5 | El paquete `material_ui` en lugar del Material de Flutter | Revisar por qué está; lo normal es `package:flutter/material.dart` |
+| 4 | `google_maps_embed` y `webview_flutter` | Chocan con el "sin conexión" y con el software libre del documento. Reemplazar por la ortofoto y el mapa propio (flutter_map con teselas locales). Mientras tanto, en Windows (sin WebView) ya muestra el plano del dron (5-nov-2026) |
+| 5 | El paquete `material_ui` en lugar del Material de Flutter | ✅ **Resuelto (5-nov-2026):** `material_ui` es el Material **oficial** que Flutter separó del SDK, y se queda. El error eran 3 archivos con el Material viejo, ya migrados. Ver [[Flutter - listo para empezar]] |
 | 6 | No existen el motor de rutas (A* y Dijkstra), el lector de QR ni el sincronizador de paquetes | Son los sprints S2, S3 y S4 del documento: `features/rutas` y `core/paquete` |
 | 7 | Los hotspots del visor no tienen modelo de datos | Crear el modelo `Hotspot` (tipo, yaw, pitch, contenido y vigencia) que comparten la app y la plataforma |
 | 8 | 19 MB de imágenes y videos dentro de `assets/` | Dejar solo lo mínimo de arranque; lo demás llega con el paquete |

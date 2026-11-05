@@ -1,13 +1,13 @@
 ---
 tags: [unipaz360, sistema, plan, actualizaciones]
 fecha: 2026-11-05
-estado: por empezar
+estado: en curso
 ---
 # Plan de trabajo: actualizaciones a las apps
 
 > [!abstract] Para qué es esta nota
 > Es el paso a paso para construir lo que describe [[Flujo de actualización (plataforma → apps)]]: qué tareas, en qué orden, qué archivos se tocan, cómo se prueba cada cosa y cuándo está terminada.
-> **Nada de esto está empezado todavía.** Se marca aquí a medida que se avance.
+> **Avance:** la fase A está casi lista (faltan el dominio y el CORS en R2) y el arranque de Flutter quedó revisado en [[Flutter - listo para empezar]]. Se marca aquí a medida que se avance.
 
 ---
 
@@ -53,6 +53,7 @@ flowchart TD
 - [ ] **D13** · Windows: Microsoft Store o MSIX propio.
 - [ ] **D14** · ¿Canal de pruebas desde el primer día?
 - [ ] **Logo** definitivo → [[Marca y logo]].
+- [ ] **Modo de desarrollador** de Windows en cada PC que compile la app de Windows (Flutter necesita enlaces simbólicos para los plugins).
 
 ---
 
@@ -83,7 +84,9 @@ flowchart TD
 > **Prerrequisito:** ordenar `app/lib` en `core/` y `features/` (TEC-06; ver [[Visión consolidada (nov-2026)]], sección 4).
 
 **Tareas**
-- [ ] Dependencias: `sqlite3` + `sqlite3_flutter_libs` (o `drift`), `path_provider`, `crypto` y `http` (respuestas por partes para el progreso y `Range` para reanudar).
+- [ ] Dependencias: `sqlite3` ^3.9, `path_provider`, `crypto` y `http` (respuestas por partes para el progreso y `Range` para reanudar).
+  - `sqlite3` trae SQLite solo, con *hooks*: ya no hace falta `sqlite3_flutter_libs`, y no se usa drift.
+  - Las cuatro se probaron en Android, Windows, la web y las pruebas: [[Flutter - listo para empezar]].
 - [ ] `core/paquete/almacen.dart`: dónde guardar en cada plataforma, con importaciones condicionales (`AlmacenIo` para Android, Windows, macOS e iOS; `AlmacenWeb` para IndexedDB).
 - [ ] `core/paquete/puntero.dart`: leer y escribir `actual.json` de forma atómica (archivo temporal + renombrar).
 - [ ] `core/paquete/verificador.dart`: SHA-256 leyendo por partes, sin cargar el archivo entero en memoria.
@@ -133,13 +136,16 @@ flowchart TD
 - [ ] Firebase App Distribution para pruebas (TEC-03); después Google Play con In-App Updates.
 
 **Windows**
-- [ ] Crear la carpeta: `flutter create --platforms=windows .` dentro de `app/`.
+- [x] Crear la carpeta: `flutter create --platforms=windows .` dentro de `app/`. ✅ 2026-11-05 (commit `4f041d6`)
+- [ ] Activar el **Modo de desarrollador** en el PC que compila (sin eso, `flutter build windows` se detiene).
+- [ ] Video: `video_player` no tiene versión para Windows. Elegir entre `video_player_win` y `media_kit`.
 - [ ] Probar `sqlite3.dll` y las rutas en `%LOCALAPPDATA%`.
 - [ ] MSIX con el paquete `msix` y su certificado; si D13 es «MSIX propio», publicar el `.appinstaller` en R2.
 
 **Web**
 - [ ] Hosting con dominio (Vercel o Cloudflare Pages).
 - [ ] SQLite en WASM (`sqlite3.wasm` en `web/`) y el almacén en IndexedDB.
+- [x] Manifiesto: horizontal, nombre, idioma `es-CO` y color de la marca. ✅ 2026-11-05
 - [ ] *Service worker* propio (Workbox): guarda la app, el paquete y los medios, y avisa «Hay una versión nueva de la app».
 - [ ] Probar el CORS real contra el dominio de los datos.
 

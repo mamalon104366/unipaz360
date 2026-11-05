@@ -30,6 +30,7 @@ tags: [unipaz360, indice]
 - [[Ingeniería inversa de Google Maps]] · [[Arquitectura general]] · [[Datos y publicación]]
 - [[Cliente Flutter]] · [[Plataforma de administración]] · [[Chatbot y horarios]] · [[Hoja de ruta]]
 - 🔄 [[Flujo de actualización (plataforma → apps)]] · [[Plan de trabajo - actualizaciones]] · [[Plan de trabajo - guía y chatbot]] · [[Marca y logo]]: cómo llega cada cambio de la plataforma a Android, web y Windows, la guía sin conexión con chatbot y el logo
+- 🧰 [[Flutter - listo para empezar]]: herramientas, cómo compila la app en Android, web y Windows, prueba de SQLite y lo que falta antes de la fase B
 - 📓 [[Bitácora del repositorio]]: qué se ha agregado al código y cuándo
 
 ## Funciones de la app

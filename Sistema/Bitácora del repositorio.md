@@ -7,6 +7,25 @@ tags: [unipaz360, sistema, bitacora]
 >
 > **Repositorio real del proyecto:** `C:\Users\mamalon\Pictures\univerrsidadaddadada\unipaz360` (GitHub `mamalon104366/unipaz360`, rama `main`). La carpeta `C:\unipaz360` es solo evidencia.
 
+## 2026-11-05 · Flutter listo para empezar (commit `4f041d6`)
+
+- **Revisión antes de la fase B:**
+  - `flutter doctor` sin problemas.
+  - La app compila para **web** y **Android**.
+  - **Windows** necesita activar el Modo de desarrollador del PC (enlaces simbólicos para los plugins).
+  - Detalle completo en [[Flutter - listo para empezar]].
+- **`app/windows`** creada: nombre UniPaz360, empresa UNIPAZ y ventana de 1280 × 720.
+- **Material único:** 3 archivos y una prueba usaban el Material viejo de Flutter. No veían el tema verde (salía el morado por defecto) y el aviso de enlace roto fallaba. Ahora todo importa `material_ui`.
+- **Mapa en Windows:** sin WebView, ahora muestra el plano del dron en lugar de romperse. La importación condicional usa `dart.library.js_interop`, que también sirve al compilar a WebAssembly.
+- **Español (`es-CO`)** en toda la app. En la web queda `<html lang="es-CO">`, comprobado en el navegador.
+- **Manifiesto web:** horizontal (estaba en vertical), nombre, descripción y color. En Android, la etiqueta «UniPaz360».
+- **Dependencias:** `cupertino_icons` 2.0.0 y versiones al día dentro de sus rangos.
+- **Prueba de la fase B** (proyecto aparte): `sqlite3` 3.9 abre el `datos.sqlite` real en solo lectura, con búsqueda FTS5 sin tildes.
+  - Funciona en las pruebas, en Android y en Windows, y compila para la web.
+  - Decisión: `sqlite3` directo, sin drift ni `sqlite3_flutter_libs`.
+- **Verificación:** `flutter analyze` sin problemas y 98 pruebas en verde.
+- **Lo que sigue:** TEC-06 (ordenar `app/lib`) y después la fase B.
+
 ## 2026-11-05 · Chatbot que guía sin conexión (fase H1, commit `5b9d3bd`)
 
 - **`app/lib/features/asistente/`** (Dart puro, sin red): el asistente **Paz** entiende «¿cómo llego a la biblio?», «llévame al B2-201 sin escaleras», «de la portería al lab de redes» y «¿hay un baño cerca?».

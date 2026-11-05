@@ -5,6 +5,9 @@ tags: [unipaz360, sistema, cliente, flutter]
 
 > La experiencia de Google Maps para el campus, multiplataforma y sin internet: Android, iOS, web y escritorio con el mismo código. Detalle extenso: `docs/plan/04-cliente-flutter.md`.
 
+> [!info] Estado del código (5 de noviembre de 2026)
+> La app tiene carpetas para **Android, web y Windows**, está en español (`es-CO`) y usa el Material oficial (`material_ui`). Qué compila, qué falta y la prueba de SQLite: [[Flutter - listo para empezar]].
+
 ## Pantallas
 
 1. **Inicio / Buscar** — buscador, categorías, «cerca de mí» (último QR), acceso al tour y al chat.
