@@ -7,6 +7,19 @@ tags: [unipaz360, sistema, bitacora]
 >
 > **Repositorio real del proyecto:** `C:\Users\mamalon\Pictures\univerrsidadaddadada\unipaz360` (GitHub `mamalon104366/unipaz360`, rama `main`). La carpeta `C:\unipaz360` es solo evidencia.
 
+## 2026-11-05 · Chatbot que guía sin conexión (fase H1, commit `5b9d3bd`)
+
+- **`app/lib/features/asistente/`** (Dart puro, sin red): el asistente **Paz** entiende «¿cómo llego a la biblio?», «llévame al B2-201 sin escaleras», «de la portería al lab de redes» y «¿hay un baño cerca?».
+  - Tolera errores («bilbioteca»), abreviaturas («lab», «biblio», «salón») y códigos escritos de cualquier forma («b2 201»).
+  - Si hay varios lugares parecidos, pregunta cuál (por botón o «la segunda»).
+  - Si no sabe desde dónde sales, lo pregunta. Si la app lo sabe (foto 360° o QR), da la ruta de una vez.
+  - Responde con la ruta paso a paso del motor de rutas y botones: «Ver en el mapa», «Seguir en 360°» y «Sin escaleras».
+  - Habla bien: «al Laboratorio de Redes», «a la Biblioteca», «el Aula 101».
+- **Nunca inventa:** si un lugar no existe lo dice, y si no hay ruta sin escaleras lo dice y ofrece la otra. Ante una pregunta fuera de tema explica lo que sabe hacer.
+- **Pruebas:** 23 diálogos dorados con `datos/ejemplo` y con baños de prueba para «el más cercano». La app entera: **98 pruebas** y `flutter analyze` sin problemas.
+- **Producción:** desde el 5 de noviembre corre la plataforma de `b2a912e` (fase A incluida), con el visto bueno del usuario. Este commit es solo de la app y no cambia el panel.
+- **Lo que sigue:** H2, el chat en la app. Necesita la fase B (leer `datos.sqlite` del paquete) para usar los datos reales en lugar de los de ejemplo.
+
 ## 2026-11-05 · Motor de rutas sin conexión (fase R1, commit `b2a912e`)
 
 - **`app/lib/features/rutas/`** (Dart puro, sin red):
@@ -31,7 +44,7 @@ tags: [unipaz360, sistema, bitacora]
   - 7 casos probados.
 - La lista de recursos de la app pasó a `panel/src/lib/recursosApp.ts`, compartida por la vista previa y la validación. La revisión antes de publicar cuenta también las páginas.
 - **Docs:** contrato v2 en `docs/datos/formato-paquete.md`.
-- **Probado:** `tsc`, `eslint`, `next build` y `scripts/pruebas.mjs`. **No se publicó** una versión real. Commit `b6d8faf`; la vista previa quedó lista, y pasarla a producción espera el visto bueno del usuario.
+- **Probado:** `tsc`, `eslint`, `next build` y `scripts/pruebas.mjs`. **No se publicó** una versión real. Commit `b6d8faf`. **En producción** desde el 5 de noviembre, con el visto bueno del usuario: se promovió la vista previa de `b2a912e`. Comprobado: `/ingreso` responde 200, la API sin sesión 401, `/cliente` redirige a ingresar y las imágenes de la app cargan.
 - **Sigue pendiente de la fase A** (necesita al usuario): dominio propio para los datos (D11), migrar las URL guardadas y correr el CORS del bucket (`node panel/scripts/configurar-r2.mjs`, con `range` y los encabezados expuestos).
 
 ## 2026-11-05 · Plan de actualizaciones a las apps y estructura del logo (solo documentación)

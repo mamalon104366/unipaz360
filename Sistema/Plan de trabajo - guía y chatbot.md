@@ -99,6 +99,20 @@ Así, mejorar el asistente **no exige** una versión nueva de la app: se edita e
 > - **Pruebas:** 11 en `app/test/rutas/rutas_test.dart`, con los datos de ejemplo y 2.000 comparaciones contra Dijkstra en grafos al azar (incluidos los casos sin camino). `flutter analyze` sin problemas; las 75 pruebas de la app pasan.
 > - **Decisiones:** un tramo nunca cuesta menos que la línea recta (así A* da la ruta óptima aunque haya una mala medida) y los giros se avisan desde 35°.
 
+> [!success] H1 hecha (5 de noviembre de 2026)
+> - **Código:** `app/lib/features/asistente/`. Lo que hace cada archivo:
+>   - `texto.dart`: normalizar y tolerar errores.
+>   - `conocimiento.dart`: lugares, categorías, sinónimos y artículos del español.
+>   - `resolvedor.dart`: qué lugar quiso decir.
+>   - `analisis.dart`: la intención.
+>   - `motor.dart`: la conversación.
+>   - `respuesta.dart`: textos y botones.
+> - **Lo que hace:**
+>   - Pregunta desde dónde sales, o usa el nodo del 360° o del QR, y elige entre varios lugares parecidos.
+>   - Calcula la ruta sin escaleras (y si no hay, lo dice y ofrece la otra) y el baño más cercano.
+>   - Dice dónde queda un lugar. Con lo que no sabe, explica lo que sí sabe hacer: **nunca inventa** y **nunca usa la red**.
+> - **Pruebas:** 23 diálogos dorados en `app/test/asistente/asistente_test.dart`. La app entera: 98 pruebas y `flutter analyze` sin problemas.
+
 **Pruebas que no pueden faltar:** «biblio», «bilbioteca» y «la biblioteca porfa» llevan al mismo lugar · «¿dónde es el 305?» encuentra B3-305 · «baño» encuentra «servicios» · con dos coincidencias pregunta cuál · un lugar sin ruta accesible lo dice claro · una pregunta fuera de tema responde con ayuda, **sin inventar** · nada de esto usa la red.
 
 ---
