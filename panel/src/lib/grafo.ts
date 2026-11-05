@@ -5,6 +5,7 @@ import { ErrorDatos } from './errores';
 import { auditar, cambiosDesde } from './auditoria';
 import { siguienteId } from './ids';
 import { SUPERFICIES, TIPOS_VERTICE, type Grafo, type Resumen, type Tramo, type Usuario, type Vertice } from './tipos';
+import { normalizarConfig, type ConfigApp } from './configApp';
 
 export { ErrorDatos, respuestaError } from './errores';
 
@@ -61,7 +62,7 @@ export async function ultimaPublicacion(): Promise<string | null> {
 
 export async function leerResumen(): Promise<Resumen> {
   const g = await leerGrafo();
-  const [pan, esp, anc, ultima] = await Promise.all([
+  const [pan, esp, anc, ultima, app] = await Promise.all([
     pool.query<{ id: string; titulo: string; puntos: number }>(
       `SELECT p.id, coalesce(p.titulo, v.descripcion, p.vertice_id) AS titulo,
               (SELECT count(*)::int FROM punto_informacion h WHERE h.panoramica_id = p.id) AS puntos
@@ -71,8 +72,10 @@ export async function leerResumen(): Promise<Resumen> {
     pool.query('SELECT count(*)::int AS n FROM espacio WHERE campus_id = $1', [CAMPUS_ID]),
     pool.query('SELECT count(*)::int AS n FROM anclaje WHERE campus_id = $1 AND retirado_en IS NULL', [CAMPUS_ID]),
     ultimaPublicacion(),
+    pool.query<{ config: Partial<ConfigApp> }>('SELECT config FROM configuracion_app WHERE campus_id = $1', [CAMPUS_ID]),
   ]);
   const cambios = await cambiosDesde(ultima);
+  const config = normalizarConfig(app.rows[0]?.config);
   const grupos = componentes(g.vertices, g.tramos);
   return {
     vertices: g.vertices.length,
@@ -87,6 +90,7 @@ export async function leerResumen(): Promise<Resumen> {
     ultimaPublicacion: ultima,
     cambiosPendientes: cambios.reduce((s, c) => s + c.n, 0),
     listaPanoramicas: pan.rows,
+    paginasApp: config.barraLateral.secciones.filter((s) => s.tipo === 'pagina').map((s) => ({ id: s.id, titulo: s.titulo })),
   };
 }
 

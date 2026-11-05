@@ -67,6 +67,8 @@ export interface Resumen {
   ultimaPublicacion: string | null;
   cambiosPendientes: number;
   listaPanoramicas: { id: string; titulo: string; puntos: number }[];
+  /** Secciones de la app que tienen página editable (apartado Cliente). */
+  paginasApp: { id: string; titulo: string }[];
 }
 
 // ------------------------------------------------------------------ cuentas
@@ -240,32 +242,73 @@ export const ETIQUETA_PUNTO: Record<TipoPunto, string> = {
   accesibilidad: 'Accesibilidad',
 };
 
-/** Cómo se dibuja un punto dentro de la panorámica (lo mismo en el editor y en Flutter). */
-export const FORMAS = ['etiqueta', 'icono', 'circulo', 'flecha', 'capa3d'] as const;
+/**
+ * Cómo se dibuja un punto dentro de la panorámica (lo mismo en el editor y en Flutter;
+ * el contrato está en docs/datos/puntos-360.md).
+ */
+export const FORMAS = ['etiqueta', 'icono', 'circulo', 'pin', 'burbuja', 'miniatura', 'flecha', 'capa3d'] as const;
 export type Forma = (typeof FORMAS)[number];
 export const ETIQUETA_FORMA: Record<Forma, string> = {
   etiqueta: 'Etiqueta',
   icono: 'Ícono',
-  circulo: 'Círculo',
+  circulo: 'Anillo',
+  pin: 'Pin',
+  burbuja: 'Tarjeta',
+  miniatura: 'Miniatura',
   flecha: 'Flecha en el piso',
-  capa3d: 'Dentro de la imagen (3D)',
+  capa3d: 'Dentro de la imagen',
 };
-export const ANIMACIONES = ['ninguna', 'pulso', 'flotar'] as const;
+/** Formas que viven sobre la esfera (plano con tamaño y giro); las demás miran siempre al visitante. */
+export const FORMAS_3D: readonly Forma[] = ['flecha', 'capa3d'];
+
+export const ANIMACIONES = ['ninguna', 'pulso', 'latido', 'flotar', 'rebote', 'brillo', 'girar', 'balanceo', 'parpadeo'] as const;
 export type Animacion = (typeof ANIMACIONES)[number];
+export const ETIQUETA_ANIMACION: Record<Animacion, string> = {
+  ninguna: 'Ninguna',
+  pulso: 'Pulso',
+  latido: 'Latido',
+  flotar: 'Flotar',
+  rebote: 'Rebote',
+  brillo: 'Onda',
+  girar: 'Girar',
+  balanceo: 'Balanceo',
+  parpadeo: 'Parpadeo',
+};
+
+/** Color de acento por tipo (el ícono va en blanco o negro según la luminancia del color). */
+export const COLOR_PUNTO: Record<TipoPunto, string> = {
+  informacion: '#2563eb',
+  anuncio: '#f59e0b',
+  imagen: '#7c3aed',
+  video: '#dc2626',
+  enlace: '#ffffff',
+  espacio: '#0d9488',
+  accesibilidad: '#16a34a',
+};
 
 export interface Estilo {
   forma: Forma;
-  /** Tamaño en "píxeles de esfera": ancho angular (rad) ≈ ancho / 1000. */
+  /** Tamaño en "píxeles de esfera": ancho angular (rad) ≈ ancho / 1000. Solo formas 3D. */
   ancho: number;
   alto: number;
-  /** Grados, aplicados sobre el plano que mira al centro de la esfera. */
+  /** Grados, aplicados sobre el plano que mira al centro de la esfera. Solo formas 3D. */
   rotacion: { yaw: number; pitch: number; roll: number };
   animacion: Animacion;
+  /** Color de acento, #rrggbb. */
+  color: string;
+  /** Tamaño de las formas 2D (1 = normal, de 0.5 a 2.5). */
+  escala: number;
 }
 
-export function estiloPorDefecto(tipo: TipoPunto): Estilo {
-  const base = { rotacion: { yaw: 0, pitch: 0, roll: 0 }, animacion: 'ninguna' as Animacion };
-  if (tipo === 'enlace') return { ...base, forma: 'flecha', ancho: 160, alto: 160, rotacion: { yaw: 0, pitch: 60, roll: 0 }, animacion: 'pulso' };
+/**
+ * Inclinación que hace ver la flecha "acostada" en el piso según qué tan abajo está:
+ * cerca del horizonte un plano horizontal se vería de canto, así que se levanta un poco.
+ */
+export const inclinacionSuelo = (pitch: number) => (pitch < 0 ? Math.round(Math.min(85, Math.max(45, -pitch + 35))) : 0);
+
+export function estiloPorDefecto(tipo: TipoPunto, pitch = -20): Estilo {
+  const base = { rotacion: { yaw: 0, pitch: 0, roll: 0 }, animacion: 'ninguna' as Animacion, color: COLOR_PUNTO[tipo], escala: 1 };
+  if (tipo === 'enlace') return { ...base, forma: 'flecha', ancho: 160, alto: 160, rotacion: { yaw: 0, pitch: inclinacionSuelo(pitch), roll: 0 }, animacion: 'pulso' };
   if (tipo === 'video') return { ...base, forma: 'capa3d', ancho: 480, alto: 270 };
   if (tipo === 'imagen') return { ...base, forma: 'capa3d', ancho: 320, alto: 320 };
   return { ...base, forma: 'etiqueta', ancho: 0, alto: 0 };

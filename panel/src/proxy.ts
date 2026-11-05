@@ -22,6 +22,6 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Todo menos los archivos estáticos.
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|maplibre/|marca/).*)'],
+  // Todo menos los archivos estáticos (incluidas las imágenes y videos de la app en /app/).
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|maplibre/|marca/|app/).*)'],
 };

@@ -1,5 +1,8 @@
-/** URL para ver un medio de R2 dentro del panel (mismo origen, no depende del CORS del bucket). */
-export const urlMedio = (clave: string | undefined | null) => (clave ? `/api/medios/archivo?clave=${encodeURIComponent(clave)}` : '');
+/**
+ * URL para ver un medio de R2 dentro del panel (mismo origen, no depende del CORS del bucket).
+ * Si ya es una ruta del propio panel (empieza por "/"), se usa tal cual.
+ */
+export const urlMedio = (clave: string | undefined | null) => (!clave ? '' : clave.startsWith('/') ? clave : `/api/medios/archivo?clave=${encodeURIComponent(clave)}`);
 
 export const rad = (g: number) => (g * Math.PI) / 180;
 export const grados = (r: number) => (r * 180) / Math.PI;

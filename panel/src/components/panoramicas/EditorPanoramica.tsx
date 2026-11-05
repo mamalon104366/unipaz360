@@ -9,10 +9,14 @@ import type { Viewer } from '@photo-sphere-viewer/core';
 import type { MarkersPlugin } from '@photo-sphere-viewer/markers-plugin';
 import {
   ArrowLeft,
+  Box,
+  ChevronsUp,
   Compass,
   Crosshair,
   Eye,
+  Footprints,
   Hand,
+  Info,
   MapPinPlus,
   Move,
   Navigation,
@@ -26,17 +30,79 @@ import {
 import { api } from '@/components/ui/api';
 import { Campo } from '@/components/ui/Modal';
 import { useAvisos } from '@/components/ui/useAvisos';
+import { useGuardiaCambios } from '@/components/ui/useGuardiaCambios';
 import { subirArchivo, subirMedio, medirImagen } from '@/components/ui/subida';
-import { AJUSTES_POR_DEFECTO, ANIMACIONES, ETIQUETA_FORMA, ETIQUETA_PUNTO, TIPOS_PUNTO, estiloPorDefecto, type Ajustes, type Enlace, type Estilo, type Forma, type Panoramica, type Punto, type TipoPunto } from '@/lib/tipos';
-import { estiloDe, marcadorDe, type CacheCapas } from './capas';
+import {
+  AJUSTES_POR_DEFECTO,
+  ANIMACIONES,
+  COLOR_PUNTO,
+  ETIQUETA_ANIMACION,
+  ETIQUETA_FORMA,
+  ETIQUETA_PUNTO,
+  FORMAS_3D,
+  TIPOS_PUNTO,
+  estiloPorDefecto,
+  inclinacionSuelo,
+  type Ajustes,
+  type Enlace,
+  type Estilo,
+  type Forma,
+  type Panoramica,
+  type Punto,
+  type TipoPunto,
+} from '@/lib/tipos';
+import { estiloDe, marcadorDe, tintaSobre, type CacheCapas } from './capas';
+import { aFoto, aVista, type Posicion } from './correccion';
 import { grados, normalizar, rad, urlMedio } from './medio';
 import { iconoPunto } from './iconosPunto';
 
 type Modo = 'navegar' | 'punto' | 'difuminar' | 'norte' | 'reubicar';
 type Pestana = 'puntos' | 'ajustes' | 'detalles';
-type Borrador = Partial<Punto> & { tipo: TipoPunto; yaw: number; pitch: number };
+export interface OtraPanoramica {
+  id: string;
+  titulo: string;
+  vertice_id: string;
+  miniatura: string | null;
+}
+
+/** Lo que se edita de un punto en el formulario (la posición se guarda aparte, al soltarlo). */
+interface DatosPunto {
+  tipo: TipoPunto;
+  titulo: string;
+  texto: string;
+  url: string;
+  medio_id: string | null;
+  medio_url: string | null;
+  destino_panoramica_id: string;
+  espacio_id: string;
+  vigente_desde: string;
+  vigente_hasta: string;
+  estilo: Estilo;
+}
+
+interface Edicion {
+  /** null = punto nuevo, todavía sin guardar. */
+  id: string | null;
+  /** Posición (marco de la foto) del punto nuevo; los guardados la toman de la lista. */
+  pos: Posicion;
+  base: DatosPunto | null;
+  datos: DatosPunto;
+}
+
+/** Lo que el visor (registrado una sola vez) llama en cada evento. */
+interface Acciones {
+  clicEsfera: (p: Posicion) => void;
+  tocarPunto: (id: string) => void;
+  soltarPunto: (id: string, vista: Posicion) => void;
+  marcador: (tipo: string, id: string) => void;
+}
 
 const iguales = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+const sucia = (e: Edicion | null) => !!e && (e.id === null || !iguales(e.base, e.datos));
+
+function vigente(p: Pick<Punto, 'vigente_desde' | 'vigente_hasta'>, ahora: number) {
+  return (!p.vigente_desde || new Date(p.vigente_desde).getTime() <= ahora) && (!p.vigente_hasta || new Date(p.vigente_hasta).getTime() >= ahora);
+}
 
 function vigencia(p: Pick<Punto, 'vigente_desde' | 'vigente_hasta'>) {
   const ahora = Date.now();
@@ -53,6 +119,37 @@ const aLocal = (iso: string | null | undefined) => {
   return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 };
 
+function datosDe(p: Partial<Punto> & { tipo: TipoPunto }, otras: OtraPanoramica[], espacios: { id: string }[]): DatosPunto {
+  return {
+    tipo: p.tipo,
+    titulo: p.titulo ?? '',
+    texto: p.texto ?? '',
+    url: p.url ?? '',
+    medio_id: p.medio_id ?? null,
+    medio_url: p.medio_url ?? null,
+    destino_panoramica_id: p.destino_panoramica_id ?? otras[0]?.id ?? '',
+    espacio_id: p.espacio_id ?? espacios[0]?.id ?? '',
+    vigente_desde: aLocal(p.vigente_desde),
+    vigente_hasta: aLocal(p.vigente_hasta),
+    estilo: estiloDe(p),
+  };
+}
+
+function aEnvio(d: DatosPunto): Partial<Punto> {
+  return {
+    tipo: d.tipo,
+    titulo: d.titulo,
+    texto: d.tipo === 'enlace' ? null : d.texto || null,
+    url: d.url || null,
+    medio_id: d.tipo === 'imagen' || d.tipo === 'video' ? d.medio_id : null,
+    destino_panoramica_id: d.tipo === 'enlace' ? d.destino_panoramica_id || null : null,
+    espacio_id: d.tipo === 'espacio' ? d.espacio_id || null : null,
+    vigente_desde: d.vigente_desde ? new Date(d.vigente_desde).toISOString() : null,
+    vigente_hasta: d.vigente_hasta ? new Date(d.vigente_hasta).toISOString() : null,
+    estilo: d.estilo,
+  };
+}
+
 /** Círculo angular como polígono (para mostrar las zonas difuminadas). */
 function circulo(yaw: number, pitch: number, radio: number): [number, number][] {
   const k = Math.max(Math.cos(rad(pitch)), 0.15);
@@ -62,6 +159,15 @@ function circulo(yaw: number, pitch: number, radio: number): [number, number][] 
   });
 }
 
+function formasDe(t: TipoPunto): Forma[] {
+  if (t === 'enlace') return ['flecha', 'miniatura', 'etiqueta', 'pin', 'icono', 'circulo'];
+  if (t === 'imagen') return ['capa3d', 'miniatura', 'burbuja', 'etiqueta', 'icono', 'pin'];
+  if (t === 'video') return ['capa3d', 'etiqueta', 'burbuja', 'icono', 'pin'];
+  return ['etiqueta', 'burbuja', 'icono', 'pin', 'circulo', 'capa3d'];
+}
+
+const enCampo = (t: EventTarget | null) => t instanceof HTMLElement && (t.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName));
+
 export function EditorPanoramica({
   inicial,
   puntosIniciales,
@@ -69,13 +175,15 @@ export function EditorPanoramica({
   espacios,
   otras,
   puedeEditar,
+  previaInicial = false,
 }: {
   inicial: Panoramica;
   puntosIniciales: Punto[];
   enlaces: Enlace[];
   espacios: { id: string; codigo: string; nombre: string }[];
-  otras: { id: string; titulo: string }[];
+  otras: OtraPanoramica[];
   puedeEditar: boolean;
+  previaInicial?: boolean;
 }) {
   const router = useRouter();
   const { avisar, nodo: aviso } = useAvisos();
@@ -88,30 +196,37 @@ export function EditorPanoramica({
   const [titulo, setTitulo] = useState(inicial.titulo ?? '');
   const [rumbo, setRumbo] = useState(inicial.rumbo_inicial ?? 0);
   const [puntos, setPuntos] = useState(puntosIniciales);
-  const [sel, setSel] = useState<string | null>(null);
-  const [borrador, setBorrador] = useState<Borrador | null>(null);
+  const [edicion, setEdicion] = useState<Edicion | null>(null);
   const [modo, setModo] = useState<Modo>('navegar');
   const [pestana, setPestana] = useState<Pestana>('puntos');
-  const [previa, setPrevia] = useState(!puedeEditar);
+  const [previa, setPrevia] = useState(previaInicial || !puedeEditar);
   const [radio, setRadio] = useState(4);
   const [guardando, setGuardando] = useState<string | null>(null);
   const [listo, setListo] = useState(false);
-  const [estiloEdicion, setEstiloEdicion] = useState<{ clave: string; estilo: Estilo } | null>(null);
   const [ficha, setFicha] = useState<Punto | null>(null);
   const cache = useRef<CacheCapas>(new Map());
 
-  const pendiente = !iguales(ajustes, pano.ajustes) || titulo !== (pano.titulo ?? '') || rumbo !== (pano.rumbo_inicial ?? 0);
-  const claveSel = borrador ? `nuevo-${borrador.yaw}` : sel;
-  const estiloVivo = estiloEdicion && estiloEdicion.clave === claveSel ? estiloEdicion.estilo : null;
+  const panoSucia = !iguales(ajustes, pano.ajustes) || titulo !== (pano.titulo ?? '') || rumbo !== (pano.rumbo_inicial ?? 0);
+  const puntoSucio = sucia(edicion);
+  const hayCambios = panoSucia || puntoSucio;
+  useGuardiaCambios(puedeEditar && hayCambios);
+
+  // En "difuminar" se ve la foto sin corregir: así coinciden las coordenadas de las zonas.
+  const inclinacion = modo === 'difuminar' ? 0 : ajustes.inclinacion;
+  const alabeo = modo === 'difuminar' ? 0 : ajustes.alabeo;
   const enlacesVivos = useMemo(
     () => enlaces.map((e) => (e.manual ? e : { ...e, yaw: normalizar(ajustes.norte + e.rumbo) })),
     [enlaces, ajustes.norte],
   );
+  const puntoSel = edicion?.id ? (puntos.find((p) => p.id === edicion.id) ?? null) : null;
+  const posEdicion = edicion ? (edicion.id ? (puntoSel ? { yaw: puntoSel.yaw, pitch: puntoSel.pitch } : edicion.pos) : edicion.pos) : null;
 
-  // Estado actual para los manejadores del visor (se registran una vez).
-  const ref = useRef({ modo, radio, previa, puedeEditar, sel, puntos });
+  // Estado y acciones actuales para los manejadores del visor (se registran una sola vez).
+  const ref = useRef({ modo, radio, previa, puedeEditar, edicion, puntos, inclinacion, alabeo });
+  const acciones = useRef<Acciones>({ clicEsfera: () => {}, tocarPunto: () => {}, soltarPunto: () => {}, marcador: () => {} });
   useEffect(() => {
-    ref.current = { modo, radio, previa, puedeEditar, sel, puntos };
+    ref.current = { modo, radio, previa, puedeEditar, edicion, puntos, inclinacion, alabeo };
+    acciones.current = { clicEsfera, tocarPunto, soltarPunto, marcador };
   });
 
   // ------------------------------------------------------------------ visor
@@ -134,46 +249,13 @@ export function EditorPanoramica({
       visor.current = v;
       marcas.current = v.getPlugin(MarkersPlugin) as MarkersPlugin;
       v.addEventListener('ready', () => setListo(true), { once: true });
-
       v.addEventListener('click', ({ data }) => {
         if (data.rightclick || (data.target as HTMLElement | undefined)?.closest?.('.psv-marker')) return;
-        const yaw = normalizar(grados(data.yaw));
-        const pitch = grados(data.pitch);
-        const { modo: m, radio: r, previa: pv, puedeEditar: pe, sel: s } = ref.current;
-        if (pv || !pe) return;
-        if (m === 'punto') {
-          setSel(null);
-          setBorrador({ tipo: 'informacion', yaw, pitch, titulo: '', estilo: estiloPorDefecto('informacion') });
-          setPestana('puntos');
-        } else if (m === 'difuminar') {
-          setAjustes((a) => ({ ...a, difuminados: [...a.difuminados, { yaw, pitch, radio: r }] }));
-        } else if (m === 'norte') {
-          setAjustes((a) => ({ ...a, norte: yaw }));
-          setModo('navegar');
-        } else if (m === 'reubicar' && s) {
-          api<Punto>(`/api/puntos/${s}`, 'PATCH', { yaw, pitch })
-            .then((r) => setPuntos((ps) => ps.map((p) => (p.id === s ? r : p))))
-            .catch((e: Error) => avisar(e.message));
-          setModo('navegar');
-        }
+        acciones.current.clicEsfera({ yaw: normalizar(grados(data.yaw)), pitch: grados(data.pitch) });
       });
-
       marcas.current.addEventListener('select-marker', ({ marker }) => {
-        const [tipo, id] = String(marker.id).split(':');
-        if (tipo === 'p' && ref.current.previa) {
-          const punto = ref.current.puntos.find((x) => x.id === id);
-          if (punto?.tipo === 'enlace' && punto.destino_panoramica_id) router.push(`/panoramicas/${punto.destino_panoramica_id}`);
-          else if (punto && !(punto.tipo === 'video' && estiloDe(punto).forma === 'capa3d')) setFicha(punto);
-        } else if (tipo === 'p') {
-          setBorrador(null);
-          setSel(id);
-          setPestana('puntos');
-        } else if (tipo === 'e' && ref.current.previa) {
-          router.push(`/panoramicas/${id}`);
-        } else if (tipo === 'd' && ref.current.modo === 'difuminar') {
-          const i = Number(id);
-          setAjustes((a) => ({ ...a, difuminados: a.difuminados.filter((_, k) => k !== i) }));
-        }
+        const [tipo, ...resto] = String(marker.id).split(':');
+        acciones.current.marcador(tipo, resto.join(':'));
       });
     })();
     return () => {
@@ -187,89 +269,292 @@ export function EditorPanoramica({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [previa, pano.lods.rapida?.clave, pano.lods.edicion?.clave]);
 
-  // Horizonte en vivo (en "difuminar" se muestra el original sin corregir: así coinciden las coordenadas).
+  // Horizonte en vivo.
   useEffect(() => {
     if (!listo || !visor.current) return;
-    const sinCorreccion = modo === 'difuminar';
-    visor.current.setOption('sphereCorrection', {
-      tilt: sinCorreccion ? 0 : rad(ajustes.inclinacion),
-      roll: sinCorreccion ? 0 : rad(ajustes.alabeo),
-    });
-  }, [listo, ajustes.inclinacion, ajustes.alabeo, modo]);
+    visor.current.setOption('sphereCorrection', { tilt: rad(inclinacion), roll: rad(alabeo) });
+  }, [listo, inclinacion, alabeo]);
 
-  // Marcadores: puntos, flechas, norte y zonas difuminadas.
+  // Arrastrar puntos sobre la foto (como en Figma). Un toque sin mover lo selecciona.
+  useEffect(() => {
+    const cont = contenedor.current;
+    if (!cont) return;
+    let arrastre: { punto: string; x0: number; y0: number; movido: boolean; el: HTMLElement; vista?: Posicion } | null = null;
+    const abajo = (e: PointerEvent) => {
+      const r = ref.current;
+      if (r.previa || !r.puedeEditar || r.modo === 'difuminar' || e.button !== 0) return;
+      const el = (e.target as HTMLElement).closest<HTMLElement>('[data-punto]');
+      if (!el?.dataset.punto) return;
+      e.preventDefault();
+      arrastre = { punto: el.dataset.punto, x0: e.clientX, y0: e.clientY, movido: false, el };
+      cont.setPointerCapture(e.pointerId);
+    };
+    const mover = (e: PointerEvent) => {
+      if (!arrastre || !visor.current || !marcas.current) return;
+      if (!arrastre.movido && Math.hypot(e.clientX - arrastre.x0, e.clientY - arrastre.y0) < 5) return;
+      arrastre.movido = true;
+      arrastre.el.classList.add('es-arrastrando');
+      const caja = cont.getBoundingClientRect();
+      const s = visor.current.dataHelper.viewerCoordsToSphericalCoords({ x: e.clientX - caja.left, y: e.clientY - caja.top });
+      if (!s) return;
+      arrastre.vista = { yaw: normalizar(grados(s.yaw)), pitch: grados(s.pitch) };
+      try {
+        marcas.current.updateMarker({ id: `p:${arrastre.punto}`, position: { yaw: s.yaw, pitch: s.pitch } });
+      } catch {
+        // El marcador se recreó mientras se arrastraba: se ubica al soltar.
+      }
+    };
+    const arriba = (e: PointerEvent) => {
+      if (!arrastre) return;
+      const a = arrastre;
+      arrastre = null;
+      a.el.classList.remove('es-arrastrando');
+      if (cont.hasPointerCapture(e.pointerId)) cont.releasePointerCapture(e.pointerId);
+      if (e.type === 'pointercancel') return;
+      if (a.movido && a.vista) acciones.current.soltarPunto(a.punto, a.vista);
+      else if (!a.movido) acciones.current.tocarPunto(a.punto);
+    };
+    cont.addEventListener('pointerdown', abajo);
+    cont.addEventListener('pointermove', mover);
+    cont.addEventListener('pointerup', arriba);
+    cont.addEventListener('pointercancel', arriba);
+    return () => {
+      cont.removeEventListener('pointerdown', abajo);
+      cont.removeEventListener('pointermove', mover);
+      cont.removeEventListener('pointerup', arriba);
+      cont.removeEventListener('pointercancel', arriba);
+    };
+  }, []);
+
+  // Marcadores: puntos (con lo que se está editando en vivo), flechas, norte y zonas difuminadas.
   useEffect(() => {
     const m = marcas.current;
     if (!listo || !m) return;
     const ahora = Date.now();
-    const lista = [
-      ...puntos
-        .filter((p) => !previa || ((!p.vigente_desde || new Date(p.vigente_desde).getTime() <= ahora) && (!p.vigente_hasta || new Date(p.vigente_hasta).getTime() >= ahora)))
-        .map((p) =>
-          marcadorDe(p, sel === p.id && estiloVivo ? estiloVivo : estiloDe(p), { id: `p:${p.id}`, seleccionado: !previa && sel === p.id, previa, cache: cache.current }),
+    const vista = (p: Posicion) => aVista(p, inclinacion, alabeo);
+    const editable = !previa && puedeEditar && modo !== 'difuminar';
+    const miniaturaDe = (destino: string | null | undefined) => otras.find((o) => o.id === destino)?.miniatura ?? null;
+    const lista: Parameters<MarkersPlugin['setMarkers']>[0] = [];
+    for (const p of puntos) {
+      if (previa && !vigente(p, ahora)) continue;
+      const d = edicion?.id === p.id ? edicion.datos : null;
+      const visible = d ? { ...p, tipo: d.tipo, titulo: d.titulo, texto: d.texto || null, url: d.url || null, medio_url: d.medio_url, destino_panoramica_id: d.destino_panoramica_id } : p;
+      lista.push(
+        marcadorDe(visible, d ? d.estilo : estiloDe(p), {
+          id: `p:${p.id}`,
+          punto: p.id,
+          vista: vista(p),
+          seleccionado: !previa && edicion?.id === p.id,
+          previa,
+          editable,
+          cache: cache.current,
+          miniatura: visible.tipo === 'enlace' ? miniaturaDe(visible.destino_panoramica_id) : null,
+        }),
+      );
+    }
+    if (edicion && edicion.id === null) {
+      const d = edicion.datos;
+      lista.push(
+        marcadorDe(
+          { ...edicion.pos, tipo: d.tipo, titulo: d.titulo, texto: d.texto || null, url: d.url || null, medio_url: d.medio_url },
+          d.estilo,
+          {
+            id: 'p:nuevo',
+            punto: 'nuevo',
+            vista: vista(edicion.pos),
+            seleccionado: !previa,
+            previa,
+            editable,
+            cache: cache.current,
+            miniatura: d.tipo === 'enlace' ? miniaturaDe(d.destino_panoramica_id) : null,
+          },
         ),
-      ...(borrador
-        ? [marcadorDe(borrador, estiloVivo ?? estiloDe(borrador), { id: 'p:nuevo', seleccionado: true, previa, cache: cache.current })]
-        : []),
-      ...enlacesVivos.map((e) => ({
+      );
+    }
+    for (const e of enlacesVivos) {
+      const v = vista({ yaw: e.yaw, pitch: e.pitch });
+      lista.push({
         id: `e:${e.destino_panoramica_id}`,
-        position: { yaw: rad(e.yaw), pitch: rad(e.pitch) },
+        position: { yaw: rad(v.yaw), pitch: rad(v.pitch) },
         html: `<div class="psv-flecha"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg><span>${e.titulo.replace(/</g, '&lt;')}</span></div>`,
         anchor: 'center center',
         tooltip: previa ? `Ir a ${e.titulo}` : undefined,
-      })),
-      ...(!previa
-        ? [{ id: 'n:norte', position: { yaw: rad(ajustes.norte), pitch: 0 }, html: '<div class="psv-norte">N</div>', anchor: 'center center' }]
-        : []),
-      ...(!previa && modo === 'difuminar'
-        ? ajustes.difuminados.map((d, i) => ({
-            id: `d:${i}`,
-            polygon: circulo(d.yaw, d.pitch, d.radio),
-            svgStyle: { fill: 'rgba(210,60,60,0.22)', stroke: 'rgba(210,60,60,0.9)', strokeWidth: '2px' },
-            tooltip: 'Clic para quitar',
-          }))
-        : []),
-    ];
+      });
+    }
+    if (!previa) {
+      const n = vista({ yaw: ajustes.norte, pitch: 0 });
+      lista.push({ id: 'n:norte', position: { yaw: rad(n.yaw), pitch: rad(n.pitch) }, html: '<div class="psv-norte">N</div>', anchor: 'center center' });
+    }
+    if (!previa && modo === 'difuminar') {
+      ajustes.difuminados.forEach((d, i) =>
+        lista.push({
+          id: `d:${i}`,
+          polygon: circulo(d.yaw, d.pitch, d.radio),
+          svgStyle: { fill: 'rgba(210,60,60,0.22)', stroke: 'rgba(210,60,60,0.9)', strokeWidth: '2px' },
+          tooltip: 'Clic para quitar',
+        }),
+      );
+    }
     m.setMarkers(lista);
-  }, [listo, puntos, borrador, enlacesVivos, ajustes.norte, ajustes.difuminados, modo, previa, sel, estiloVivo]);
+  }, [listo, puntos, edicion, enlacesVivos, ajustes.norte, ajustes.difuminados, modo, previa, puedeEditar, inclinacion, alabeo, otras]);
 
-  // Ir al punto seleccionado.
+  // Atajos: Esc cancela o cierra, Supr elimina el punto, Ctrl+S guarda todo.
   useEffect(() => {
-    const p = puntos.find((x) => x.id === sel);
-    if (p && visor.current && listo) visor.current.animate({ yaw: rad(p.yaw), pitch: rad(p.pitch), speed: '6rpm' });
-  }, [sel, listo, puntos]);
+    if (!puedeEditar) return;
+    const tecla = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        void guardarTodo();
+        return;
+      }
+      if (enCampo(e.target) || ref.current.previa) return;
+      if (e.key === 'Escape') {
+        if (ref.current.modo !== 'navegar') setModo('navegar');
+        else void seleccionar(null);
+      } else if ((e.key === 'Delete' || e.key === 'Backspace') && ref.current.edicion) {
+        e.preventDefault();
+        const id = ref.current.edicion.id;
+        if (id) void eliminarPunto(id);
+        else setEdicion(null);
+      }
+    };
+    window.addEventListener('keydown', tecla);
+    return () => window.removeEventListener('keydown', tecla);
+  });
 
   // ------------------------------------------------------------------ acciones
-  async function guardarPunto(id: string, datos: Partial<Punto>) {
+  function irA(p: Posicion) {
+    if (!visor.current || !listo) return;
+    const v = aVista(p, inclinacion, alabeo);
+    visor.current.animate({ yaw: rad(v.yaw), pitch: rad(v.pitch), speed: '6rpm' });
+  }
+
+  function nuevaEdicion(p: Punto): Edicion {
+    const d = datosDe(p, otras, espacios);
+    return { id: p.id, pos: { yaw: p.yaw, pitch: p.pitch }, base: d, datos: d };
+  }
+
+  /** Guarda (o crea) el punto en edición. Devuelve false si no se pudo. */
+  async function guardarPunto(e: Edicion | null = ref.current.edicion): Promise<boolean> {
+    if (!e || !sucia(e)) return true;
+    const enviados = e.datos;
+    if (enviados.tipo === 'enlace' && !enviados.destino_panoramica_id) {
+      avisar(otras.length ? 'Elige a qué panorámica lleva el «Ir a».' : 'Para usar «Ir a» primero sube la foto 360° de otro nodo en el mapa.');
+      return false;
+    }
     try {
-      const r = await api<Punto>(`/api/puntos/${id}`, 'PATCH', datos);
-      setPuntos((ps) => ps.map((p) => (p.id === id ? r : p)));
-      avisar('Punto guardado.', 'ok');
-    } catch (e) {
-      avisar((e as Error).message);
+      if (e.id === null) {
+        const r = await api<Punto>(`/api/panoramicas/${pano.id}/puntos`, 'POST', { ...aEnvio(enviados), yaw: e.pos.yaw, pitch: e.pos.pitch });
+        setPuntos((ps) => [...ps, r]);
+        setEdicion((x) => (x && x.id === null ? (iguales(x.datos, enviados) ? nuevaEdicion(r) : { ...nuevaEdicion(r), datos: x.datos }) : x));
+        avisar('Punto creado.', 'ok');
+        router.refresh();
+      } else {
+        const r = await api<Punto>(`/api/puntos/${e.id}`, 'PATCH', aEnvio(enviados));
+        setPuntos((ps) => ps.map((p) => (p.id === r.id ? r : p)));
+        setEdicion((x) => (x && x.id === r.id ? (iguales(x.datos, enviados) ? nuevaEdicion(r) : { ...x, base: datosDe(r, otras, espacios) }) : x));
+        avisar('Punto guardado.', 'ok');
+      }
+      return true;
+    } catch (err) {
+      avisar((err as Error).message);
+      return false;
     }
   }
 
-  async function crearPunto(b: Borrador) {
+  /** Antes de cambiar de punto se guarda lo pendiente; un punto nuevo sin título se descarta. */
+  async function soltarEdicion(): Promise<boolean> {
+    const e = ref.current.edicion;
+    if (!e || !sucia(e)) return true;
+    if (e.id === null && !e.datos.titulo.trim()) return true;
+    return guardarPunto(e);
+  }
+
+  async function seleccionar(id: string | null, mirar = false) {
+    if (ref.current.edicion?.id === id && id !== null) return;
+    if (!(await soltarEdicion())) return;
+    const p = id ? ref.current.puntos.find((x) => x.id === id) : null;
+    setEdicion(p ? nuevaEdicion(p) : null);
+    if (p) {
+      setPestana('puntos');
+      if (mirar) irA(p);
+    }
+  }
+
+  async function moverPunto(id: string, foto: Posicion) {
+    if (id === 'nuevo') {
+      setEdicion((e) => (e && e.id === null ? { ...e, pos: foto } : e));
+      return;
+    }
+    const antes = ref.current.puntos.find((p) => p.id === id);
+    setPuntos((ps) => ps.map((p) => (p.id === id ? { ...p, ...foto } : p)));
     try {
-      const r = await api<Punto>(`/api/panoramicas/${pano.id}/puntos`, 'POST', b);
-      setPuntos((ps) => [...ps, r]);
-      setBorrador(null);
-      setSel(r.id);
+      const r = await api<Punto>(`/api/puntos/${id}`, 'PATCH', foto);
+      setPuntos((ps) => ps.map((p) => (p.id === id ? { ...p, yaw: r.yaw, pitch: r.pitch } : p)));
+    } catch (err) {
+      if (antes) setPuntos((ps) => ps.map((p) => (p.id === id ? { ...p, yaw: antes.yaw, pitch: antes.pitch } : p)));
+      avisar((err as Error).message);
+    }
+  }
+
+  function clicEsfera(p: Posicion) {
+    const { modo: m, radio: r, previa: pv, puedeEditar: pe, edicion: ed, inclinacion: i, alabeo: a } = ref.current;
+    if (pv || !pe) return;
+    const foto = aFoto(p, i, a);
+    if (m === 'punto') {
+      void (async () => {
+        if (!(await soltarEdicion())) return;
+        const d = datosDe({ tipo: 'informacion', estilo: estiloPorDefecto('informacion', foto.pitch) }, otras, espacios);
+        setEdicion({ id: null, pos: foto, base: null, datos: d });
+        setPestana('puntos');
+        setModo('navegar');
+      })();
+    } else if (m === 'difuminar') {
+      setAjustes((x) => ({ ...x, difuminados: [...x.difuminados, { yaw: foto.yaw, pitch: foto.pitch, radio: r }] }));
+    } else if (m === 'norte') {
+      setAjustes((x) => ({ ...x, norte: Math.round(foto.yaw * 10) / 10 }));
       setModo('navegar');
-      avisar('Punto creado.', 'ok');
-      router.refresh();
-    } catch (e) {
-      avisar((e as Error).message);
+      avisar('Norte marcado. Las flechas automáticas ya apuntan según el mapa (guarda para aplicar).', 'ok');
+    } else if (m === 'reubicar' && ed) {
+      void moverPunto(ed.id ?? 'nuevo', foto);
+      setModo('navegar');
+    } else if (m === 'navegar' && ed) {
+      void seleccionar(null);
+    }
+  }
+
+  function tocarPunto(id: string) {
+    if (id !== 'nuevo') void seleccionar(id);
+  }
+
+  function soltarPunto(id: string, vista: Posicion) {
+    const { inclinacion: i, alabeo: a } = ref.current;
+    void moverPunto(id, aFoto(vista, i, a));
+    if (id !== 'nuevo' && ref.current.edicion?.id !== id) void seleccionar(id);
+  }
+
+  function marcador(tipo: string, id: string) {
+    const { previa: pv, modo: m, puntos: ps } = ref.current;
+    if (tipo === 'p' && pv) {
+      const punto = ps.find((x) => x.id === id);
+      if (punto?.tipo === 'enlace' && punto.destino_panoramica_id) router.push(`/panoramicas/${punto.destino_panoramica_id}?vista=visitante`);
+      else if (punto && !(punto.tipo === 'video' && estiloDe(punto).forma === 'capa3d')) setFicha(punto);
+    } else if (tipo === 'e' && pv) {
+      router.push(`/panoramicas/${id}?vista=visitante`);
+    } else if (tipo === 'd' && m === 'difuminar') {
+      const i = Number(id);
+      setAjustes((a) => ({ ...a, difuminados: a.difuminados.filter((_, k) => k !== i) }));
     }
   }
 
   async function eliminarPunto(id: string) {
-    if (!confirm('¿Eliminar este punto?')) return;
+    const p = puntos.find((x) => x.id === id);
+    if (!confirm(`¿Eliminar el punto «${p?.titulo ?? id}»?`)) return;
     try {
       await api(`/api/puntos/${id}`, 'DELETE');
-      setPuntos((ps) => ps.filter((p) => p.id !== id));
-      setSel(null);
+      setPuntos((ps) => ps.filter((x) => x.id !== id));
+      setEdicion((e) => (e?.id === id ? null : e));
+      avisar('Punto eliminado.', 'ok');
       router.refresh();
     } catch (e) {
       avisar((e as Error).message);
@@ -277,6 +562,7 @@ export function EditorPanoramica({
   }
 
   async function guardarAjustes() {
+    if (!panoSucia) return true;
     const pixeles =
       ['exposicion', 'contraste', 'saturacion', 'temperatura', 'nadir'].some((k) => ajustes[k as keyof Ajustes] !== pano.ajustes[k as keyof Ajustes]) ||
       !iguales(ajustes.difuminados, pano.ajustes.difuminados);
@@ -285,13 +571,22 @@ export function EditorPanoramica({
       const r = await api<Panoramica>(`/api/panoramicas/${pano.id}`, 'PATCH', { titulo, rumbo_inicial: rumbo, ajustes });
       setPano(r);
       setAjustes(r.ajustes);
+      setTitulo(r.titulo ?? '');
+      setRumbo(r.rumbo_inicial ?? 0);
       avisar(pixeles ? 'Ajustes aplicados: la versión publicable ya está lista.' : 'Cambios guardados.', 'ok');
       router.refresh();
+      return true;
     } catch (e) {
       avisar((e as Error).message);
+      return false;
     } finally {
       setGuardando(null);
     }
+  }
+
+  async function guardarTodo() {
+    if (sucia(ref.current.edicion) && !(await guardarPunto())) return;
+    await guardarAjustes();
   }
 
   async function reemplazar(f: File | undefined) {
@@ -332,21 +627,21 @@ export function EditorPanoramica({
         ajustes.temperatura > 0 ? `sepia(${(ajustes.temperatura * 0.28).toFixed(3)})` : '',
         ajustes.temperatura < 0 ? `hue-rotate(${(ajustes.temperatura * 14).toFixed(1)}deg)` : '',
       ].join(' ');
-  const puntoSel = puntos.find((p) => p.id === sel) ?? null;
+  const textoGuardar = !hayCambios ? 'Todo guardado' : puntoSucio && !panoSucia ? (edicion?.id ? 'Guardar punto' : 'Crear punto') : 'Guardar cambios';
 
   return (
     <div className="flex h-full min-h-0">
       {/* Visor */}
       <div className="relative min-w-0 flex-1 overflow-hidden rounded-l-[24px] bg-riel">
-        <div ref={contenedor} className="absolute inset-0" style={{ filter: filtro }} />
+        <div ref={contenedor} className="absolute inset-0 transition-opacity duration-500" style={{ filter: filtro, opacity: listo ? 1 : 0 }} />
 
         <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-between gap-3 p-4">
-          <div className="vidrio pointer-events-auto flex items-center gap-3 rounded-2xl py-2 pl-2 pr-4">
-            <Link href="/panoramicas" className="grid h-9 w-9 place-items-center rounded-xl hover:bg-black/5" title="Volver">
+          <div className="vidrio pointer-events-auto flex min-w-0 items-center gap-3 rounded-2xl py-2 pl-2 pr-4">
+            <Link href="/panoramicas" className="grid h-9 w-9 shrink-0 place-items-center rounded-xl hover:bg-black/5" title="Volver">
               <ArrowLeft size={18} />
             </Link>
-            <div>
-              <div className="text-[16px] font-medium leading-tight">{titulo || pano.vertice_descripcion || pano.id}</div>
+            <div className="min-w-0">
+              <div className="truncate text-[16px] font-medium leading-tight">{titulo || pano.vertice_descripcion || pano.id}</div>
               <div className="font-mono text-[12px] text-tinta-tenue">
                 {pano.id} · {pano.vertice_id}
               </div>
@@ -355,9 +650,17 @@ export function EditorPanoramica({
 
           {!previa && puedeEditar && (
             <div className="vidrio pointer-events-auto flex items-center gap-1 rounded-2xl p-1.5">
-              <BotonModo activo={modo === 'navegar'} onClick={() => setModo('navegar')} icono={<Hand size={16} />} texto="Navegar" />
+              <BotonModo activo={modo === 'navegar'} onClick={() => setModo('navegar')} icono={<Hand size={16} />} texto="Navegar" atajo="Esc" />
               <BotonModo activo={modo === 'punto'} onClick={() => setModo('punto')} icono={<MapPinPlus size={16} />} texto="Punto" />
-              <BotonModo activo={modo === 'difuminar'} onClick={() => { setModo('difuminar'); setPestana('ajustes'); }} icono={<ScanFace size={16} />} texto="Difuminar" />
+              <BotonModo
+                activo={modo === 'difuminar'}
+                onClick={() => {
+                  setModo('difuminar');
+                  setPestana('ajustes');
+                }}
+                icono={<ScanFace size={16} />}
+                texto="Difuminar"
+              />
               <BotonModo activo={modo === 'norte'} onClick={() => setModo('norte')} icono={<Compass size={16} />} texto="Norte" />
             </div>
           )}
@@ -373,7 +676,7 @@ export function EditorPanoramica({
                 className="flex h-9 items-center gap-2 rounded-xl px-3 text-[13px] text-tinta-suave hover:bg-black/5"
                 title="Usar esta dirección como vista inicial"
               >
-                <Crosshair size={16} /> Vista inicial
+                <Crosshair size={16} /> <span className="hidden xl:inline">Vista inicial</span>
               </button>
             )}
             <button
@@ -386,14 +689,14 @@ export function EditorPanoramica({
           </div>
         </div>
 
-        <div className="pointer-events-none absolute bottom-5 left-1/2 z-10 -translate-x-1/2">
-          <div className="vidrio rounded-full px-5 py-2.5 text-[13px] text-tinta-suave">
-            {previa && 'Así lo verá el visitante: versión publicable, anuncios vigentes y flechas hacia los nodos vecinos.'}
-            {!previa && modo === 'navegar' && 'Arrastra para mirar alrededor. Clic en un punto para editarlo.'}
-            {!previa && modo === 'punto' && 'Clic donde quieras poner el punto de información.'}
+        <div className="pointer-events-none absolute bottom-5 left-1/2 z-10 max-w-[90%] -translate-x-1/2">
+          <div className="vidrio rounded-full px-5 py-2.5 text-center text-[13px] text-tinta-suave">
+            {previa && 'Así lo verá el visitante: versión publicable, anuncios vigentes y flechas para pasar de una foto a otra.'}
+            {!previa && modo === 'navegar' && 'Arrastra la foto para mirar. Arrastra un punto para moverlo; tócalo para editarlo.'}
+            {!previa && modo === 'punto' && 'Clic donde quieras poner el punto.'}
             {!previa && modo === 'difuminar' && `Clic sobre rostros o placas para difuminarlos (radio ${radio}°). Clic en una zona roja para quitarla.`}
             {!previa && modo === 'norte' && 'Clic en la dirección que mira al norte geográfico: así se orientan las flechas.'}
-            {!previa && modo === 'reubicar' && 'Clic en la nueva posición del punto.'}
+            {!previa && modo === 'reubicar' && 'Clic en la nueva posición del punto (Esc para cancelar).'}
           </div>
         </div>
 
@@ -448,57 +751,60 @@ export function EditorPanoramica({
           ))}
         </div>
 
-        <fieldset disabled={!puedeEditar} className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
+        <fieldset disabled={!puedeEditar} className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden px-4 pb-4">
           {pestana === 'puntos' && (
             <div className="space-y-4">
-              {(borrador || puntoSel) && (
+              {edicion && posEdicion && (
                 <FormPunto
-                  key={borrador ? `nuevo-${borrador.yaw}` : puntoSel!.id}
-                  punto={borrador ?? puntoSel!}
-                  nuevo={!!borrador}
+                  key={edicion.id ?? 'nuevo'}
+                  id={edicion.id}
+                  pos={posEdicion}
+                  datos={edicion.datos}
+                  sucio={puntoSucio}
                   espacios={espacios}
                   otras={otras}
-                  alGuardar={(d) => (borrador ? crearPunto({ ...borrador, ...d }) : guardarPunto(puntoSel!.id, d))}
-                  alCancelar={() => {
-                    setBorrador(null);
-                    setSel(null);
-                  }}
-                  alEliminar={puntoSel && !borrador ? () => eliminarPunto(puntoSel.id) : undefined}
-                  alReubicar={puntoSel && !borrador ? () => setModo('reubicar') : undefined}
-                  alCambiarEstilo={(e) => claveSel && setEstiloEdicion({ clave: claveSel, estilo: e })}
+                  alCambiar={(f) => setEdicion((e) => (e ? { ...e, datos: f(e.datos) } : e))}
+                  alGuardar={() => void guardarPunto()}
+                  alCerrar={() => void seleccionar(null)}
+                  alDescartar={() => setEdicion((e) => (e && e.base ? { ...e, datos: e.base } : null))}
+                  alEliminar={edicion.id ? () => void eliminarPunto(edicion.id!) : undefined}
+                  alReubicar={() => setModo('reubicar')}
                   avisar={avisar}
                 />
               )}
 
-              {!borrador && !puntoSel && (
+              {!edicion && (
                 <button onClick={() => setModo('punto')} className="boton-suave w-full">
-                  <Plus size={16} /> Agregar punto de información
+                  <Plus size={16} /> Agregar punto
                 </button>
               )}
 
               <div>
                 <div className="mb-2 text-[13px] font-medium text-tinta-tenue">Puntos ({puntos.length})</div>
-                {puntos.length === 0 && <p className="text-[13px] text-tinta-tenue">Información, anuncios con fecha de vencimiento, imágenes, videos o enlaces a la ficha de un espacio.</p>}
+                {puntos.length === 0 && (
+                  <p className="text-[13px] text-tinta-tenue">Información, anuncios con fecha de vencimiento, imágenes, GIF, videos, fichas de espacios o flechas para ir a otra foto 360°.</p>
+                )}
                 <ul className="space-y-1">
                   {puntos.map((p) => {
                     const Icono = iconoPunto(p.tipo);
                     const v = vigencia(p);
+                    const actual = edicion?.id === p.id;
                     return (
                       <li key={p.id}>
                         <button
-                          onClick={() => {
-                            setBorrador(null);
-                            setSel(p.id);
-                          }}
-                          className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[14px] transition ${sel === p.id ? 'vidrio' : 'hover:bg-black/[0.04]'}`}
+                          onClick={() => void seleccionar(p.id, true)}
+                          className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[14px] transition ${actual ? 'vidrio' : 'hover:bg-black/[0.04]'}`}
                         >
-                          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-riel text-white">
+                          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg" style={{ background: estiloDe(p).color, color: tintaSobre(estiloDe(p).color) }}>
                             <Icono size={15} />
                           </span>
                           <span className="min-w-0 flex-1">
-                            <span className="block truncate font-medium">{p.titulo}</span>
-                            <span className="text-[12px] text-tinta-tenue">{ETIQUETA_PUNTO[p.tipo]}</span>
+                            <span className="block truncate font-medium">{actual && edicion ? edicion.datos.titulo || p.titulo : p.titulo}</span>
+                            <span className="text-[12px] text-tinta-tenue">
+                              {ETIQUETA_PUNTO[p.tipo]} · {ETIQUETA_FORMA[estiloDe(p).forma]}
+                            </span>
                           </span>
+                          {actual && puntoSucio && <span className="h-2 w-2 shrink-0 rounded-full bg-alerta" title="Sin guardar" />}
                           {v && <span className={`chip ${v.clase}`}>{v.texto}</span>}
                         </button>
                       </li>
@@ -526,7 +832,7 @@ export function EditorPanoramica({
 
           {pestana === 'ajustes' && (
             <div className="space-y-6">
-              <Grupo titulo="Horizonte" ayuda="Corrige una foto tomada torcida. Se aplica al mostrar: la foto original no cambia.">
+              <Grupo titulo="Horizonte" ayuda="Corrige una foto tomada torcida. Los puntos se mueven junto con la foto; el original no cambia.">
                 <Deslizador etiqueta="Inclinación" valor={ajustes.inclinacion} min={-15} max={15} paso={0.1} unidad="°" alCambiar={(v) => setAjustes((a) => ({ ...a, inclinacion: v }))} />
                 <Deslizador etiqueta="Alabeo" valor={ajustes.alabeo} min={-15} max={15} paso={0.1} unidad="°" alCambiar={(v) => setAjustes((a) => ({ ...a, alabeo: v }))} />
               </Grupo>
@@ -597,9 +903,10 @@ export function EditorPanoramica({
 
         {puedeEditar && (
           <div className="border-t border-black/5 p-3">
-            <button onClick={guardarAjustes} disabled={!pendiente || !!guardando} className="boton-primario w-full">
-              <Save size={16} /> {pendiente ? 'Guardar cambios' : 'Todo guardado'}
+            <button onClick={() => void guardarTodo()} disabled={!hayCambios || !!guardando} className="boton-primario w-full" title="Ctrl + S">
+              <Save size={16} /> {textoGuardar}
             </button>
+            {hayCambios && <div className="mt-1.5 text-center text-[12px] text-alerta">Hay cambios sin guardar</div>}
           </div>
         )}
       </aside>
@@ -608,10 +915,11 @@ export function EditorPanoramica({
   );
 }
 
-function BotonModo({ activo, onClick, icono, texto }: { activo: boolean; onClick: () => void; icono: React.ReactNode; texto: string }) {
+function BotonModo({ activo, onClick, icono, texto, atajo }: { activo: boolean; onClick: () => void; icono: React.ReactNode; texto: string; atajo?: string }) {
   return (
     <button
       onClick={onClick}
+      title={atajo ? `${texto} (${atajo})` : texto}
       className={`flex h-9 items-center gap-2 rounded-xl px-3 text-[13px] transition ${activo ? 'bg-riel text-white' : 'text-tinta-suave hover:bg-black/5'}`}
     >
       {icono}
@@ -640,6 +948,7 @@ function Deslizador({
   paso,
   unidad = '',
   cero,
+  formato,
   alCambiar,
 }: {
   etiqueta: string;
@@ -649,15 +958,16 @@ function Deslizador({
   paso: number;
   unidad?: string;
   cero?: string;
+  formato?: (v: number) => string;
   alCambiar: (v: number) => void;
 }) {
   return (
     <label className="block">
       <span className="mb-1 flex justify-between text-[13px]">
         <span className="text-tinta-suave">{etiqueta}</span>
-        <span className="font-mono text-tinta-tenue">{cero && valor === 0 ? cero : `${valor > 0 && min < 0 ? '+' : ''}${valor}${unidad}`}</span>
+        <span className="font-mono text-tinta-tenue">{formato ? formato(valor) : cero && valor === 0 ? cero : `${valor > 0 && min < 0 ? '+' : ''}${valor}${unidad}`}</span>
       </span>
-      <input type="range" min={min} max={max} step={paso} value={valor} onChange={(e) => alCambiar(Number(e.target.value))} onDoubleClick={() => alCambiar(0)} className="w-full accent-[#232326]" />
+      <input type="range" min={min} max={max} step={paso} value={valor} onChange={(e) => alCambiar(Number(e.target.value))} onDoubleClick={() => min <= 0 && alCambiar(0)} className="w-full accent-[#232326]" />
     </label>
   );
 }
@@ -671,90 +981,163 @@ function Dato({ k, v }: { k: string; v: React.ReactNode }) {
   );
 }
 
+const COLORES = ['#2563eb', '#0d9488', '#16a34a', '#f59e0b', '#dc2626', '#7c3aed', '#ffffff', '#1c1c1f'];
+
+/** Vista en miniatura de cada forma, con las mismas clases del visor. */
+function MuestraForma({ forma, color }: { forma: Forma; color: string }) {
+  const estilo = { '--c': color, '--t': tintaSobre(color), fontSize: forma === 'burbuja' ? 4.2 : 6 } as React.CSSProperties;
+  const ico = (
+    <i className="pz-ico">
+      <Info />
+    </i>
+  );
+  switch (forma) {
+    case 'etiqueta':
+      return (
+        <span className="pz pz-etiqueta pointer-events-none" style={estilo}>
+          <span className="pz-cuerpo">
+            {ico}
+            <span>Texto</span>
+          </span>
+        </span>
+      );
+    case 'icono':
+      return (
+        <span className="pz pz-icono pointer-events-none" style={estilo}>
+          <span className="pz-cuerpo">{ico}</span>
+        </span>
+      );
+    case 'circulo':
+      return (
+        <span className="pz pz-circulo pointer-events-none" style={estilo}>
+          <span className="pz-cuerpo">
+            <span className="pz-nucleo" />
+          </span>
+        </span>
+      );
+    case 'pin':
+      return (
+        <span className="pz pz-pin pointer-events-none" style={estilo}>
+          <span className="pz-cuerpo">
+            <span className="pz-gota">{ico}</span>
+          </span>
+        </span>
+      );
+    case 'burbuja':
+      return (
+        <span className="pz pz-burbuja pointer-events-none" style={estilo}>
+          <span className="pz-cuerpo">
+            <span className="pz-tarjeta">
+              {ico}
+              <span>
+                <b>Título</b>
+                <small>Texto corto</small>
+              </span>
+            </span>
+          </span>
+        </span>
+      );
+    case 'miniatura':
+      return (
+        <span className="pz pz-miniatura pointer-events-none" style={estilo}>
+          <span className="pz-cuerpo">
+            <span className="pz-foto">{ico}</span>
+          </span>
+        </span>
+      );
+    case 'flecha':
+      return <ChevronsUp size={26} strokeWidth={2.6} style={{ transform: 'perspective(60px) rotateX(48deg)' }} />;
+    default:
+      return <Box size={22} />;
+  }
+}
+
 function FormPunto({
-  punto,
-  nuevo,
+  id,
+  pos,
+  datos: f,
+  sucio,
   espacios,
   otras,
+  alCambiar,
   alGuardar,
-  alCancelar,
+  alCerrar,
+  alDescartar,
   alEliminar,
   alReubicar,
-  alCambiarEstilo,
   avisar,
 }: {
-  punto: Borrador | Punto;
-  nuevo: boolean;
+  id: string | null;
+  pos: Posicion;
+  datos: DatosPunto;
+  sucio: boolean;
   espacios: { id: string; codigo: string; nombre: string }[];
-  otras: { id: string; titulo: string }[];
-  alGuardar: (d: Partial<Punto>) => void;
-  alCancelar: () => void;
+  otras: OtraPanoramica[];
+  alCambiar: (f: (d: DatosPunto) => DatosPunto) => void;
+  alGuardar: () => void;
+  alCerrar: () => void;
+  alDescartar: () => void;
   alEliminar?: () => void;
-  alReubicar?: () => void;
-  alCambiarEstilo: (e: Estilo) => void;
+  alReubicar: () => void;
   avisar: (t: string) => void;
 }) {
-  const [estilo, setEstiloLocal] = useState<Estilo>(estiloDe(punto));
-  const setEstilo = (e: Estilo) => {
-    setEstiloLocal(e);
-    alCambiarEstilo(e);
-  };
-  const formas: Forma[] =
-    f0(punto.tipo) === 'enlace'
-      ? ['flecha', 'circulo', 'etiqueta', 'icono']
-      : f0(punto.tipo) === 'imagen' || f0(punto.tipo) === 'video'
-        ? ['capa3d', 'etiqueta', 'icono']
-        : ['etiqueta', 'icono', 'circulo', 'capa3d'];
-  const [f, setF] = useState({
-    tipo: punto.tipo,
-    titulo: punto.titulo ?? '',
-    texto: punto.texto ?? '',
-    url: punto.url ?? '',
-    medio_id: punto.medio_id ?? null,
-    medio_url: (punto as Punto).medio_url ?? null,
-    destino_panoramica_id: punto.destino_panoramica_id ?? otras[0]?.id ?? '',
-    espacio_id: punto.espacio_id ?? espacios[0]?.id ?? '',
-    vigente_desde: aLocal(punto.vigente_desde),
-    vigente_hasta: aLocal(punto.vigente_hasta),
-  });
   const [subiendo, setSubiendo] = useState<number | null>(null);
-  const set = <K extends keyof typeof f>(k: K, v: (typeof f)[K]) => setF((x) => ({ ...x, [k]: v }));
+  const set = <K extends keyof DatosPunto>(k: K, v: DatosPunto[K]) => alCambiar((d) => ({ ...d, [k]: v }));
+  const setEstilo = (e: Partial<Estilo>) => alCambiar((d) => ({ ...d, estilo: { ...d.estilo, ...e } }));
+  const e = f.estilo;
+  const es3d = FORMAS_3D.includes(e.forma);
+  const sinDestino = f.tipo === 'enlace' && otras.length === 0;
+  const tituloAuto = (destino: string) => `Ir a ${otras.find((o) => o.id === destino)?.titulo ?? destino}`;
 
   async function medio(archivo: File | undefined) {
     if (!archivo) return;
     try {
       setSubiendo(0);
       const m = await subirMedio(archivo, setSubiendo);
-      setF((x) => ({ ...x, medio_id: m.id, medio_url: m.url }));
-    } catch (e) {
-      avisar((e as Error).message);
+      alCambiar((d) => ({ ...d, medio_id: m.id, medio_url: m.url }));
+    } catch (err) {
+      avisar((err as Error).message);
     } finally {
       setSubiendo(null);
     }
   }
 
-  function guardar(e: React.FormEvent) {
-    e.preventDefault();
-    alGuardar({
-      tipo: f.tipo,
-      titulo: f.titulo,
-      texto: f.texto || null,
-      url: f.url || null,
-      medio_id: f.tipo === 'imagen' || f.tipo === 'video' ? f.medio_id : null,
-      destino_panoramica_id: f.tipo === 'enlace' ? f.destino_panoramica_id : null,
-      espacio_id: f.tipo === 'espacio' ? f.espacio_id : null,
-      vigente_desde: f.vigente_desde ? new Date(f.vigente_desde).toISOString() : null,
-      vigente_hasta: f.vigente_hasta ? new Date(f.vigente_hasta).toISOString() : null,
-      estilo,
+  function cambiarTipo(t: TipoPunto) {
+    alCambiar((d) => ({
+      ...d,
+      tipo: t,
+      estilo: estiloPorDefecto(t, pos.pitch),
+      titulo: t === 'enlace' && !d.titulo.trim() && d.destino_panoramica_id ? tituloAuto(d.destino_panoramica_id) : d.titulo,
+    }));
+  }
+
+  function cambiarForma(fo: Forma) {
+    const base = estiloPorDefecto(f.tipo, pos.pitch);
+    const tam3d = fo === 'flecha' ? { ancho: 160, alto: 160 } : { ancho: f.tipo === 'video' ? 480 : 320, alto: f.tipo === 'video' ? 270 : f.tipo === 'imagen' ? 320 : 200 };
+    setEstilo({
+      forma: fo,
+      ...(FORMAS_3D.includes(fo) && (!e.ancho || !e.alto || e.forma !== fo) ? tam3d : {}),
+      ...(fo === 'flecha' && e.forma !== 'flecha' ? { rotacion: { yaw: 0, pitch: inclinacionSuelo(pos.pitch), roll: 0 } } : {}),
+      ...(fo === 'capa3d' && e.forma === 'flecha' ? { rotacion: { yaw: 0, pitch: 0, roll: 0 } } : {}),
+      escala: e.escala || base.escala,
     });
   }
 
+  function enviar(ev: React.FormEvent) {
+    ev.preventDefault();
+    if (sinDestino) return;
+    alGuardar();
+  }
+
   return (
-    <form onSubmit={guardar} className="relieve space-y-3.5 rounded-[20px] p-4">
-      <div className="flex items-center justify-between">
-        <div className="text-[15px] font-medium">{nuevo ? 'Nuevo punto' : (punto as Punto).id}</div>
-        <span className="font-mono text-[12px] text-tinta-tenue">
-          {Math.round(punto.yaw)}° · {Math.round(punto.pitch)}°
+    <form onSubmit={enviar} className="relieve space-y-3.5 rounded-[20px] p-4">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 text-[15px] font-medium">
+          {id ?? 'Nuevo punto'}
+          {sucio && <span className="chip bg-alerta-suave text-alerta">{id ? 'Sin guardar' : 'Sin crear'}</span>}
+        </div>
+        <span className="font-mono text-[12px] text-tinta-tenue" title="Posición en la foto">
+          {Math.round(pos.yaw)}° · {Math.round(pos.pitch)}°
         </span>
       </div>
       <div className="grid grid-cols-4 gap-1.5">
@@ -764,25 +1147,71 @@ function FormPunto({
             <button
               type="button"
               key={t}
-              onClick={() => {
-                set('tipo', t);
-                setEstilo(estiloPorDefecto(t));
-              }}
+              onClick={() => cambiarTipo(t)}
               title={ETIQUETA_PUNTO[t]}
               className={`flex flex-col items-center gap-1 rounded-xl px-1 py-2 text-[10.5px] leading-tight transition ${f.tipo === t ? 'bg-riel text-white' : 'bg-black/[0.04] text-tinta-suave hover:bg-black/[0.08]'}`}
             >
               <Icono size={16} />
-              {ETIQUETA_PUNTO[t].split(' ')[0]}
+              {t === 'enlace' ? 'Ir a' : ETIQUETA_PUNTO[t].split(' ')[0]}
             </button>
           );
         })}
       </div>
+
+      {f.tipo === 'enlace' && (
+        <div className="space-y-2">
+          <div className="text-[13px] font-medium text-tinta-suave">Lleva a</div>
+          {sinDestino ? (
+            <div className="rounded-2xl border border-alerta/30 bg-alerta-suave p-3 text-[13px] leading-snug text-alerta">
+              Para usar «Ir a» necesitas otra foto 360°. Sube la foto de otro nodo en el mapa; si los dos nodos están unidos por un tramo, la flecha aparece sola.
+              <Link href="/mapa" className="boton-suave mt-2.5 w-full !h-9 !text-[13px]">
+                <Footprints size={14} /> Ir al mapa
+              </Link>
+            </div>
+          ) : (
+            <div className="grid max-h-56 grid-cols-2 gap-2 overflow-y-auto p-0.5">
+              {otras.map((o) => (
+                <button
+                  type="button"
+                  key={o.id}
+                  onClick={() =>
+                    alCambiar((d) => ({
+                      ...d,
+                      destino_panoramica_id: o.id,
+                      titulo: !d.titulo.trim() || d.titulo === tituloAuto(d.destino_panoramica_id) ? tituloAuto(o.id) : d.titulo,
+                    }))
+                  }
+                  className={`overflow-hidden rounded-xl text-left text-[12px] transition ${f.destino_panoramica_id === o.id ? 'ring-2 ring-riel' : 'ring-1 ring-black/10 hover:ring-black/25'}`}
+                >
+                  {o.miniatura ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={o.miniatura} alt="" className="h-16 w-full object-cover" />
+                  ) : (
+                    <span className="grid h-16 place-items-center bg-black/5 text-tinta-tenue">360°</span>
+                  )}
+                  <span className="block truncate px-2 pt-1.5 font-medium">{o.titulo}</span>
+                  <span className="block px-2 pb-1.5 font-mono text-[11px] text-tinta-tenue">
+                    {o.id} · {o.vertice_id}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       <Campo etiqueta="Título">
-        <input required value={f.titulo} onChange={(e) => set('titulo', e.target.value)} className="campo" placeholder={f.tipo === 'anuncio' ? 'Inscripciones abiertas' : 'Biblioteca'} />
+        <input
+          required
+          value={f.titulo}
+          onChange={(ev) => set('titulo', ev.target.value)}
+          className="campo"
+          placeholder={f.tipo === 'anuncio' ? 'Inscripciones abiertas' : f.tipo === 'enlace' ? 'Ir a la biblioteca' : 'Biblioteca'}
+        />
       </Campo>
       {f.tipo !== 'enlace' && (
         <Campo etiqueta="Texto">
-          <textarea rows={3} value={f.texto} onChange={(e) => set('texto', e.target.value)} className="campo resize-none" />
+          <textarea rows={3} value={f.texto} onChange={(ev) => set('texto', ev.target.value)} className="campo resize-none" />
         </Campo>
       )}
       {(f.tipo === 'imagen' || f.tipo === 'video') && (
@@ -790,117 +1219,152 @@ function FormPunto({
           <label className="campo flex cursor-pointer items-center gap-2">
             <Upload size={16} className="text-tinta-tenue" />
             <span className="truncate text-tinta-suave">
-              {subiendo !== null ? `Subiendo… ${Math.round(subiendo * 100)} %` : f.medio_id ? `Cambiar ${f.tipo}` : `Subir ${f.tipo}`}
+              {subiendo !== null ? `Subiendo… ${Math.round(subiendo * 100)} %` : f.medio_id ? `Cambiar ${f.tipo === 'imagen' ? 'imagen o GIF' : 'video'}` : `Subir ${f.tipo === 'imagen' ? 'imagen o GIF' : 'video (MP4)'}`}
             </span>
-            <input type="file" className="hidden" accept={f.tipo === 'video' ? 'video/mp4,video/webm' : 'image/jpeg,image/png,image/webp,image/gif'} onChange={(e) => medio(e.target.files?.[0])} />
+            <input type="file" className="hidden" accept={f.tipo === 'video' ? 'video/mp4,video/webm' : 'image/jpeg,image/png,image/webp,image/gif'} onChange={(ev) => medio(ev.target.files?.[0])} />
           </label>
           {f.medio_url && f.tipo === 'imagen' && (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={f.medio_url} alt="" className="h-28 w-full rounded-xl object-cover" />
           )}
           {f.medio_url && f.tipo === 'video' && <video src={f.medio_url} controls className="w-full rounded-xl" />}
-          <input value={f.url} onChange={(e) => set('url', e.target.value)} placeholder="…o pega un enlace (https://)" className="campo" />
+          <input value={f.url} onChange={(ev) => set('url', ev.target.value)} placeholder="…o pega un enlace (https://)" className="campo" />
         </div>
       )}
       {(f.tipo === 'informacion' || f.tipo === 'anuncio') && (
         <Campo etiqueta="Enlace (opcional)">
-          <input value={f.url} onChange={(e) => set('url', e.target.value)} placeholder="https://unipaz.edu.co/…" className="campo" />
-        </Campo>
-      )}
-      {f.tipo === 'enlace' && (
-        <Campo etiqueta="Ir a la panorámica">
-          <select value={f.destino_panoramica_id} onChange={(e) => set('destino_panoramica_id', e.target.value)} className="campo">
-            {otras.map((o) => (
-              <option key={o.id} value={o.id}>
-                {o.id} · {o.titulo}
-              </option>
-            ))}
-          </select>
+          <input value={f.url} onChange={(ev) => set('url', ev.target.value)} placeholder="https://unipaz.edu.co/…" className="campo" />
         </Campo>
       )}
       {f.tipo === 'espacio' && (
         <Campo etiqueta="Espacio">
-          <select value={f.espacio_id} onChange={(e) => set('espacio_id', e.target.value)} className="campo">
-            {espacios.map((e) => (
-              <option key={e.id} value={e.id}>
-                {e.codigo} · {e.nombre}
-              </option>
-            ))}
-          </select>
+          {espacios.length === 0 ? (
+            <p className="text-[13px] text-alerta">Todavía no hay espacios registrados. Créalos en Campus → Espacios.</p>
+          ) : (
+            <select value={f.espacio_id} onChange={(ev) => set('espacio_id', ev.target.value)} className="campo">
+              {espacios.map((x) => (
+                <option key={x.id} value={x.id}>
+                  {x.codigo} · {x.nombre}
+                </option>
+              ))}
+            </select>
+          )}
         </Campo>
       )}
       {(f.tipo === 'anuncio' || f.tipo === 'informacion' || f.tipo === 'imagen' || f.tipo === 'video') && (
         <div className="grid grid-cols-2 gap-2">
           <Campo etiqueta="Visible desde">
-            <input type="datetime-local" value={f.vigente_desde} onChange={(e) => set('vigente_desde', e.target.value)} className="campo !px-2 !text-[13px]" />
+            <input type="datetime-local" value={f.vigente_desde} onChange={(ev) => set('vigente_desde', ev.target.value)} className="campo !px-2 !text-[13px]" />
           </Campo>
           <Campo etiqueta="Hasta">
-            <input type="datetime-local" value={f.vigente_hasta} onChange={(e) => set('vigente_hasta', e.target.value)} className="campo !px-2 !text-[13px]" />
+            <input type="datetime-local" value={f.vigente_hasta} onChange={(ev) => set('vigente_hasta', ev.target.value)} className="campo !px-2 !text-[13px]" />
           </Campo>
         </div>
       )}
-      <div className="space-y-3 rounded-2xl bg-black/[0.03] p-3">
-        <div className="text-[13px] font-medium">Cómo se ve en la imagen</div>
-        <div className="grid grid-cols-2 gap-1.5">
-          {(f.tipo === punto.tipo ? formas : formasDe(f.tipo)).map((fo) => (
+
+      <div className="space-y-3.5 rounded-2xl bg-black/[0.03] p-3">
+        <div className="text-[13px] font-medium">Cómo se ve en la foto</div>
+        <div className="grid grid-cols-3 gap-1.5">
+          {formasDe(f.tipo).map((fo) => (
             <button
               type="button"
               key={fo}
-              onClick={() => setEstilo({ ...estilo, forma: fo, ...(fo === 'capa3d' || fo === 'flecha' ? { ancho: estilo.ancho || 320, alto: estilo.alto || 200 } : {}) })}
-              className={`rounded-xl px-2 py-2 text-[12px] transition ${estilo.forma === fo ? 'bg-riel text-white' : 'bg-white/60 text-tinta-suave hover:bg-white'}`}
+              onClick={() => cambiarForma(fo)}
+              className={`flex flex-col items-center justify-end gap-1.5 rounded-xl px-1 pb-1.5 pt-2 text-[11px] transition ${e.forma === fo ? 'bg-riel text-white' : 'bg-white/70 text-tinta-suave hover:bg-white'}`}
             >
+              <span className="grid h-9 place-items-center">
+                <MuestraForma forma={fo} color={e.color} />
+              </span>
               {ETIQUETA_FORMA[fo]}
             </button>
           ))}
         </div>
-        {(estilo.forma === 'capa3d' || estilo.forma === 'flecha') && (
+
+        <div>
+          <div className="mb-1.5 text-[13px] text-tinta-suave">Color</div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {[...new Set([COLOR_PUNTO[f.tipo], ...COLORES])].map((c) => (
+              <button
+                type="button"
+                key={c}
+                onClick={() => setEstilo({ color: c })}
+                title={c}
+                className={`h-7 w-7 rounded-full ring-1 ring-black/15 transition ${e.color === c ? 'scale-110 outline outline-2 outline-offset-2 outline-riel' : 'hover:scale-105'}`}
+                style={{ background: c }}
+              />
+            ))}
+            <label className="relative h-7 w-7 cursor-pointer overflow-hidden rounded-full ring-1 ring-black/15" title="Otro color" style={{ background: 'conic-gradient(red, yellow, lime, aqua, blue, magenta, red)' }}>
+              <input type="color" value={e.color} onChange={(ev) => setEstilo({ color: ev.target.value })} className="absolute inset-0 cursor-pointer opacity-0" />
+            </label>
+          </div>
+        </div>
+
+        {!es3d && <Deslizador etiqueta="Tamaño" valor={e.escala} min={0.5} max={2.5} paso={0.05} formato={(v) => `${Math.round(v * 100)} %`} alCambiar={(v) => setEstilo({ escala: v })} />}
+        {es3d && (
           <>
             <div className="grid grid-cols-2 gap-2">
-              <Deslizador etiqueta="Ancho" valor={estilo.ancho} min={40} max={1600} paso={10} unidad="" alCambiar={(v) => setEstilo({ ...estilo, ancho: v })} />
-              <Deslizador etiqueta="Alto" valor={estilo.alto} min={40} max={1600} paso={10} unidad="" alCambiar={(v) => setEstilo({ ...estilo, alto: v })} />
+              <Deslizador etiqueta="Ancho" valor={e.ancho} min={40} max={1600} paso={10} alCambiar={(v) => setEstilo({ ancho: v })} />
+              <Deslizador etiqueta="Alto" valor={e.alto} min={40} max={1600} paso={10} alCambiar={(v) => setEstilo({ alto: v })} />
             </div>
-            <Deslizador etiqueta="Girar (yaw)" valor={estilo.rotacion.yaw} min={-180} max={180} paso={1} unidad="°" alCambiar={(v) => setEstilo({ ...estilo, rotacion: { ...estilo.rotacion, yaw: v } })} />
-            <Deslizador etiqueta="Inclinar (pitch)" valor={estilo.rotacion.pitch} min={-90} max={90} paso={1} unidad="°" alCambiar={(v) => setEstilo({ ...estilo, rotacion: { ...estilo.rotacion, pitch: v } })} />
-            <Deslizador etiqueta="Rotar (roll)" valor={estilo.rotacion.roll} min={-180} max={180} paso={1} unidad="°" alCambiar={(v) => setEstilo({ ...estilo, rotacion: { ...estilo.rotacion, roll: v } })} />
-            <p className="text-[11px] text-tinta-tenue">Ajusta el tamaño y el giro hasta que encaje con la pared, el piso o la pantalla de la foto.</p>
+            <Deslizador etiqueta="Girar (yaw)" valor={e.rotacion.yaw} min={-180} max={180} paso={1} unidad="°" alCambiar={(v) => setEstilo({ rotacion: { ...e.rotacion, yaw: v } })} />
+            <Deslizador etiqueta="Inclinar (pitch)" valor={e.rotacion.pitch} min={-90} max={90} paso={1} unidad="°" alCambiar={(v) => setEstilo({ rotacion: { ...e.rotacion, pitch: v } })} />
+            <Deslizador etiqueta="Rotar (roll)" valor={e.rotacion.roll} min={-180} max={180} paso={1} unidad="°" alCambiar={(v) => setEstilo({ rotacion: { ...e.rotacion, roll: v } })} />
+            {e.forma === 'flecha' ? (
+              <button type="button" onClick={() => setEstilo({ rotacion: { yaw: e.rotacion.yaw, pitch: inclinacionSuelo(pos.pitch), roll: 0 } })} className="boton-suave w-full !h-9 !text-[13px]">
+                <Footprints size={14} /> Acostar en el piso
+              </button>
+            ) : (
+              <p className="text-[11px] text-tinta-tenue">Ajusta el tamaño y el giro hasta que encaje con la pared, el piso o la pantalla de la foto.</p>
+            )}
           </>
         )}
-        <label className="block">
-          <span className="mb-1 block text-[13px] text-tinta-suave">Animación</span>
-          <select value={estilo.animacion} onChange={(e) => setEstilo({ ...estilo, animacion: e.target.value as Estilo['animacion'] })} className="campo !py-2 !text-[14px]">
+
+        <div>
+          <div className="mb-1.5 text-[13px] text-tinta-suave">Animación</div>
+          <div className="grid grid-cols-3 gap-1.5">
             {ANIMACIONES.map((a) => (
-              <option key={a} value={a}>
-                {a === 'ninguna' ? 'Ninguna' : a === 'pulso' ? 'Pulso (latido)' : 'Flotar'}
-              </option>
+              <button
+                type="button"
+                key={a}
+                onClick={() => setEstilo({ animacion: a })}
+                className={`muestra-anim flex items-center gap-2 rounded-xl px-2 py-2 text-[11.5px] transition ${e.animacion === a ? 'activa bg-riel text-white' : 'bg-white/70 text-tinta-suave hover:bg-white'}`}
+              >
+                <span className="pz pz-icono pointer-events-none" style={{ '--c': e.color, '--t': tintaSobre(e.color), fontSize: 5 } as React.CSSProperties}>
+                  <span className={`pz-cuerpo${a !== 'ninguna' ? ` anim-${a}` : ''}`}>
+                    <i className="pz-ico">
+                      <Info />
+                    </i>
+                  </span>
+                </span>
+                {ETIQUETA_ANIMACION[a]}
+              </button>
             ))}
-          </select>
-        </label>
+          </div>
+        </div>
       </div>
+
       <div className="flex flex-wrap gap-2 pt-1">
-        <button type="submit" disabled={subiendo !== null} className="boton-primario flex-1 !h-10">
-          {nuevo ? 'Crear punto' : 'Guardar'}
+        <button type="submit" disabled={subiendo !== null || sinDestino || !sucio} className="boton-primario flex-1 !h-10">
+          {id ? (sucio ? 'Guardar' : 'Guardado') : 'Crear punto'}
         </button>
-        {alReubicar && (
-          <button type="button" onClick={alReubicar} className="boton-suave !h-10 !px-3" title="Mover a otra posición">
-            <Move size={15} />
-          </button>
-        )}
+        <button type="button" onClick={alReubicar} className="boton-suave !h-10 !px-3" title="Mover: clic en la nueva posición (también puedes arrastrarlo)">
+          <Move size={15} />
+        </button>
         {alEliminar && (
-          <button type="button" onClick={alEliminar} className="boton-peligro !h-10 !px-3" title="Eliminar">
+          <button type="button" onClick={alEliminar} className="boton-peligro !h-10 !px-3" title="Eliminar (Supr)">
             <Trash2 size={15} />
           </button>
         )}
-        <button type="button" onClick={alCancelar} className="boton-suave !h-10 !px-3">
-          Cerrar
-        </button>
+        {sucio && id ? (
+          <button type="button" onClick={alDescartar} className="boton-suave !h-10 !px-3" title="Volver a lo guardado">
+            Descartar
+          </button>
+        ) : (
+          <button type="button" onClick={id ? alCerrar : alDescartar} className="boton-suave !h-10 !px-3">
+            {id ? 'Cerrar' : 'Cancelar'}
+          </button>
+        )}
       </div>
     </form>
   );
-}
-
-const f0 = (t: TipoPunto) => t;
-function formasDe(t: TipoPunto): Forma[] {
-  if (t === 'enlace') return ['flecha', 'circulo', 'etiqueta', 'icono'];
-  if (t === 'imagen' || t === 'video') return ['capa3d', 'etiqueta', 'icono'];
-  return ['etiqueta', 'icono', 'circulo', 'capa3d'];
 }

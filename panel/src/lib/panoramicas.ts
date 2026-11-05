@@ -284,7 +284,17 @@ function limpiarEstilo(tipo: TipoPunto, e: Partial<Estilo> | undefined): Estilo 
     alto: clamp(x.alto, 0, 4000, base.alto),
     rotacion: { yaw: clamp(x.rotacion.yaw, -180, 180), pitch: clamp(x.rotacion.pitch, -180, 180), roll: clamp(x.rotacion.roll, -180, 180) },
     animacion: ANIMACIONES.includes(x.animacion) ? x.animacion : 'ninguna',
+    color: typeof x.color === 'string' && /^#[0-9a-f]{6}$/i.test(x.color) ? x.color.toLowerCase() : base.color,
+    escala: clamp(x.escala, 0.5, 2.5, 1),
   };
+}
+
+/** El destino de un «Ir a» tiene que existir y no puede ser la misma panorámica. */
+async function validarDestino(c: Consultor, panoramicaId: string, d: { tipo: TipoPunto; destino_panoramica_id: string | null }) {
+  if (d.tipo !== 'enlace') return;
+  if (d.destino_panoramica_id === panoramicaId) throw new ErrorDatos('El destino tiene que ser otra panorámica.');
+  const r = await c.query('SELECT 1 FROM panoramica WHERE id = $1 AND campus_id = $2', [d.destino_panoramica_id, CAMPUS_ID]);
+  if (!r.rowCount) throw new ErrorDatos('La panorámica de destino ya no existe.');
 }
 
 function limpiarPunto(d: Partial<Punto>) {
@@ -313,7 +323,7 @@ function limpiarPunto(d: Partial<Punto>) {
     vigente_hasta: fecha(d.vigente_hasta),
     estilo: limpiarEstilo(d.tipo as TipoPunto, d.estilo),
   };
-  if (p.tipo === 'enlace' && !p.destino_panoramica_id) throw new ErrorDatos('Elige la panorámica de destino.');
+  if (p.tipo === 'enlace' && !p.destino_panoramica_id) throw new ErrorDatos('Elige a qué panorámica lleva el «Ir a». Si todavía no hay otra, sube la foto 360° de otro nodo en el mapa.');
   if (p.tipo === 'espacio' && !p.espacio_id) throw new ErrorDatos('Elige el espacio.');
   if ((p.tipo === 'imagen' || p.tipo === 'video') && !p.medio_id && !p.url) throw new ErrorDatos('Sube la imagen o el video, o pega un enlace.');
   if (p.vigente_desde && p.vigente_hasta && p.vigente_desde >= p.vigente_hasta) throw new ErrorDatos('La vigencia debe terminar después de empezar.');
@@ -324,6 +334,7 @@ export async function crearPunto(u: Usuario, panoramicaId: string, datos: Partia
   const d = limpiarPunto(datos);
   return transaccion(async (c) => {
     await obtenerPanoramica(panoramicaId, c);
+    await validarDestino(c, panoramicaId, d);
     const id = await siguienteId(c, 'punto');
     await c.query(
       `INSERT INTO punto_informacion (id, campus_id, panoramica_id, tipo, yaw, pitch, titulo, texto, medio_id, url,
@@ -342,6 +353,7 @@ export async function actualizarPunto(u: Usuario, id: string, datos: Partial<Pun
     const a = await c.query<Punto>(`${SELECT_PUNTO} WHERE h.id = $1 AND h.campus_id = $2`, [id, CAMPUS_ID]);
     if (!a.rows[0]) throw new ErrorDatos('El punto no existe.', 404);
     const d = limpiarPunto({ ...a.rows[0], ...datos });
+    await validarDestino(c, a.rows[0].panoramica_id, d);
     await c.query(
       `UPDATE punto_informacion SET tipo = $2, yaw = $3, pitch = $4, titulo = $5, texto = $6, medio_id = $7, url = $8,
               destino_panoramica_id = $9, espacio_id = $10, vigente_desde = $11, vigente_hasta = $12, estilo = $13 WHERE id = $1`,

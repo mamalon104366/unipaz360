@@ -38,7 +38,7 @@ export function PanelPropiedades(p: Props) {
           <X size={18} />
         </button>
       </div>
-      <fieldset disabled={p.soloLectura} className="flex-1 overflow-y-auto px-5 pb-5">
+      <fieldset disabled={p.soloLectura} className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden px-5 pb-5">
         {p.vertice && <Foto360 vertice={p.vertice} panoramica={p.panoramica} puedeEditar={!p.soloLectura} />}
         {p.vertice && (
           <div className="mb-4 flex flex-wrap gap-2">

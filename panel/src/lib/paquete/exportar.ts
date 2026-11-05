@@ -116,9 +116,21 @@ export async function exportarDatos(): Promise<DatosPaquete> {
     if (r) medios.push({ id: p.mid, tipo: 'panoramica', archivo: r.clave, url: r.url, mime: 'image/jpeg', bytes: r.bytes, sha256: r.sha256, ancho: r.ancho, alto: r.alto });
   }
   const idsPuntos = [...new Set(puntos.map((h) => h.medio_id).filter(Boolean))] as string[];
-  if (idsPuntos.length) {
-    const r = await pool.query(`SELECT id, tipo, archivo, url_publica, mime, bytes, sha256, ancho, alto FROM medio WHERE id = ANY($1)`, [idsPuntos]);
-    for (const m of r.rows) medios.push({ id: m.id, tipo: m.tipo, archivo: m.archivo, url: m.url_publica, mime: m.mime, bytes: Number(m.bytes), sha256: m.sha256, ancho: m.ancho, alto: m.alto });
+  // Y los que usa la apariencia de la app (minimapa y páginas) para verse sin conexión.
+  const configApp = await leerConfigApp();
+  const urlsApp = [
+    configApp.minimapa.imagen,
+    ...Object.values(configApp.paginas).flatMap((pg) => pg.pestanas.flatMap((t) => t.elementos.map((e) => e.src ?? ''))),
+  ].filter((u) => u.startsWith('https://'));
+  if (idsPuntos.length || urlsApp.length) {
+    const r = await pool.query(
+      `SELECT id, tipo, archivo, url_publica, mime, bytes, sha256, ancho, alto FROM medio WHERE id = ANY($1) OR url_publica = ANY($2)`,
+      [idsPuntos, [...new Set(urlsApp)]],
+    );
+    for (const m of r.rows) {
+      if (medios.some((x) => x.id === m.id)) continue;
+      medios.push({ id: m.id, tipo: m.tipo, archivo: m.archivo, url: m.url_publica, mime: m.mime, bytes: Number(m.bytes), sha256: m.sha256, ancho: m.ancho, alto: m.alto });
+    }
   }
 
   // Flechas entre panorámicas vecinas (mismo cálculo que el editor).
@@ -168,6 +180,6 @@ export async function exportarDatos(): Promise<DatosPaquete> {
     puntos,
     horarios,
     calendario,
-    configApp: await leerConfigApp(),
+    configApp,
   };
 }

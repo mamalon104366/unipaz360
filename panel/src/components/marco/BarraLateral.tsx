@@ -7,6 +7,7 @@ import {
   Accessibility,
   Building2,
   ChevronDown,
+  FileText,
   CircleDashed,
   History,
   Image,
@@ -93,7 +94,10 @@ export function BarraLateral({
               },
             ]
           : area.id === 'cliente'
-            ? [{ titulo: 'Capas de la app', items: CAPAS.map((c) => ({ href: `/cliente?capa=${c.id}`, icono: ICONO_CAPA[c.id], nombre: c.nombre })) }]
+            ? [
+                { titulo: 'Capas de la app', items: CAPAS.map((c) => ({ href: `/cliente?capa=${c.id}`, icono: ICONO_CAPA[c.id], nombre: c.nombre })) },
+                { titulo: 'Páginas de las secciones', items: (r?.paginasApp ?? []).map((p) => ({ href: `/cliente?pagina=${p.id}`, icono: FileText, nombre: p.titulo })) },
+              ]
             : area.id === 'publicacion'
               ? [
                   {
@@ -120,7 +124,11 @@ export function BarraLateral({
                 ];
 
   const esActivo = (href: string) =>
-    href.startsWith('/cliente?') ? actual === href || (ruta === '/cliente' && !params.get('capa') && href.endsWith('=marca')) : href.includes('?') ? actual === href : href === '/' ? ruta === '/' : ruta === href && !params.get('ver');
+    href.startsWith('/cliente?pagina=')
+      ? ruta === '/cliente' && params.get('pagina') === href.slice('/cliente?pagina='.length)
+      : href.startsWith('/cliente?')
+        ? ruta === '/cliente' && !params.get('pagina') && (params.get('capa') ?? 'marca') === href.slice('/cliente?capa='.length)
+        : href.includes('?') ? actual === href : href === '/' ? ruta === '/' : ruta === href && !params.get('ver');
 
   return (
     <aside
