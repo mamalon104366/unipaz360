@@ -2,8 +2,8 @@
  * Apariencia y contenido de la app del visitante (apartado "Cliente" del panel).
  *
  * Este mismo objeto viaja en el paquete (tabla `configuracion_app`, clave 'app') y la app
- * Flutter lo aplica tal cual: colores, encabezado, barra lateral, minimapa con sus nodos y
- * las páginas de cada sección. Las páginas son un lienzo libre (como en Figma) de
+ * Flutter lo aplica tal cual: colores, barra lateral con el logo de UNIPAZ, minimapa con sus
+ * nodos y las páginas de cada sección. Las páginas son un lienzo libre (como en Figma) de
  * ANCHO_PAGINA unidades de ancho: la app multiplica todo por (ancho real del panel / 1000),
  * así se ve igual en el celular, en Windows y en la web. Contrato: docs/datos/apariencia-app.md
  */
@@ -116,15 +116,18 @@ export interface NodoMinimapa {
 }
 
 export interface ConfigApp {
+  /** El nombre y el subtítulo van al pie de la barra; los colores, a botones y resaltados. */
   marca: { nombre: string; subtitulo: string; colorPrimario: string; colorAcento: string };
   /** Escala general de textos y botones (1 = normal). */
   interfaz: { escala: number };
-  encabezado: { titulo: string; mostrarLogo: boolean; mostrarBuscador: boolean; estilo: 'oscuro' | 'claro' | 'vidrio'; alto: number; plegable: boolean };
+  /** De arriba abajo y de borde a borde, como en un sitio web: el logo, las secciones y el pie. */
   barraLateral: {
     posicion: 'izquierda' | 'derecha';
     estilo: 'oscuro' | 'claro' | 'vidrio';
-    /** Ancho en % de la pantalla. */
+    /** Ancho en % de la pantalla (nunca menos de ANCHO_MINIMO_BARRA dp). */
     ancho: number;
+    /** El logo de UNIPAZ arriba de la barra (en blanco sobre vidrio u oscuro, a color sobre claro). */
+    mostrarLogo: boolean;
     plegable: boolean;
     iniciaPlegada: boolean;
     secciones: SeccionApp[];
@@ -166,11 +169,16 @@ const SECCIONES_POR_DEFECTO: SeccionApp[] = [
   { id: 'rutas', titulo: 'Cómo llegar', icono: 'ruta', visible: true, tipo: 'rutas' },
 ];
 
+/** Colores del logo de UNIPAZ (marca/LEEME.md). */
+export const AZUL_UNIPAZ = '#233671';
+export const VERDE_UNIPAZ = '#0a9640';
+/** Ancho mínimo de la barra lateral en dp (antes de la escala): así caben los títulos en un celular. */
+export const ANCHO_MINIMO_BARRA = 210;
+
 export const CONFIG_POR_DEFECTO: ConfigApp = {
-  marca: { nombre: 'UNIPAZ 360', subtitulo: 'Centro de Investigaciones Santa Lucía', colorPrimario: '#163e78', colorAcento: '#179b55' },
+  marca: { nombre: 'UNIPAZ 360', subtitulo: 'Centro de Investigaciones Santa Lucía', colorPrimario: AZUL_UNIPAZ, colorAcento: VERDE_UNIPAZ },
   interfaz: { escala: 1 },
-  encabezado: { titulo: 'Recorrido virtual', mostrarLogo: true, mostrarBuscador: true, estilo: 'vidrio', alto: 56, plegable: true },
-  barraLateral: { posicion: 'izquierda', estilo: 'vidrio', ancho: 24, plegable: true, iniciaPlegada: false, secciones: SECCIONES_POR_DEFECTO },
+  barraLateral: { posicion: 'izquierda', estilo: 'vidrio', ancho: 20, mostrarLogo: true, plegable: true, iniciaPlegada: false, secciones: SECCIONES_POR_DEFECTO },
   minimapa: {
     visible: true,
     posicion: 'abajo-derecha',
@@ -194,8 +202,7 @@ export const CONFIG_POR_DEFECTO: ConfigApp = {
 
 export const CAPAS = [
   { id: 'marca', nombre: 'Marca y colores' },
-  { id: 'encabezado', nombre: 'Encabezado' },
-  { id: 'barra', nombre: 'Barra lateral' },
+  { id: 'barra', nombre: 'Barra lateral y logo' },
   { id: 'minimapa', nombre: 'Minimapa' },
   { id: 'inicio', nombre: 'Pantalla de inicio' },
 ] as const;
@@ -231,7 +238,7 @@ export function elementoBase(tipo: TipoElemento): Omit<Elemento, 'id'> {
     case 'texto':
       return { ...comun, ancho: 420, alto: 60, ...tipografia, texto: 'Escribe aquí' };
     case 'boton':
-      return { ...comun, ancho: 260, alto: 48, ...tipografia, tamano: 16, peso: 600, alineacion: 'centro', color: '#ffffff', texto: 'Botón', relleno: '#163e78', radio: 24, borde: '', grosorBorde: 0, sombra: false, enlace: '' };
+      return { ...comun, ancho: 260, alto: 48, ...tipografia, tamano: 16, peso: 600, alineacion: 'centro', color: '#ffffff', texto: 'Botón', relleno: AZUL_UNIPAZ, radio: 24, borde: '', grosorBorde: 0, sombra: false, enlace: '' };
     case 'imagen':
       return { ...comun, ancho: 480, alto: 300, src: 'app://imagenes/portada-campus.jpg', ajuste: 'cubrir', radio: 8, borde: '', grosorBorde: 0, sombra: false, enlace: '' };
     case 'video':
@@ -359,18 +366,11 @@ export function normalizarConfig(c: Partial<ConfigApp> | null | undefined): Conf
       colorAcento: color(x.marca?.colorAcento, d.marca.colorAcento),
     },
     interfaz: { escala: num(x.interfaz?.escala, 0.7, 1.5, d.interfaz.escala) },
-    encabezado: {
-      titulo: texto(x.encabezado?.titulo, d.encabezado.titulo, 60),
-      mostrarLogo: bool(x.encabezado?.mostrarLogo, d.encabezado.mostrarLogo),
-      mostrarBuscador: bool(x.encabezado?.mostrarBuscador, d.encabezado.mostrarBuscador),
-      estilo: uno(x.encabezado?.estilo, ['oscuro', 'claro', 'vidrio'] as const, d.encabezado.estilo),
-      alto: num(x.encabezado?.alto, 40, 96, d.encabezado.alto),
-      plegable: bool(x.encabezado?.plegable, d.encabezado.plegable),
-    },
     barraLateral: {
       posicion: uno(x.barraLateral?.posicion, ['izquierda', 'derecha'] as const, d.barraLateral.posicion),
       estilo: uno(x.barraLateral?.estilo, ['oscuro', 'claro', 'vidrio'] as const, d.barraLateral.estilo),
       ancho: num(x.barraLateral?.ancho, 14, 45, d.barraLateral.ancho),
+      mostrarLogo: bool(x.barraLateral?.mostrarLogo, d.barraLateral.mostrarLogo),
       plegable: bool(x.barraLateral?.plegable, d.barraLateral.plegable),
       iniciaPlegada: bool(x.barraLateral?.iniciaPlegada, d.barraLateral.iniciaPlegada),
       secciones,

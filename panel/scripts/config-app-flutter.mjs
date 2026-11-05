@@ -32,12 +32,14 @@ const casos = [
   null,
   {},
   { marca: { nombre: '   ', subtitulo: 'x'.repeat(120), colorPrimario: '#ABCDEF', colorAcento: 'verde' }, interfaz: { escala: 3 } },
-  { encabezado: { titulo: '  Hola  ', alto: 10, estilo: 'neón', mostrarLogo: 'si', plegable: false }, inicio: { pantalla: 'mapa', textoBoton: 'Volver al inicio del recorrido completo', bienvenida: '' } },
+  // El encabezado ya no existe: se ignora. mostrarLogo solo acepta booleanos.
+  { encabezado: { titulo: '  Hola  ', alto: 10, estilo: 'neón', mostrarLogo: 'si', plegable: false }, barraLateral: { mostrarLogo: 'si', ancho: 5 }, inicio: { pantalla: 'mapa', textoBoton: 'Volver al inicio del recorrido completo', bienvenida: '' } },
   {
     barraLateral: {
       posicion: 'derecha',
       estilo: 'claro',
       ancho: '30',
+      mostrarLogo: false,
       iniciaPlegada: true,
       secciones: [
         { id: 'Nosotros', titulo: 'Quiénes somos', icono: 'info' },

@@ -5,8 +5,8 @@
  */
 import type { Elemento, Pagina, PestanaPagina } from './configApp';
 
-const AZUL = '#163e78';
-const VERDE = '#179b55';
+const AZUL = '#233671';
+const VERDE = '#0a9640';
 const GRIS = '#526071';
 const TINTA = '#1c1c1f';
 const FONDO = '#fafaf8';

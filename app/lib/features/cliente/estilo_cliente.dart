@@ -54,13 +54,13 @@ TextStyle estiloTexto({
 class Superficie {
   const Superficie._(this.fondo, this.tinta, {this.borde, this.desenfoque = 0});
 
-  /// `oscuro`: #1c1c1f al 92 % · `claro`: blanco al 95 % · `vidrio`: negro al 35 %, borde
+  /// `oscuro`: #1c1c1f al 92 % · `claro`: blanco al 95 % · `vidrio`: negro al 55 %, borde
   /// blanco al 20 % y desenfoque de 12 px detrás.
   factory Superficie.de(String estilo) => switch (estilo) {
     'oscuro' => const Superficie._(Color(0xEB1C1C1F), Colors.white),
     'claro' => const Superficie._(Color(0xF2FFFFFF), Color(0xFF1C1C1F)),
     _ => const Superficie._(
-      Color(0x59000000),
+      Color(0x8C000000),
       Colors.white,
       borde: Color(0x33FFFFFF),
       desenfoque: 12,
@@ -94,6 +94,34 @@ class Superficie {
       );
     }
     return ClipRRect(borderRadius: forma, child: c);
+  }
+
+  /// La barra lateral de borde a borde: sin esquinas y con [borde] solo del lado de la foto
+  /// (`superficieBarra()` del panel).
+  Widget cajaBarra({
+    required bool derecha,
+    required Widget child,
+    Color? borde,
+    EdgeInsets padding = EdgeInsets.zero,
+  }) {
+    final linea = borde == null ? BorderSide.none : BorderSide(color: borde);
+    Widget c = DecoratedBox(
+      decoration: BoxDecoration(
+        color: fondo,
+        border: Border(
+          left: derecha ? linea : BorderSide.none,
+          right: derecha ? BorderSide.none : linea,
+        ),
+      ),
+      child: Padding(padding: padding, child: child),
+    );
+    if (desenfoque > 0) {
+      c = BackdropFilter(
+        filter: ui.ImageFilter.blur(sigmaX: desenfoque, sigmaY: desenfoque),
+        child: c,
+      );
+    }
+    return ClipRect(child: c);
   }
 }
 

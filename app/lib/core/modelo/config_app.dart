@@ -352,6 +352,15 @@ class NodoMinimapa {
   };
 }
 
+/// Colores del logo de UNIPAZ (`marca/LEEME.md`), los mismos de `configApp.ts`.
+const String azulUnipaz = '#233671';
+const String verdeUnipaz = '#0a9640';
+
+/// Ancho mínimo de la barra lateral en dp (antes de la escala): así caben los títulos en un
+/// celular (`ANCHO_MINIMO_BARRA` del panel).
+const double anchoMinimoBarra = 210;
+
+/// El nombre y el subtítulo van al pie de la barra; los colores, a botones y resaltados.
 class MarcaApp {
   const MarcaApp({
     required this.nombre,
@@ -373,40 +382,14 @@ class MarcaApp {
   };
 }
 
-class EncabezadoApp {
-  const EncabezadoApp({
-    required this.titulo,
-    required this.mostrarLogo,
-    required this.mostrarBuscador,
-    required this.estilo,
-    required this.alto,
-    required this.plegable,
-  });
-
-  final String titulo;
-  final bool mostrarLogo;
-  final bool mostrarBuscador;
-
-  /// `oscuro`, `claro` o `vidrio`.
-  final String estilo;
-  final double alto;
-  final bool plegable;
-
-  Map<String, Object?> toJson() => <String, Object?>{
-    'titulo': titulo,
-    'mostrarLogo': mostrarLogo,
-    'mostrarBuscador': mostrarBuscador,
-    'estilo': estilo,
-    'alto': alto,
-    'plegable': plegable,
-  };
-}
-
+/// De arriba abajo y de borde a borde, como en un sitio web: el logo, las secciones y el pie
+/// con el nombre.
 class BarraLateralApp {
   const BarraLateralApp({
     required this.posicion,
     required this.estilo,
     required this.ancho,
+    required this.mostrarLogo,
     required this.plegable,
     required this.iniciaPlegada,
     required this.secciones,
@@ -414,10 +397,15 @@ class BarraLateralApp {
 
   /// `izquierda` o `derecha`.
   final String posicion;
+
+  /// `oscuro`, `claro` o `vidrio`.
   final String estilo;
 
-  /// Ancho en % de la pantalla.
+  /// Ancho en % de la pantalla (nunca menos de [anchoMinimoBarra] dp).
   final double ancho;
+
+  /// El logo de UNIPAZ arriba (en blanco sobre vidrio u oscuro, a color sobre claro).
+  final bool mostrarLogo;
   final bool plegable;
   final bool iniciaPlegada;
   final List<SeccionApp> secciones;
@@ -426,6 +414,7 @@ class BarraLateralApp {
     'posicion': posicion,
     'estilo': estilo,
     'ancho': ancho,
+    'mostrarLogo': mostrarLogo,
     'plegable': plegable,
     'iniciaPlegada': iniciaPlegada,
     'secciones': <Object?>[for (final s in secciones) s.toJson()],
@@ -515,7 +504,6 @@ class ConfigApp {
   const ConfigApp({
     required this.marca,
     required this.escala,
-    required this.encabezado,
     required this.barraLateral,
     required this.minimapa,
     required this.inicio,
@@ -526,7 +514,6 @@ class ConfigApp {
 
   /// Escala general de textos y botones (`interfaz.escala`, de 0.7 a 1.5).
   final double escala;
-  final EncabezadoApp encabezado;
   final BarraLateralApp barraLateral;
   final MinimapaApp minimapa;
   final InicioApp inicio;
@@ -544,7 +531,6 @@ class ConfigApp {
   Map<String, Object?> toJson() => <String, Object?>{
     'marca': marca.toJson(),
     'interfaz': <String, Object?>{'escala': escala},
-    'encabezado': encabezado.toJson(),
     'barraLateral': barraLateral.toJson(),
     'minimapa': minimapa.toJson(),
     'inicio': inicio.toJson(),
@@ -559,22 +545,15 @@ class ConfigApp {
     marca: MarcaApp(
       nombre: 'UNIPAZ 360',
       subtitulo: 'Centro de Investigaciones Santa Lucía',
-      colorPrimario: '#163e78',
-      colorAcento: '#179b55',
+      colorPrimario: azulUnipaz,
+      colorAcento: verdeUnipaz,
     ),
     escala: 1,
-    encabezado: EncabezadoApp(
-      titulo: 'Recorrido virtual',
-      mostrarLogo: true,
-      mostrarBuscador: true,
-      estilo: 'vidrio',
-      alto: 56,
-      plegable: true,
-    ),
     barraLateral: BarraLateralApp(
       posicion: 'izquierda',
       estilo: 'vidrio',
-      ancho: 24,
+      ancho: 20,
+      mostrarLogo: true,
       plegable: true,
       iniciaPlegada: false,
       secciones: seccionesPorDefecto,

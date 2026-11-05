@@ -1,6 +1,6 @@
 /// La app del visitante tal como la diseña el apartado **Cliente** de la plataforma: el
-/// recorrido 360° de fondo y, encima, el encabezado, la barra de secciones (o el riel), el
-/// minimapa, el botón de inicio, las páginas y la ficha de los puntos. Todo sale de la
+/// recorrido 360° de fondo y, encima, la barra lateral con el logo de UNIPAZ (o el riel), el
+/// minimapa, los botones de buscar y de inicio, las páginas y la ficha de los puntos. Todo sale de la
 /// configuración del paquete, así que lo que se ve en la vista previa es lo que se ve aquí.
 library;
 
@@ -42,7 +42,6 @@ class _VistaClienteState extends State<VistaCliente> {
   String? _seccion;
   String? _pestana;
   late bool _barraPlegada = c.barraLateral.iniciaPlegada;
-  bool _encabezadoPlegado = false;
   late String _estadoMapa = c.minimapa.estadoInicial;
   String? _panoramica;
   PuntoPanoramica? _ficha;
@@ -135,10 +134,12 @@ class _VistaClienteState extends State<VistaCliente> {
     });
   }
 
-  void _buscar() {
+  /// La sección «Buscador de rutas» que abre el botón redondo de buscar (si hay una visible).
+  SeccionApp? get _seccionRutas {
     for (final s in c.barraLateral.secciones) {
-      if (s.tipo == 'rutas' && s.visible) return _abrirSeccion(s);
+      if (s.tipo == 'rutas' && s.visible) return s;
     }
+    return null;
   }
 
   @override
@@ -179,8 +180,10 @@ class _VistaClienteState extends State<VistaCliente> {
             movil: pantalla.shortestSide < 600,
             paginaAbierta: abierta != null,
             barraPlegada: _barraPlegada,
-            encabezadoPlegado: _encabezadoPlegado,
           );
+          final rutas = _seccionRutas;
+          final buscador =
+              rutas != null && abierta == null && _estadoMapa != 'maximizado';
           final actual = _actual;
           final datos = widget.paquete.datos;
           final nodos = <String, NodoInfo>{
@@ -215,33 +218,11 @@ class _VistaClienteState extends State<VistaCliente> {
                         alTocarPunto: (p) => setState(() => _ficha = p),
                       ),
               ),
-              if (abierta == null && !_encabezadoPlegado)
-                Positioned(
-                  top: margen,
-                  left: margen,
-                  right: margen,
-                  height: m.altoEncabezado,
-                  child: EncabezadoCliente(
-                    config: c,
-                    medidas: m,
-                    alPlegar: () => setState(() => _encabezadoPlegado = true),
-                    alBuscar: _buscar,
-                  ),
-                ),
-              if (abierta == null && _encabezadoPlegado)
-                Positioned(
-                  top: 6,
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: BotonMostrarEncabezado(
-                      medidas: m,
-                      alTocar: () => setState(() => _encabezadoPlegado = false),
-                    ),
-                  ),
-                ),
               if (c.minimapa.visible && abierta == null)
-                (_estadoMapa == 'maximizado' ? m.areaLibre : m.minimapa).ubicar(
+                (_estadoMapa == 'maximizado'
+                        ? m.areaLibre
+                        : m.minimapa(conBuscador: buscador))
+                    .ubicar(
                   child: MinimapaCliente(
                     config: c,
                     imagen: widget.paquete.imagen(c.minimapa.imagen),
@@ -263,7 +244,7 @@ class _VistaClienteState extends State<VistaCliente> {
                   ),
                 ),
               if (abierta != null)
-                m.panelPagina.ubicar(
+                m.panelPagina.ubicarAnimado(
                   child: PanelPagina(
                     config: c,
                     seccion: abierta,
@@ -281,8 +262,8 @@ class _VistaClienteState extends State<VistaCliente> {
                     ),
                   ),
                 ),
-              m.barra.ubicar(
-                ancho: m.anchoLateral,
+              m.barra.ubicarAnimado(
+                ancho: m.anchoBarraVisible,
                 child: BarraSecciones(
                   config: c,
                   medidas: m,
@@ -290,10 +271,25 @@ class _VistaClienteState extends State<VistaCliente> {
                       ? abierta.id == s.id
                       : s.tipo == 'recorrido',
                   alAbrir: _abrirSeccion,
-                  alPlegar: () =>
-                      setState(() => _barraPlegada = !_barraPlegada),
                 ),
               ),
+              if (buscador)
+                m.botonBuscar.ubicar(
+                  child: BotonBuscar(
+                    config: c,
+                    alTocar: () => _abrirSeccion(rutas),
+                  ),
+                ),
+              if (c.barraLateral.mostrarLogo && !m.riel && m.anchoLogo > 0)
+                m.logo.ubicar(child: LogoBarra(config: c, medidas: m)),
+              if (c.barraLateral.plegable && !(m.movil && abierta != null))
+                m.botonPlegar.ubicarAnimado(
+                  child: BotonPlegar(
+                    medidas: m,
+                    alTocar: () =>
+                        setState(() => _barraPlegada = !_barraPlegada),
+                  ),
+                ),
               if (_ficha != null && abierta == null)
                 Positioned.fill(
                   child: FichaPunto(

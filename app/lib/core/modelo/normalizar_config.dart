@@ -168,7 +168,7 @@ ElementoPagina elementoBase(String tipo) {
         interlineado: 1.4,
         color: '#ffffff',
         texto: 'Botón',
-        relleno: '#163e78',
+        relleno: azulUnipaz,
         radio: 24,
         borde: '',
         grosorBorde: 0,
@@ -415,7 +415,7 @@ PaginaApp paginaGenerica(String id, String titulo) {
     32,
     'serif',
     true,
-    '#163e78',
+    azulUnipaz,
     1.15,
     altoTitulo,
   );
@@ -520,7 +520,6 @@ ConfigApp normalizarConfig(
 
   final marca = _mapa(x['marca']);
   final interfaz = _mapa(x['interfaz']);
-  final enc = _mapa(x['encabezado']);
   final inicio = _mapa(x['inicio']);
   final imagen = m['imagen'] == 'app://mapa-dron'
       ? imagenDron
@@ -538,21 +537,6 @@ ConfigApp normalizarConfig(
       colorAcento: _color(marca['colorAcento'], d.marca.colorAcento),
     ),
     escala: _num(interfaz['escala'], 0.7, 1.5, d.escala),
-    encabezado: EncabezadoApp(
-      titulo: _texto(enc['titulo'], d.encabezado.titulo, 60),
-      mostrarLogo: _bool(enc['mostrarLogo'], d.encabezado.mostrarLogo),
-      mostrarBuscador: _bool(
-        enc['mostrarBuscador'],
-        d.encabezado.mostrarBuscador,
-      ),
-      estilo: _uno(enc['estilo'], const <String>[
-        'oscuro',
-        'claro',
-        'vidrio',
-      ], d.encabezado.estilo),
-      alto: _num(enc['alto'], 40, 96, d.encabezado.alto),
-      plegable: _bool(enc['plegable'], d.encabezado.plegable),
-    ),
     barraLateral: BarraLateralApp(
       posicion: _uno(barra['posicion'], const <String>[
         'izquierda',
@@ -564,6 +548,7 @@ ConfigApp normalizarConfig(
         'vidrio',
       ], d.barraLateral.estilo),
       ancho: _num(barra['ancho'], 14, 45, d.barraLateral.ancho),
+      mostrarLogo: _bool(barra['mostrarLogo'], d.barraLateral.mostrarLogo),
       plegable: _bool(barra['plegable'], d.barraLateral.plegable),
       iniciaPlegada: _bool(
         barra['iniciaPlegada'],

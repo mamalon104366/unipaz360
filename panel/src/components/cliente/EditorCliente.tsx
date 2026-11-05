@@ -12,7 +12,6 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
-  ChevronUp,
   Circle,
   Eye,
   EyeOff,
@@ -54,6 +53,7 @@ import { urlMedio } from '@/components/panoramicas/medio';
 import { estiloDe, marcadorDe, type CacheCapas } from '@/components/panoramicas/capas';
 import { aVista } from '@/components/panoramicas/correccion';
 import {
+  ANCHO_MINIMO_BARRA,
   CAPAS,
   CONFIG_POR_DEFECTO,
   ESTADOS_MINIMAPA,
@@ -69,6 +69,7 @@ import {
   type SeccionApp,
   type TipoElemento,
 } from '@/lib/configApp';
+import { LOGOS } from '@/lib/marca.generado';
 import { paginaInicial } from '@/lib/paginasIniciales';
 import { ETIQUETA_PUNTO, type Ajustes, type Enlace, type Punto } from '@/lib/tipos';
 import { BotonIcono, Color, Interruptor, Opciones, Rango, Seccion, Texto } from './controles';
@@ -103,6 +104,9 @@ const NOMBRE_ICONO: Record<IconoSeccion, string> = {
 /** Ancho de pantalla (dp) que representa cada marco de la vista previa. */
 const ANCHO_REAL = { movil: 915, escritorio: 1440 } as const;
 const ANCHO_RIEL = 56;
+/** Movimiento de la barra al plegarse (Curves.easeOutCubic en la app, 280 ms). */
+const MOVIMIENTO = '280ms cubic-bezier(0.215, 0.61, 0.355, 1)';
+const TRANSICION_BARRA = `left ${MOVIMIENTO}, right ${MOVIMIENTO}, width ${MOVIMIENTO}`;
 
 export interface PanoCliente {
   id: string;
@@ -123,7 +127,15 @@ const enCampo = (t: EventTarget | null) => t instanceof HTMLElement && (t.isCont
 function superficie(estilo: 'oscuro' | 'claro' | 'vidrio') {
   if (estilo === 'oscuro') return 'bg-[#1c1c1f]/92 text-white';
   if (estilo === 'claro') return 'bg-white/95 text-[#1c1c1f]';
-  return 'bg-black/35 text-white backdrop-blur-md border border-white/20';
+  return 'bg-black/55 text-white backdrop-blur-md border border-white/20';
+}
+
+/** La barra va de borde a borde: sin esquinas y con la línea solo del lado de la foto. */
+function superficieBarra(estilo: 'oscuro' | 'claro' | 'vidrio', derecha: boolean) {
+  const borde = derecha ? 'border-l' : 'border-r';
+  if (estilo === 'oscuro') return 'bg-[#1c1c1f]/92 text-white';
+  if (estilo === 'claro') return `bg-white/95 text-[#1c1c1f] ${borde} border-black/10`;
+  return `bg-black/55 text-white backdrop-blur-md ${borde} border-white/20`;
 }
 
 /** Editor visual de la app del visitante: vista previa fiel a la izquierda, propiedades a la derecha. */
@@ -169,7 +181,6 @@ export function EditorCliente({
   // ---------------------------------------------------------------- estado de la vista previa
   const [dispositivo, setDispositivo] = useState<'movil' | 'escritorio'>('movil');
   const [barraPlegada, setBarraPlegada] = useState(inicial.barraLateral.iniciaPlegada);
-  const [encabezadoPlegado, setEncabezadoPlegado] = useState(false);
   const [estadoMapa, setEstadoMapa] = useState<EstadoMinimapa>(inicial.minimapa.estadoInicial);
   const [panoActual, setPanoActual] = useState(panoramicas[0]?.id ?? null);
   const [ficha, setFicha] = useState<Punto | null>(null);
@@ -483,30 +494,51 @@ export function EditorCliente({
   }
 
   // ---------------------------------------------------------------- medidas de la vista previa
+  const e = c.interfaz.escala;
   const m12 = 12 * u;
-  const altoEncabezado = c.encabezado.alto * c.interfaz.escala * u;
-  // Con una página abierta el encabezado se oculta: la barra (o el riel) sube hasta arriba.
-  const sinEncabezado = encabezadoPlegado || !!seccionAbierta;
-  const arriba = sinEncabezado ? m12 : m12 + altoEncabezado + m12;
   const derecha = c.barraLateral.posicion === 'derecha';
-  const riel = barraPlegada || (dispositivo === 'movil' && !!seccionAbierta);
-  const anchoLateral = riel ? ANCHO_RIEL * c.interfaz.escala * u : (c.barraLateral.ancho / 100) * anchoMarco;
-  const ocupado = m12 + anchoLateral + m12;
+  // Plegada y sin página, la barra se esconde (quedan el logo y el botón para abrirla); con una
+  // página abierta queda el riel de íconos. En celular, con una página abierta, siempre el riel.
+  // Si el visitante no puede plegarla, nunca se esconde: no tendría cómo abrirla.
+  const plegada = barraPlegada && c.barraLateral.plegable;
+  const oculta = plegada && !seccionAbierta;
+  const riel = !!seccionAbierta && (plegada || dispositivo === 'movil');
+  const anchoBarra = Math.min(Math.max((c.barraLateral.ancho / 100) * anchoMarco, ANCHO_MINIMO_BARRA * e * u), 0.45 * anchoMarco);
+  const anchoLateral = oculta ? 0 : riel ? ANCHO_RIEL * e * u : anchoBarra;
+  /** Lo que ocupa la barra más el margen: de ahí en adelante van el minimapa y lo demás. */
+  const ocupado = anchoLateral + m12;
   const lado = (izq: number | string, der: number | string): React.CSSProperties => (derecha ? { left: izq, right: der } : { left: der, right: izq });
+  const secciones = c.barraLateral.secciones.filter((s) => s.visible);
+  // El botón redondo de buscar abre la sección «Buscador de rutas» (si hay una visible).
+  const seccionRutas = secciones.find((s) => s.tipo === 'rutas') ?? null;
+  const buscador = !!seccionRutas && !seccionAbierta && estadoMapa !== 'maximizado';
+  const ladoBoton = 40 * e * u;
   const posMapa: React.CSSProperties =
     c.minimapa.posicion === 'abajo-izquierda'
       ? { bottom: m12, left: derecha ? m12 : ocupado }
       : c.minimapa.posicion === 'arriba-derecha'
-        ? { top: arriba, right: derecha ? ocupado : m12 }
+        ? { top: buscador && !derecha ? m12 + ladoBoton + 10 * u : m12, right: derecha ? ocupado : m12 }
         : { bottom: m12, right: derecha ? ocupado : m12 };
-  const areaMapa: React.CSSProperties = { top: arriba, bottom: m12, ...(derecha ? { left: m12, right: ocupado } : { left: ocupado, right: m12 }) };
-  const secciones = c.barraLateral.secciones.filter((s) => s.visible);
+  const areaMapa: React.CSSProperties = { top: m12, bottom: m12, ...(derecha ? { left: m12, right: ocupado } : { left: ocupado, right: m12 }) };
   const colores = { primario: c.marca.colorPrimario, acento: c.marca.colorAcento };
   const marco = (id: Capa) =>
     `cursor-pointer transition ${!seccionAbierta && capa === id ? 'outline outline-2 outline-offset-2 outline-[#3b82f6]' : 'hover:outline hover:outline-1 hover:outline-offset-2 hover:outline-[#3b82f6]/60'}`;
   const elegirCapa = (id: Capa) => ir({ capa: id, pagina: null });
-  const textoBase = 16 * c.interfaz.escala * u;
+  const textoBase = 16 * e * u;
   const nodosInfo = vertices.map((v) => ({ id: v.id, nombre: v.nombre, panoramica_id: v.panoramica_id }));
+  // Barra: el logo horizontal (en blanco sobre vidrio u oscuro, a color sobre claro), las secciones
+  // con separadores y el pie con el nombre. El logo va en su propia capa: al plegar no se mueve.
+  const clara = c.barraLateral.estilo === 'claro';
+  const linea = clara ? 'rgb(0 0 0 / 0.1)' : 'rgb(255 255 255 / 0.16)';
+  const grosor = `${Math.max(0.5, u)}px solid ${linea}`;
+  // En celular la pantalla es baja: logo más pequeño y filas más juntas, para que quepan las secciones.
+  const compacta = dispositivo === 'movil';
+  const filaV = (compacta ? 8 : 11) * e * u;
+  const padX = 14 * e * u;
+  const padArriba = (compacta ? 14 : 20) * e * u;
+  const anchoLogo = Math.max(0, Math.min(anchoBarra - 2 * padX, (compacta ? 150 : 200) * e * u));
+  const altoLogo = (anchoLogo * LOGOS.horizontal.alto) / LOGOS.horizontal.ancho;
+  const conLogo = c.barraLateral.mostrarLogo;
 
   return (
     <div className="flex h-full min-h-0">
@@ -609,102 +641,113 @@ export function EditorCliente({
 
             {/* La interfaz de la app usa Roboto (la misma letra que empaqueta la app Flutter). */}
             <div className="pointer-events-none absolute inset-0" style={{ fontSize: textoBase, fontFamily: 'var(--font-app-sans), Roboto, system-ui, sans-serif' }}>
-              {/* Encabezado */}
-              {seccionAbierta ? null : !encabezadoPlegado ? (
-                <div
-                  onClick={() => elegirCapa('encabezado')}
-                  style={{ height: altoEncabezado, top: m12, left: m12, right: m12, borderRadius: 16 * u, padding: `0 ${14 * u}px`, gap: 10 * u }}
-                  className={`pointer-events-auto absolute flex items-center ${superficie(c.encabezado.estilo)} ${marco('encabezado')}`}
-                >
-                  {c.encabezado.mostrarLogo && (
-                    <span
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        elegirCapa('marca');
-                      }}
-                      className={`grid h-[2.2em] w-[2.2em] shrink-0 place-items-center rounded-full text-[0.7em] font-bold text-white ${marco('marca')}`}
-                      style={{ background: 'var(--primario)' }}
-                    >
-                      {c.marca.nombre.slice(0, 2).toUpperCase()}
-                    </span>
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-[0.88em] font-semibold leading-tight">{c.encabezado.titulo}</div>
-                    <div className="truncate text-[0.68em] opacity-70">
-                      {c.marca.nombre} · {c.marca.subtitulo}
-                    </div>
-                  </div>
-                  {c.encabezado.mostrarBuscador && (
-                    <span className="flex items-center gap-[0.5em] rounded-[0.6em] bg-white/15 px-[0.8em] py-[0.4em] text-[0.68em] opacity-90">
-                      <Search size={13 * u} /> Buscar aula, laboratorio…
-                    </span>
-                  )}
-                  {c.encabezado.plegable && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setEncabezadoPlegado(true);
-                      }}
-                      title="Ocultar encabezado"
-                      className="grid shrink-0 place-items-center rounded-[0.5em] bg-white/15"
-                      style={{ width: 28 * u, height: 28 * u }}
-                    >
-                      <ChevronUp size={14 * u} />
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <button
-                  onClick={() => setEncabezadoPlegado(false)}
-                  className="pointer-events-auto absolute left-1/2 -translate-x-1/2 rounded-full bg-black/45 px-[0.9em] py-[0.25em] text-[0.65em] text-white backdrop-blur"
-                  style={{ top: 6 * u }}
-                >
-                  Mostrar encabezado
-                </button>
-              )}
-
-              {/* Barra lateral (o riel de íconos) */}
+              {/* Barra lateral de borde a borde (o riel de íconos): logo, secciones y pie.
+                  Oculta, conserva su ancho y se corre fuera de la pantalla. */}
               <div
                 onClick={() => elegirCapa('barra')}
-                style={{ top: arriba, bottom: m12, width: anchoLateral, borderRadius: 16 * u, padding: 8 * u, ...(derecha ? { right: m12 } : { left: m12 }) }}
-                className={`pointer-events-auto absolute z-30 flex flex-col overflow-hidden ${superficie(c.barraLateral.estilo)} ${marco('barra')}`}
+                aria-hidden={oculta}
+                style={{
+                  top: 0,
+                  bottom: 0,
+                  width: oculta ? anchoBarra : anchoLateral,
+                  ...(derecha ? { right: oculta ? -anchoBarra : 0 } : { left: oculta ? -anchoBarra : 0 }),
+                  transition: TRANSICION_BARRA,
+                  padding: riel ? `${padArriba}px ${8 * u}px ${padX}px` : `${padArriba}px ${padX}px ${padX}px`,
+                }}
+                className={`pointer-events-auto absolute z-30 flex flex-col ${superficieBarra(c.barraLateral.estilo, derecha)} ${marco('barra')}`}
               >
-                {c.barraLateral.plegable && !(dispositivo === 'movil' && seccionAbierta) && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setBarraPlegada((p) => !p);
-                    }}
-                    title={riel ? 'Mostrar menú' : 'Ocultar menú'}
-                    className={`grid shrink-0 place-items-center rounded-[0.5em] bg-white/15 ${riel ? 'self-center' : derecha ? 'self-start' : 'self-end'}`}
-                    style={{ width: 26 * u, height: 26 * u }}
-                  >
-                    {riel === derecha ? <ChevronLeft size={14 * u} /> : <ChevronRight size={14 * u} />}
-                  </button>
-                )}
-                <div className="mt-[0.4em] min-h-0 flex-1 space-y-[0.15em] overflow-y-auto">
-                  {secciones.map((s) => {
+                {riel
+                  ? conLogo && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={`/marca/isotipo${clara ? '' : '-blanco'}.svg`} alt="UNIPAZ" className="shrink-0 self-center" style={{ width: 30 * e * u, height: 30 * e * u, marginBottom: (compacta ? 8 : 12) * e * u }} />
+                    )
+                  : conLogo && <div className="shrink-0" style={{ height: altoLogo + (compacta ? 10 : 18) * e * u }} />}
+                <div className="min-h-0 flex-1 overflow-y-auto [scrollbar-width:none]">
+                  {secciones.map((s, i) => {
                     const Icono = ICONO[s.icono];
                     const activa = seccionAbierta ? seccionAbierta.id === s.id : s.tipo === 'recorrido';
                     return (
                       <button
                         key={s.id}
-                        onClick={(e) => {
-                          e.stopPropagation();
+                        onClick={(ev) => {
+                          ev.stopPropagation();
                           abrirSeccion(s);
                         }}
                         title={s.titulo}
-                        className={`flex w-full items-center rounded-[0.7em] text-left text-[0.8em] transition ${activa ? 'font-semibold' : 'opacity-85 hover:bg-white/10 hover:opacity-100'} ${riel ? 'justify-center' : ''}`}
-                        style={{ ...(activa ? { background: 'var(--primario)', color: '#fff' } : {}), padding: riel ? `${9 * u}px 0` : `${8 * u}px ${12 * u}px`, gap: 10 * u }}
+                        className={`relative flex w-full items-center text-left transition ${riel ? 'justify-center' : ''} ${activa ? '' : `opacity-85 hover:opacity-100 ${clara ? 'hover:bg-black/5' : 'hover:bg-white/10'}`}`}
+                        style={{
+                          padding: riel ? `${filaV}px 0` : `${filaV}px ${10 * e * u}px`,
+                          gap: 10 * e * u,
+                          borderTop: i ? grosor : undefined,
+                          background: activa ? (clara ? 'rgb(0 0 0 / 0.06)' : 'rgb(255 255 255 / 0.12)') : undefined,
+                          fontSize: '0.8em',
+                          fontWeight: activa ? 700 : 500,
+                          lineHeight: 1.5,
+                        }}
                       >
-                        <Icono size={15 * u * c.interfaz.escala} className="shrink-0" />
+                        {activa && (
+                          <span className="absolute" style={{ ...(derecha ? { right: 0 } : { left: 0 }), top: filaV - 2 * e * u, bottom: filaV - 2 * e * u, width: 3 * e * u, borderRadius: 3 * e * u, background: 'var(--acento)' }} />
+                        )}
+                        <Icono size={16 * e * u} className="shrink-0" />
                         {!riel && <span className="truncate">{s.titulo}</span>}
                       </button>
                     );
                   })}
                   {secciones.length === 0 && !riel && <div className="p-3 text-[0.7em] opacity-70">Sin secciones visibles</div>}
                 </div>
+                {!riel && (
+                  <div className="shrink-0" style={{ marginTop: (compacta ? 6 : 10) * e * u, paddingTop: (compacta ? 8 : 12) * e * u, borderTop: grosor }}>
+                    <div className="truncate font-bold uppercase" style={{ fontSize: '0.7em', letterSpacing: '0.08em', lineHeight: 1.35 }}>
+                      {c.marca.nombre}
+                    </div>
+                    <div className={`opacity-70 ${compacta ? 'truncate' : 'line-clamp-2'}`} style={{ fontSize: '0.62em', lineHeight: 1.35, marginTop: 2 * e * u }}>
+                      {c.marca.subtitulo}
+                    </div>
+                  </div>
+                )}
               </div>
+
+              {/* Logo de UNIPAZ: no se mueve al plegar la barra (sobre la foto queda en blanco y con sombra) */}
+              {conLogo && !riel && anchoLogo > 0 && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={`/marca/logo-horizontal${clara && !oculta ? '' : '-blanco'}.svg`}
+                  alt="UNIPAZ - Instituto Universitario de la Paz"
+                  onClick={(ev) => {
+                    ev.stopPropagation();
+                    elegirCapa('barra');
+                  }}
+                  className="pointer-events-auto absolute z-[35] cursor-pointer"
+                  style={{ width: anchoLogo, height: altoLogo, top: padArriba, ...(derecha ? { right: padX } : { left: padX }), filter: oculta ? 'drop-shadow(0 1px 6px rgb(0 0 0 / 0.65))' : undefined }}
+                />
+              )}
+
+              {/* Botón redondo para plegar o abrir la barra, en el borde, a media altura */}
+              {c.barraLateral.plegable && !(dispositivo === 'movil' && seccionAbierta) && (
+                <button
+                  onClick={(ev) => {
+                    ev.stopPropagation();
+                    setBarraPlegada((p) => !p);
+                  }}
+                  title={oculta || riel ? 'Mostrar menú' : 'Ocultar menú'}
+                  className="pointer-events-auto absolute z-40 grid place-items-center rounded-full bg-white text-[#1c1c1f] shadow-[0_2px_8px_rgb(0_0_0/0.35)]"
+                  style={{ width: 34 * e * u, height: 34 * e * u, top: `calc(50% - ${17 * e * u}px)`, [derecha ? 'right' : 'left']: oculta ? m12 : anchoLateral - 17 * e * u, transition: TRANSICION_BARRA }}
+                >
+                  {(oculta || riel) !== derecha ? <ChevronRight size={18 * e * u} /> : <ChevronLeft size={18 * e * u} />}
+                </button>
+              )}
+
+              {/* Buscar un lugar: abre la sección «Buscador de rutas» */}
+              {buscador && seccionRutas && (
+                <button
+                  onClick={() => abrirSeccion(seccionRutas)}
+                  title="Buscar un lugar"
+                  className={`pointer-events-auto absolute z-30 grid place-items-center rounded-full ${superficie(c.barraLateral.estilo)}`}
+                  style={{ width: ladoBoton, height: ladoBoton, top: m12, [derecha ? 'left' : 'right']: m12 }}
+                >
+                  <Search size={18 * e * u} />
+                </button>
+              )}
 
               {/* Minimapa */}
               {c.minimapa.visible && !seccionAbierta && (
@@ -758,7 +801,7 @@ export function EditorCliente({
 
               {/* Página de la sección abierta */}
               {seccionAbierta && (
-                <div className="pointer-events-auto absolute inset-y-0 z-20 flex flex-col bg-[#fafaf8] shadow-[-12px_0_30px_-20px_rgb(0_0_0/0.6)]" style={lado(0, ocupado)}>
+                <div className="pointer-events-auto absolute inset-y-0 z-20 flex flex-col bg-[#fafaf8] shadow-[-12px_0_30px_-20px_rgb(0_0_0/0.6)]" style={{ ...lado(0, anchoLateral), transition: TRANSICION_BARRA }}>
                   <div className="flex shrink-0 items-center bg-white" style={{ height: 66 * u, padding: `0 ${14 * u}px 0 ${24 * u}px`, gap: 12 * u }}>
                     <div className="min-w-0 flex-1">
                       <div style={{ width: 56 * u, height: 4 * u, borderRadius: 4 * u, background: 'var(--primario)' }} />
@@ -933,7 +976,11 @@ export function EditorCliente({
               <Texto etiqueta="Nombre de la app" valor={c.marca.nombre} alCambiar={(v) => setC({ ...c, marca: { ...c.marca, nombre: v } }, 'marca-nombre')} />
               <Texto etiqueta="Subtítulo" valor={c.marca.subtitulo} alCambiar={(v) => setC({ ...c, marca: { ...c.marca, subtitulo: v } }, 'marca-sub')} />
               <Color etiqueta="Color principal" valor={c.marca.colorPrimario} alCambiar={(v) => setC({ ...c, marca: { ...c.marca, colorPrimario: v } }, 'marca-color')} />
+              <p className="text-[12px] text-tinta-tenue">El nombre y el subtítulo van al pie de la barra lateral.</p>
               <Color etiqueta="Color de acento" valor={c.marca.colorAcento} alCambiar={(v) => setC({ ...c, marca: { ...c.marca, colorAcento: v } }, 'marca-acento')} />
+              <p className="text-[12px] text-tinta-tenue">
+                El principal va en botones y títulos; el de acento marca la sección abierta y el nodo donde está el visitante. Los del logo son el azul #233671 y el verde #0a9640.
+              </p>
               <Rango
                 etiqueta="Tamaño de textos y botones"
                 valor={c.interfaz.escala}
@@ -943,25 +990,6 @@ export function EditorCliente({
                 formato={(v) => `${Math.round(v * 100)} %`}
                 alCambiar={(v) => setC({ ...c, interfaz: { escala: v } }, 'escala')}
               />
-            </>
-          )}
-          {!seccionAbierta && capa === 'encabezado' && (
-            <>
-              <Texto etiqueta="Título" valor={c.encabezado.titulo} alCambiar={(v) => setC({ ...c, encabezado: { ...c.encabezado, titulo: v } }, 'enc-titulo')} />
-              <Opciones
-                etiqueta="Estilo"
-                valor={c.encabezado.estilo}
-                opciones={[
-                  ['vidrio', 'Vidrio'],
-                  ['oscuro', 'Oscuro'],
-                  ['claro', 'Claro'],
-                ]}
-                alCambiar={(v) => setC({ ...c, encabezado: { ...c.encabezado, estilo: v } })}
-              />
-              <Interruptor etiqueta="Mostrar logo" valor={c.encabezado.mostrarLogo} alCambiar={(v) => setC({ ...c, encabezado: { ...c.encabezado, mostrarLogo: v } })} />
-              <Interruptor etiqueta="Mostrar buscador" valor={c.encabezado.mostrarBuscador} alCambiar={(v) => setC({ ...c, encabezado: { ...c.encabezado, mostrarBuscador: v } })} />
-              <Rango etiqueta="Alto" valor={c.encabezado.alto} min={40} max={96} paso={2} formato={(v) => `${v} dp`} alCambiar={(v) => setC({ ...c, encabezado: { ...c.encabezado, alto: v } }, 'enc-alto')} />
-              <Interruptor etiqueta="El visitante puede ocultarlo" valor={c.encabezado.plegable} alCambiar={(v) => setC({ ...c, encabezado: { ...c.encabezado, plegable: v } })} />
             </>
           )}
           {!seccionAbierta && capa === 'barra' && (
@@ -986,10 +1014,22 @@ export function EditorCliente({
                 alCambiar={(v) => setC({ ...c, barraLateral: { ...c.barraLateral, estilo: v } })}
               />
               <Rango etiqueta="Ancho" valor={c.barraLateral.ancho} min={14} max={45} paso={1} formato={(v) => `${v} % de la pantalla`} alCambiar={(v) => setC({ ...c, barraLateral: { ...c.barraLateral, ancho: v } }, 'barra-ancho')} />
-              <Interruptor etiqueta="El visitante puede ocultarla" valor={c.barraLateral.plegable} alCambiar={(v) => setC({ ...c, barraLateral: { ...c.barraLateral, plegable: v } })} />
+              <p className="-mt-2 text-[12px] text-tinta-tenue">Nunca menos de {ANCHO_MINIMO_BARRA} dp, para que los títulos quepan en un celular.</p>
+              <Interruptor
+                etiqueta="Logo de UNIPAZ arriba"
+                ayuda="En blanco sobre vidrio u oscuro y a color sobre claro"
+                valor={c.barraLateral.mostrarLogo}
+                alCambiar={(v) => setC({ ...c, barraLateral: { ...c.barraLateral, mostrarLogo: v } })}
+              />
+              <Interruptor
+                etiqueta="El visitante puede ocultarla"
+                ayuda="Con el botón redondo del borde"
+                valor={c.barraLateral.plegable}
+                alCambiar={(v) => setC({ ...c, barraLateral: { ...c.barraLateral, plegable: v } })}
+              />
               <Interruptor
                 etiqueta="Empieza oculta"
-                ayuda="Se ve solo el riel de íconos"
+                ayuda="Se ven el logo y el botón para abrirla"
                 valor={c.barraLateral.iniciaPlegada}
                 alCambiar={(v) => {
                   setC({ ...c, barraLateral: { ...c.barraLateral, iniciaPlegada: v } });
@@ -998,6 +1038,7 @@ export function EditorCliente({
               />
               <div>
                 <div className="mb-2 text-[13px] font-medium text-tinta-suave">Secciones (orden de la app)</div>
+                <p className="mb-2 text-[12px] text-tinta-tenue">Si hay una sección «Buscador de rutas» visible, la app muestra un botón redondo de buscar arriba, del otro lado de la barra.</p>
                 <ul className="space-y-2">
                   {c.barraLateral.secciones.map((s, i) => {
                     const mover = (d: number) => {

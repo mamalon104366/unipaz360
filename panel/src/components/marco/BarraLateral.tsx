@@ -14,7 +14,6 @@ import {
   Map as MapIcon,
   Palette,
   PanelLeft,
-  PanelTop,
   Play,
   LayoutDashboard,
   LogOut,
@@ -33,7 +32,7 @@ import { ETIQUETA_ROL, type Resumen, type Usuario } from '@/lib/tipos';
 import { CAPAS, type Capa } from '@/lib/configApp';
 import { areaDe } from './areas';
 
-const ICONO_CAPA: Record<Capa, LucideIcon> = { marca: Palette, encabezado: PanelTop, barra: PanelLeft, minimapa: MapIcon, inicio: Play };
+const ICONO_CAPA: Record<Capa, LucideIcon> = { marca: Palette, barra: PanelLeft, minimapa: MapIcon, inicio: Play };
 
 interface Item {
   href: string;

@@ -1,237 +1,19 @@
-/// Lo que va encima del recorrido: el encabezado, la barra lateral (o el riel de íconos) y
-/// el botón de inicio. Medidas de `EditorCliente.tsx` (en dp; `em` = 16 · escala).
+/// Lo que va encima del recorrido: la barra lateral de borde a borde (o el riel de íconos)
+/// con el logo de UNIPAZ, el botón redondo que la pliega, el de buscar y el de inicio.
+/// Medidas de `EditorCliente.tsx` (en dp; `em` = 16 · escala).
 library;
-
-import 'dart:ui' as ui;
 
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../core/marca/logo_unipaz.dart';
 import '../../core/modelo/config_app.dart';
 import '../visor360/animacion_punto.dart';
 import 'estilo_cliente.dart';
 import 'medidas_cliente.dart';
 
-/// Botón chiquito de la barra y del encabezado (fondo blanco al 15 %).
-class _BotonSuave extends StatelessWidget {
-  const _BotonSuave({
-    required this.lado,
-    required this.radio,
-    required this.icono,
-    required this.color,
-    required this.alTocar,
-    required this.ayuda,
-  });
-
-  final double lado;
-  final double radio;
-  final IconData icono;
-  final Color color;
-  final VoidCallback alTocar;
-  final String ayuda;
-
-  @override
-  Widget build(BuildContext context) => Tooltip(
-    message: ayuda,
-    child: MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: alTocar,
-        child: Container(
-          width: lado,
-          height: lado,
-          decoration: BoxDecoration(
-            color: const Color(0x26FFFFFF),
-            borderRadius: BorderRadius.circular(radio),
-          ),
-          child: Icon(icono, size: 14, color: color),
-        ),
-      ),
-    ),
-  );
-}
-
-class EncabezadoCliente extends StatelessWidget {
-  const EncabezadoCliente({
-    super.key,
-    required this.config,
-    required this.medidas,
-    required this.alPlegar,
-    required this.alBuscar,
-  });
-
-  final ConfigApp config;
-  final MedidasCliente medidas;
-  final VoidCallback alPlegar;
-  final VoidCallback alBuscar;
-
-  @override
-  Widget build(BuildContext context) {
-    final em = medidas.textoBase;
-    final enc = config.encabezado;
-    final sup = Superficie.de(enc.estilo);
-    final primario = colorHex(config.marca.colorPrimario);
-    final tinta = sup.tinta;
-    final pastilla = 0.68 * em;
-    return sup.caja(
-      radio: 16,
-      padding: const EdgeInsets.symmetric(horizontal: 14),
-      child: SizedBox(
-        height: double.infinity,
-        child: Row(
-          children: <Widget>[
-            if (enc.mostrarLogo) ...<Widget>[
-              Container(
-                width: 2.2 * 0.7 * em,
-                height: 2.2 * 0.7 * em,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: primario,
-                  shape: BoxShape.circle,
-                ),
-                child: Text(
-                  _iniciales(config.marca.nombre),
-                  maxLines: 1,
-                  softWrap: false,
-                  style: estiloTexto(tamano: 0.7 * em, peso: 700, alto: 1.5),
-                ),
-              ),
-              const SizedBox(width: 10),
-            ],
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    enc.titulo,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    softWrap: false,
-                    style: estiloTexto(
-                      tamano: 0.88 * em,
-                      peso: 600,
-                      color: tinta,
-                      alto: 1.25,
-                    ),
-                  ),
-                  Opacity(
-                    opacity: 0.7,
-                    child: Text(
-                      '${config.marca.nombre} · ${config.marca.subtitulo}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      softWrap: false,
-                      style: estiloTexto(
-                        tamano: 0.68 * em,
-                        color: tinta,
-                        alto: 1.5,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (enc.mostrarBuscador) ...<Widget>[
-              const SizedBox(width: 10),
-              MouseRegion(
-                cursor: SystemMouseCursors.click,
-                child: GestureDetector(
-                  onTap: alBuscar,
-                  child: Opacity(
-                    opacity: 0.9,
-                    child: Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 0.8 * pastilla,
-                        vertical: 0.4 * pastilla,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0x26FFFFFF),
-                        borderRadius: BorderRadius.circular(0.6 * pastilla),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: <Widget>[
-                          Icon(LucideIcons.search, size: 13, color: tinta),
-                          SizedBox(width: 0.5 * pastilla),
-                          Text(
-                            'Buscar aula, laboratorio…',
-                            softWrap: false,
-                            style: estiloTexto(
-                              tamano: pastilla,
-                              color: tinta,
-                              alto: 1.5,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-            if (enc.plegable) ...<Widget>[
-              const SizedBox(width: 10),
-              _BotonSuave(
-                lado: 28,
-                radio: 0.5 * em,
-                icono: LucideIcons.chevronUp,
-                color: tinta,
-                alTocar: alPlegar,
-                ayuda: 'Ocultar encabezado',
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  static String _iniciales(String nombre) =>
-      (nombre.length <= 2 ? nombre : nombre.substring(0, 2)).toUpperCase();
-}
-
-/// La pastilla «Mostrar encabezado» cuando el visitante lo ocultó.
-class BotonMostrarEncabezado extends StatelessWidget {
-  const BotonMostrarEncabezado({
-    super.key,
-    required this.medidas,
-    required this.alTocar,
-  });
-
-  final MedidasCliente medidas;
-  final VoidCallback alTocar;
-
-  @override
-  Widget build(BuildContext context) {
-    final fs = 0.65 * medidas.textoBase;
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: alTocar,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(999),
-          child: BackdropFilter(
-            filter: ui.ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-            child: Container(
-              padding: EdgeInsets.symmetric(
-                horizontal: 0.9 * fs,
-                vertical: 0.25 * fs,
-              ),
-              color: const Color(0x73000000),
-              child: Text(
-                'Mostrar encabezado',
-                softWrap: false,
-                style: estiloTexto(tamano: fs, alto: 1.5),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
+/// La barra: el espacio del logo (el logo va en su propia capa, ver [LogoBarra]), las
+/// secciones con separadores y el pie con el nombre. En riel: el símbolo y los íconos.
 class BarraSecciones extends StatelessWidget {
   const BarraSecciones({
     super.key,
@@ -239,7 +21,6 @@ class BarraSecciones extends StatelessWidget {
     required this.medidas,
     required this.activa,
     required this.alAbrir,
-    required this.alPlegar,
   });
 
   final ConfigApp config;
@@ -248,41 +29,44 @@ class BarraSecciones extends StatelessWidget {
   /// La sección que se marca: la abierta o, sin página, la de tipo `recorrido`.
   final bool Function(SeccionApp s) activa;
   final ValueChanged<SeccionApp> alAbrir;
-  final VoidCallback alPlegar;
 
   @override
   Widget build(BuildContext context) {
+    final e = medidas.escala;
     final em = medidas.textoBase;
     final barra = config.barraLateral;
     final sup = Superficie.de(barra.estilo);
     final riel = medidas.riel;
-    final derecha = medidas.derecha;
+    final clara = barra.estilo == 'claro';
+    final linea = clara ? const Color(0x1A000000) : const Color(0x29FFFFFF);
     final secciones = barra.secciones.where((s) => s.visible).toList();
-    final mostrarPlegar =
-        barra.plegable && !(medidas.movil && medidas.paginaAbierta);
-    final fsItem = 0.8 * em;
-    return sup.caja(
-      radio: 16,
-      padding: const EdgeInsets.all(8),
+    final altoLogo =
+        medidas.anchoLogo * trazosHorizontal.alto / trazosHorizontal.ancho;
+    return sup.cajaBarra(
+      derecha: medidas.derecha,
+      borde: switch (barra.estilo) {
+        'claro' => const Color(0x1A000000),
+        'oscuro' => null,
+        _ => const Color(0x33FFFFFF),
+      },
+      padding: riel
+          ? EdgeInsets.fromLTRB(8, medidas.rellenoArriba, 8, 14 * e)
+          : EdgeInsets.fromLTRB(14 * e, medidas.rellenoArriba, 14 * e, 14 * e),
       child: Column(
-        crossAxisAlignment: riel
-            ? CrossAxisAlignment.center
-            : derecha
-            ? CrossAxisAlignment.start
-            : CrossAxisAlignment.end,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          if (mostrarPlegar)
-            _BotonSuave(
-              lado: 26,
-              radio: 0.5 * em,
-              icono: riel == derecha
-                  ? LucideIcons.chevronLeft
-                  : LucideIcons.chevronRight,
-              color: sup.tinta,
-              alTocar: alPlegar,
-              ayuda: riel ? 'Mostrar menú' : 'Ocultar menú',
+          if (barra.mostrarLogo && riel) ...<Widget>[
+            Center(
+              child: LogoUnipaz(
+                trazos: trazosIsotipo,
+                tinta: clara ? TintaLogo.color : TintaLogo.blanco,
+                ancho: 30 * e,
+              ),
             ),
-          SizedBox(height: 0.4 * em),
+            SizedBox(height: medidas.huecoSimbolo),
+          ],
+          if (barra.mostrarLogo && !riel)
+            SizedBox(height: altoLogo + medidas.huecoLogo),
           Expanded(
             child: secciones.isEmpty && !riel
                 ? Align(
@@ -306,24 +90,63 @@ class BarraSecciones extends StatelessWidget {
                     padding: EdgeInsets.zero,
                     children: <Widget>[
                       for (var i = 0; i < secciones.length; i++)
-                        Padding(
-                          padding: EdgeInsets.only(
-                            top: i == 0 ? 0 : 0.15 * fsItem,
-                          ),
-                          child: _ItemSeccion(
-                            seccion: secciones[i],
-                            activa: activa(secciones[i]),
-                            riel: riel,
-                            fs: fsItem,
-                            escala: medidas.escala,
-                            tinta: sup.tinta,
-                            primario: colorHex(config.marca.colorPrimario),
-                            alTocar: () => alAbrir(secciones[i]),
-                          ),
+                        _ItemSeccion(
+                          seccion: secciones[i],
+                          activa: activa(secciones[i]),
+                          riel: riel,
+                          derecha: medidas.derecha,
+                          escala: e,
+                          filaVertical: medidas.filaVertical,
+                          fs: 0.8 * em,
+                          tinta: sup.tinta,
+                          clara: clara,
+                          acento: colorHex(config.marca.colorAcento),
+                          separador: i == 0 ? null : linea,
+                          alTocar: () => alAbrir(secciones[i]),
                         ),
                     ],
                   ),
           ),
+          if (!riel)
+            Container(
+              margin: EdgeInsets.only(top: medidas.margenPie),
+              padding: EdgeInsets.only(top: medidas.rellenoPie),
+              decoration: BoxDecoration(
+                border: Border(top: BorderSide(color: linea)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    config.marca.nombre.toUpperCase(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    softWrap: false,
+                    style: estiloTexto(
+                      tamano: 0.7 * em,
+                      peso: 700,
+                      color: sup.tinta,
+                      alto: 1.35,
+                      espaciado: 0.08,
+                    ),
+                  ),
+                  SizedBox(height: 2 * e),
+                  Opacity(
+                    opacity: 0.7,
+                    child: Text(
+                      config.marca.subtitulo,
+                      maxLines: medidas.movil ? 1 : 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: estiloTexto(
+                        tamano: 0.62 * em,
+                        color: sup.tinta,
+                        alto: 1.35,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );
@@ -335,20 +158,30 @@ class _ItemSeccion extends StatefulWidget {
     required this.seccion,
     required this.activa,
     required this.riel,
-    required this.fs,
+    required this.derecha,
     required this.escala,
+    required this.filaVertical,
+    required this.fs,
     required this.tinta,
-    required this.primario,
+    required this.clara,
+    required this.acento,
+    required this.separador,
     required this.alTocar,
   });
 
   final SeccionApp seccion;
   final bool activa;
   final bool riel;
-  final double fs;
+  final bool derecha;
   final double escala;
+  final double filaVertical;
+  final double fs;
   final Color tinta;
-  final Color primario;
+  final bool clara;
+  final Color acento;
+
+  /// La línea de arriba (todas menos la primera).
+  final Color? separador;
   final VoidCallback alTocar;
 
   @override
@@ -360,43 +193,42 @@ class _ItemSeccionState extends State<_ItemSeccion> {
 
   @override
   Widget build(BuildContext context) {
-    final color = widget.activa ? Colors.white : widget.tinta;
-    final fondo = widget.activa
-        ? widget.primario
+    final w = widget;
+    final e = w.escala;
+    final fondo = w.activa
+        ? (w.clara ? const Color(0x0F000000) : const Color(0x1FFFFFFF))
         : _encima
-        ? const Color(0x1AFFFFFF)
+        ? (w.clara ? const Color(0x0D000000) : const Color(0x1AFFFFFF))
         : null;
     Widget item = Container(
       width: double.infinity,
-      padding: widget.riel
-          ? const EdgeInsets.symmetric(vertical: 9)
-          : const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+      padding: w.riel
+          ? EdgeInsets.symmetric(vertical: w.filaVertical)
+          : EdgeInsets.symmetric(vertical: w.filaVertical, horizontal: 10 * e),
       decoration: BoxDecoration(
         color: fondo,
-        borderRadius: BorderRadius.circular(0.7 * widget.fs),
+        border: w.separador == null
+            ? null
+            : Border(top: BorderSide(color: w.separador!)),
       ),
       child: Row(
-        mainAxisAlignment: widget.riel
+        mainAxisAlignment: w.riel
             ? MainAxisAlignment.center
             : MainAxisAlignment.start,
         children: <Widget>[
-          Icon(
-            iconoSeccion(widget.seccion.icono),
-            size: 15 * widget.escala,
-            color: color,
-          ),
-          if (!widget.riel) ...<Widget>[
-            const SizedBox(width: 10),
+          Icon(iconoSeccion(w.seccion.icono), size: 16 * e, color: w.tinta),
+          if (!w.riel) ...<Widget>[
+            SizedBox(width: 10 * e),
             Expanded(
               child: Text(
-                widget.seccion.titulo,
+                w.seccion.titulo,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 softWrap: false,
                 style: estiloTexto(
-                  tamano: widget.fs,
-                  peso: widget.activa ? 600 : 400,
-                  color: color,
+                  tamano: w.fs,
+                  peso: w.activa ? 700 : 500,
+                  color: w.tinta,
                   alto: 1.5,
                 ),
               ),
@@ -405,18 +237,165 @@ class _ItemSeccionState extends State<_ItemSeccion> {
         ],
       ),
     );
-    if (!widget.activa && !_encima) item = Opacity(opacity: 0.85, child: item);
+    if (w.activa) {
+      // La marca de la sección abierta: una barrita del color de acento en el borde.
+      item = Stack(
+        children: <Widget>[
+          item,
+          Positioned(
+            top: w.filaVertical - 2 * e,
+            bottom: w.filaVertical - 2 * e,
+            left: w.derecha ? null : 0,
+            right: w.derecha ? 0 : null,
+            width: 3 * e,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: w.acento,
+                borderRadius: BorderRadius.circular(3 * e),
+              ),
+            ),
+          ),
+        ],
+      );
+    } else if (!_encima) {
+      item = Opacity(opacity: 0.85, child: item);
+    }
     return Tooltip(
-      message: widget.seccion.titulo,
+      message: w.seccion.titulo,
       waitDuration: const Duration(milliseconds: 600),
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
         onEnter: (_) => setState(() => _encima = true),
         onExit: (_) => setState(() => _encima = false),
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: widget.alTocar,
-          child: item,
+        child: Semantics(
+          button: true,
+          selected: w.activa,
+          label: w.seccion.titulo,
+          excludeSemantics: true,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: w.alTocar,
+            child: item,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// El logo de UNIPAZ arriba de la barra. Va en su propia capa: al ocultar la barra se queda en
+/// el mismo lugar, en blanco y con sombra para leerse sobre la foto.
+class LogoBarra extends StatelessWidget {
+  const LogoBarra({super.key, required this.config, required this.medidas});
+
+  final ConfigApp config;
+  final MedidasCliente medidas;
+
+  @override
+  Widget build(BuildContext context) {
+    final clara = config.barraLateral.estilo == 'claro';
+    return IgnorePointer(
+      child: LogoUnipaz(
+        trazos: trazosHorizontal,
+        tinta: clara && !medidas.oculta ? TintaLogo.color : TintaLogo.blanco,
+        ancho: medidas.anchoLogo,
+        sombra: medidas.oculta,
+      ),
+    );
+  }
+}
+
+/// El botón redondo blanco del borde de la barra: la pliega o la abre.
+class BotonPlegar extends StatelessWidget {
+  const BotonPlegar({
+    super.key,
+    required this.medidas,
+    required this.alTocar,
+  });
+
+  final MedidasCliente medidas;
+  final VoidCallback alTocar;
+
+  @override
+  Widget build(BuildContext context) {
+    final e = medidas.escala;
+    final abrir = medidas.oculta || medidas.riel;
+    final ayuda = abrir ? 'Mostrar menú' : 'Ocultar menú';
+    return Tooltip(
+      message: ayuda,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: Semantics(
+          button: true,
+          label: ayuda,
+          excludeSemantics: true,
+          child: GestureDetector(
+            onTap: alTocar,
+            child: Container(
+              width: ladoPlegar * e,
+              height: ladoPlegar * e,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                boxShadow: <BoxShadow>[
+                  sombraCss(y: 2, blur: 8, color: const Color(0x59000000)),
+                ],
+              ),
+              child: Icon(
+                abrir != medidas.derecha
+                    ? LucideIcons.chevronRight
+                    : LucideIcons.chevronLeft,
+                size: 18 * e,
+                color: const Color(0xFF1C1C1F),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// El botón redondo de buscar, arriba del lado contrario a la barra: abre «Cómo llegar».
+class BotonBuscar extends StatelessWidget {
+  const BotonBuscar({
+    super.key,
+    required this.config,
+    required this.alTocar,
+  });
+
+  final ConfigApp config;
+  final VoidCallback alTocar;
+
+  @override
+  Widget build(BuildContext context) {
+    final e = config.escala;
+    final sup = Superficie.de(config.barraLateral.estilo);
+    return Tooltip(
+      message: 'Buscar un lugar',
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: Semantics(
+          button: true,
+          label: 'Buscar un lugar',
+          excludeSemantics: true,
+          child: GestureDetector(
+            onTap: alTocar,
+            child: SizedBox(
+              width: ladoBuscar * e,
+              height: ladoBuscar * e,
+              child: sup.caja(
+                radio: ladoBuscar * e / 2,
+                child: Center(
+                  child: Icon(
+                    LucideIcons.search,
+                    size: 18 * e,
+                    color: sup.tinta,
+                  ),
+                ),
+              ),
+            ),
+          ),
         ),
       ),
     );
