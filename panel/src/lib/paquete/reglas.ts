@@ -5,6 +5,7 @@
  * Si cambia una regla allá, debe cambiar aquí.
  */
 import type { DatosPaquete } from './exportar';
+import { RECURSOS_APP } from '../recursosApp';
 
 const TIPOS_VERTICE = new Set(['puerta', 'cruce', 'escalera', 'rampa', 'ascensor', 'acceso', 'referencia']);
 const CATEGORIAS = new Set(['aula', 'laboratorio', 'oficina', 'auditorio', 'biblioteca', 'bano', 'cafeteria', 'deportivo', 'porteria', 'parqueadero', 'otro']);
@@ -79,6 +80,32 @@ export function validarPaquete(d: DatosPaquete) {
     if (h.tipo === 'espacio' && (!h.espacio_id || !espacios.has(h.espacio_id))) errores.push(`punto ${h.id}: su espacio no existe`);
     if (h.vigente_hasta && new Date(h.vigente_hasta).getTime() < Date.now()) avisos.push(`anuncio "${h.titulo}" (${h.id}) ya venció: la app no lo mostrará`);
   }
+
+  // Apariencia de la app (apartado Cliente): lo que cita tiene que existir y verse sin conexión.
+  const app = d.configApp;
+  const urlsMedios = new Set(d.medios.map((m) => m.url));
+  const idsSecciones = new Set(app.barraLateral.secciones.map((s) => s.id));
+  const recurso = (src: string | undefined, donde: string) => {
+    if (!src) return;
+    if (src.startsWith('app://')) {
+      if (!RECURSOS_APP.has(src)) errores.push(`${donde}: «${src}» no viene dentro de la app`);
+    } else if (!urlsMedios.has(src)) {
+      avisos.push(`${donde}: usa una imagen o un video de otro sitio; sin conexión no se verá`);
+    }
+  };
+  recurso(app.minimapa.imagen, 'minimapa');
+  for (const [seccion, pagina] of Object.entries(app.paginas)) {
+    for (const t of pagina.pestanas) {
+      for (const e of t.elementos) {
+        const donde = `página «${seccion}» › ${t.titulo} › ${e.nombre}`;
+        recurso(e.src, donde);
+        if (e.enlace?.startsWith('seccion:') && !idsSecciones.has(e.enlace.slice('seccion:'.length))) errores.push(`${donde}: lleva a una sección que no existe`);
+        if (e.enlace?.startsWith('panoramica:') && !panos.has(e.enlace.slice('panoramica:'.length))) errores.push(`${donde}: lleva a una foto 360° que no está publicada`);
+      }
+    }
+  }
+  const perdidos = app.minimapa.nodos.filter((n) => !ids.has(n.vertice_id)).map((n) => n.vertice_id);
+  if (perdidos.length) avisos.push(`minimapa: ${perdidos.length} nodo(s) ubicados ya no existen (${perdidos.slice(0, 5).join(', ')}); la app no los mostrará`);
 
   // Grafo conexo
   if (d.vertices.length > 1) {

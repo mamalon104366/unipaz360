@@ -1,7 +1,8 @@
 // Configura el CORS del bucket R2 para que:
 //   · el panel suba fotos y videos directo a R2 con URL firmadas (PUT), sin pasar por Vercel
 //     (Vercel limita el cuerpo de una petición a 4,5 MB y una foto 360° suele pesar más);
-//   · la app web pueda leer los medios públicos (GET).
+//   · la app web lea version.json, el paquete y los medios públicos (GET), y pueda reanudar
+//     una descarga cortada (encabezado Range) y mostrar el progreso (Content-Length y Content-Range).
 // Las URL firmadas caducan a los 10 minutos y cubren un solo objeto: son ellas las que autorizan.
 //
 // Uso (una sola vez):  node scripts/configurar-r2.mjs
@@ -31,7 +32,11 @@ const cuerpo = `<?xml version="1.0" encoding="UTF-8"?>
     <AllowedMethod>HEAD</AllowedMethod>
     <AllowedMethod>PUT</AllowedMethod>
     <AllowedHeader>content-type</AllowedHeader>
+    <AllowedHeader>range</AllowedHeader>
     <ExposeHeader>ETag</ExposeHeader>
+    <ExposeHeader>Content-Length</ExposeHeader>
+    <ExposeHeader>Content-Range</ExposeHeader>
+    <ExposeHeader>Accept-Ranges</ExposeHeader>
     <MaxAgeSeconds>3600</MaxAgeSeconds>
   </CORSRule>
 </CORSConfiguration>`;

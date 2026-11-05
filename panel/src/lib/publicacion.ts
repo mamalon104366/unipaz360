@@ -1,12 +1,40 @@
 import 'server-only';
 import { pool, transaccion } from './db';
 import { ErrorDatos } from './errores';
-import { auditar } from './auditoria';
+import { auditar, cambiosDesde } from './auditoria';
+import { ultimaPublicacion } from './grafo';
 import { descargar, sha256, subir, urlPublica } from './r2';
 import { exportarDatos } from './paquete/exportar';
 import { validarPaquete } from './paquete/reglas';
 import { construirSqlite, ESQUEMA_VERSION, huellaContenido } from './paquete/construir';
+import { APP_MINIMA, CANAL, ENTIDADES_RESUMEN } from './paquete/contrato';
 import type { Publicacion, Usuario, Validacion } from './tipos';
+
+/**
+ * Una sola publicación o reversión a la vez: así dos personas no se pisan el puntero `version.json`.
+ * Neon se usa a través de su pooler (PgBouncer en modo transacción), donde los candados de sesión
+ * no son confiables; el candado de transacción sí, porque la transacción queda en una sola conexión.
+ * Se suelta solo al terminar (o si la función se cae, al cerrarse la conexión).
+ */
+const CANDADO_PUBLICAR = 3_603_601;
+async function conCandado<T>(fn: () => Promise<T>): Promise<T> {
+  return transaccion(async (c) => {
+    const r = await c.query<{ ok: boolean }>('SELECT pg_try_advisory_xact_lock($1) AS ok', [CANDADO_PUBLICAR]);
+    if (!r.rows[0]?.ok) throw new ErrorDatos('Hay otra publicación o reversión en curso. Espera unos segundos e intenta de nuevo.', 409);
+    return fn();
+  });
+}
+
+/** Cambios desde la publicación anterior, por entidad: { vertice: { crear: 3 }, panoramica: { actualizar: 1 } }. */
+async function resumenCambios() {
+  const filas = await cambiosDesde(await ultimaPublicacion());
+  const cambios: Record<string, Record<string, number>> = {};
+  for (const f of filas) {
+    if (!(ENTIDADES_RESUMEN as readonly string[]).includes(f.entidad)) continue;
+    (cambios[f.entidad] ??= {})[f.accion] = f.n;
+  }
+  return cambios;
+}
 
 /** Revisión previa: exporta, valida y cuenta (no publica nada). */
 export async function revisar(): Promise<Validacion & { huella: string; mismaQueVigente: boolean }> {
@@ -28,6 +56,7 @@ export async function revisar(): Promise<Validacion & { huella: string; mismaQue
       puntos: datos.puntos.length,
       flechas: datos.enlaces.length,
       horarios: datos.horarios.length,
+      páginas: Object.values(datos.configApp.paginas).reduce((n, p) => n + p.pestanas.length, 0),
     },
   };
 }
@@ -53,6 +82,10 @@ function nuevaVersion() {
  * conexión, ve la versión nueva y ofrece [Actualizar ahora] / [Más tarde].
  */
 export async function publicar(u: Usuario, notasBrutas: unknown) {
+  return conCandado(() => publicarSinCandado(u, notasBrutas));
+}
+
+async function publicarSinCandado(u: Usuario, notasBrutas: unknown) {
   const notas = String(notasBrutas ?? '').trim().slice(0, 1000) || null;
   const datos = await exportarDatos();
   const { errores } = validarPaquete(datos);
@@ -68,6 +101,7 @@ export async function publicar(u: Usuario, notasBrutas: unknown) {
   );
   const pubId = fila.rows[0].id;
   try {
+    const cambios = await resumenCambios();
     const sqlite = await construirSqlite(datos, version);
     const base = `paquetes/${version}`;
     await subir(`${base}/datos.sqlite`, sqlite.bytes, 'application/octet-stream');
@@ -103,6 +137,20 @@ export async function publicar(u: Usuario, notasBrutas: unknown) {
       tamano_bytes: tamano,
       archivos: archivos.length,
       notas,
+      // v2 del puntero: la app tolera que falten (paquetes publicados antes).
+      canal: CANAL,
+      app_minima: APP_MINIMA,
+      resumen: {
+        totales: {
+          nodos: datos.vertices.length,
+          tramos: datos.tramos.length,
+          espacios: datos.espacios.length,
+          panoramicas: datos.panoramicas.length,
+          puntos: datos.puntos.length,
+          paginas: Object.values(datos.configApp.paginas).reduce((n, p) => n + p.pestanas.length, 0),
+        },
+        cambios,
+      },
     };
     const vBytes = new TextEncoder().encode(`${JSON.stringify(versionJson, null, 2)}\n`);
     await subir(`${base}/version.json`, vBytes, 'application/json');
@@ -138,6 +186,10 @@ export async function historial(): Promise<Publicacion[]> {
 
 /** Vuelve a publicar una versión anterior: solo se mueve el puntero (segundos, sin reempaquetar). */
 export async function revertir(u: Usuario, version: string) {
+  return conCandado(() => revertirSinCandado(u, version));
+}
+
+async function revertirSinCandado(u: Usuario, version: string) {
   const p = await pool.query<{ id: number; estado: string; publicado_en: string }>(
     `SELECT id, estado, publicado_en FROM publicacion WHERE version = $1`,
     [version],

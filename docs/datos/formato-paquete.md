@@ -53,6 +53,39 @@ paquete-2026.11.1/
 La app consulta `version.json` al abrir. Si la versión cambia, avisa al usuario
 (**[Actualizar ahora] / [Más tarde]**) y **nunca** se actualiza en silencio.
 
+### `version.json` v2 (lo publica la plataforma desde noviembre de 2026)
+
+La plataforma (`panel/src/lib/publicacion.ts`) publica el paquete en `paquetes/<versión>/`
+y mueve el puntero `version.json` **de último**. A los campos de arriba agrega:
+
+```json
+{
+  "canal": "estable",
+  "app_minima": { "android": "1.0.0", "web": "1.0.0", "windows": "1.0.0", "macos": "1.0.0", "ios": "1.0.0" },
+  "resumen": {
+    "totales": { "nodos": 17, "tramos": 19, "espacios": 0, "panoramicas": 1, "puntos": 0, "paginas": 9 },
+    "cambios": { "vertice": { "crear": 3 }, "panoramica": { "actualizar": 1 } }
+  }
+}
+```
+
+| Campo | Qué es |
+|---|---|
+| `canal` | `estable` por ahora; el canal de pruebas llega después |
+| `app_minima` | Versión mínima de la app, por plataforma, que entiende este paquete (`panel/src/lib/paquete/contrato.ts`). Si la app es más vieja, **no descarga**: sigue con su paquete y pide actualizar la app |
+| `resumen.totales` | Cuántos elementos trae el paquete |
+| `resumen.cambios` | Cambios desde la publicación anterior, por entidad (`vertice`, `tramo`, `espacio`, `bloque`, `anclaje`, `panoramica`, `punto`, `configuracion_app`, `horario`) y acción (`crear`, `actualizar`, `borrar`) |
+
+**Reglas para la app:**
+
+1. Comparar la versión por **distinta**, no por mayor. Si la plataforma revierte, el puntero apunta a una versión más vieja y la app la ofrece igual.
+2. `esquema_version` viaja como texto (`"3"`): aceptar texto o número.
+3. Tolerar que falten `canal`, `app_minima` y `resumen` (paquetes publicados antes, o reversiones a ellos).
+4. Ignorar los campos que no conozca.
+
+**Una publicación a la vez:** publicar y revertir toman un candado de transacción en
+Neon (`pg_try_advisory_xact_lock`). Si hay otra en curso, responden 409 y no tocan el puntero.
+
 ## Base local (`datos.sqlite`)
 
 El esquema vive en **[`db/esquema-local.sql`](../../db/esquema-local.sql)** (v2). Tablas:
