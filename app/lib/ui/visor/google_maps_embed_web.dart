@@ -9,7 +9,10 @@ import 'mapa_google_config.dart';
 bool get mapaEmbebidoDisponible => true;
 
 class GoogleMapsEmbed extends StatefulWidget {
-  const GoogleMapsEmbed({super.key});
+  const GoogleMapsEmbed({super.key, this.uri});
+
+  /// Lo que se abre; si falta, la ubicación del Centro de Investigaciones Santa Lucía.
+  final Uri? uri;
 
   @override
   State<GoogleMapsEmbed> createState() => _GoogleMapsEmbedState();
@@ -23,7 +26,7 @@ class _GoogleMapsEmbedState extends State<GoogleMapsEmbed> {
   void initState() {
     super.initState();
     _tipoVista = 'unipaz-google-map-${_siguienteId++}';
-    final url = googleMapsEmbedUri;
+    final url = widget.uri ?? googleMapsEmbedUri;
     ui_web.platformViewRegistry.registerViewFactory(_tipoVista, (viewId) {
       return web.HTMLIFrameElement()
         ..src = url.toString()

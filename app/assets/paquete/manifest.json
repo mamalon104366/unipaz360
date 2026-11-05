@@ -1,0 +1,31 @@
+{
+  "version": "semilla-2026.11.05-1446",
+  "campus": "Centro de Investigaciones Santa Lucía",
+  "campus_id": "santa-lucia",
+  "generado": "2026-11-05T14:46:47.999Z",
+  "esquema_version": "3",
+  "contenido_sha256": "a7e12d1f13d3c98a5f1765e67968ec0767404b863853cae2ed044df1e3c1c9d6",
+  "notas": "Semilla de la app (sin publicar)",
+  "archivos": [
+    {
+      "ruta": "datos.sqlite",
+      "bytes": 274432,
+      "sha256": "64fc75e4eb294acdac6a2d102c38e01ae20bd0b212365d7898773b9b1d689d21",
+      "mime": "application/octet-stream"
+    },
+    {
+      "ruta": "medios/a6835175ad3f96c7ec1e7c5d61333631aa08d375e44b77d92bbce809b84b5027.jpg",
+      "bytes": 648803,
+      "sha256": "a6835175ad3f96c7ec1e7c5d61333631aa08d375e44b77d92bbce809b84b5027",
+      "mime": "image/jpeg",
+      "url": "https://pub-6fedf18379df4f6ca3faa7bfcf73cb80.r2.dev/medios/panoramicas/a6835175ad3f96c7ec1e7c5d61333631aa08d375e44b77d92bbce809b84b5027.jpg"
+    },
+    {
+      "ruta": "medios/cdf4b7a7-f6c5-490d-a392-05e24301a9e3.mp4",
+      "bytes": 133110,
+      "sha256": "fe096f93bbcbf93bf8bbdf7c3afdfb5bb2102d5438b3b07a0d2979113962970d",
+      "mime": "video/mp4",
+      "url": "https://pub-6fedf18379df4f6ca3faa7bfcf73cb80.r2.dev/originales/video/2026-11/cdf4b7a7-f6c5-490d-a392-05e24301a9e3.mp4"
+    }
+  ]
+}

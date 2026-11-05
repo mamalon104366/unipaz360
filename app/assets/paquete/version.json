@@ -1,0 +1,30 @@
+{
+  "version": "semilla-2026.11.05-1446",
+  "campus": "Centro de Investigaciones Santa Lucía",
+  "campus_id": "santa-lucia",
+  "generado": "2026-11-05T14:46:47.999Z",
+  "esquema_version": "3",
+  "contenido_sha256": "a7e12d1f13d3c98a5f1765e67968ec0767404b863853cae2ed044df1e3c1c9d6",
+  "manifiesto": "manifest.json",
+  "sha256": "dade5f7f651be8c5c91ef8f74d0ec4eabb02791c13a11819c3b9a380bd20bdad",
+  "tamano_bytes": 1056345,
+  "archivos": 3,
+  "canal": "estable",
+  "app_minima": {
+    "android": "1.0.0",
+    "web": "1.0.0",
+    "windows": "1.0.0",
+    "macos": "1.0.0",
+    "ios": "1.0.0"
+  },
+  "resumen": {
+    "totales": {
+      "nodos": 17,
+      "tramos": 19,
+      "espacios": 0,
+      "panoramicas": 1,
+      "puntos": 1,
+      "paginas": 9
+    }
+  }
+}

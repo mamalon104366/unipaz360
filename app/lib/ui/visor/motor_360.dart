@@ -4,6 +4,8 @@ import 'dart:ui' as ui;
 
 import 'package:material_ui/material_ui.dart';
 
+import '../../features/visor360/geometria.dart';
+
 /// Motor de proyección 360°.
 ///
 /// Proyecta una foto panorámica sobre una esfera. La cobertura vertical se
@@ -11,11 +13,16 @@ import 'package:material_ui/material_ui.dart';
 /// girar la vista, la malla se vuelve a proyectar en perspectiva. No usa
 /// dependencias: se apoya en `Canvas.drawVertices` con la foto como textura.
 class Motor360 {
-  Motor360(this.imagen) {
+  Motor360(this.imagen, {this.inclinacion = 0, this.alabeo = 0}) {
     _construirEsfera();
   }
 
   final ui.Image imagen;
+
+  /// Corrección del horizonte en grados (la misma rotación que el visor de la plataforma:
+  /// `R = Rx(inclinación) · Rz(alabeo)`, ver `features/visor360/geometria.dart`).
+  final double inclinacion;
+  final double alabeo;
 
   /// Resolución de la malla (grados por paso). Menos grados = más suave.
   static const double _grados = 3;
@@ -64,6 +71,8 @@ class Motor360 {
     _direcciones = Float32List(columnas * filas * 3);
     _uv = Float32List(columnas * filas * 2);
 
+    final corregir = inclinacion != 0 || alabeo != 0;
+    final m = matrizCorreccion(inclinacion, alabeo);
     var v = 0;
     for (var r = 0; r < filas; r++) {
       final lat = latitudMaxima - r * pasoLatitud;
@@ -71,9 +80,12 @@ class Motor360 {
       final sinLat = math.sin(lat);
       for (var c = 0; c < columnas; c++) {
         final lon = -math.pi + c * _paso;
-        _direcciones[v * 3] = cosLat * math.sin(lon);
-        _direcciones[v * 3 + 1] = sinLat;
-        _direcciones[v * 3 + 2] = cosLat * math.cos(lon);
+        var d = V3(cosLat * math.sin(lon), sinLat, cosLat * math.cos(lon));
+        // La corrección se calcula en el marco de Three.js (x al revés), como el panel.
+        if (corregir) d = aplicar(m, d.espejoX).espejoX;
+        _direcciones[v * 3] = d.x;
+        _direcciones[v * 3 + 1] = d.y;
+        _direcciones[v * 3 + 2] = d.z;
         _uv[v * 2] = (c / (columnas - 1)) * anchoFoto;
         _uv[v * 2 + 1] = (r / (filas - 1)) * altoFoto;
         v++;

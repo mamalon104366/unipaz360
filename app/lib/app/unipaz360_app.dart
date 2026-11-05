@@ -9,12 +9,12 @@ import '../data/mapa_dron_repositorio.dart';
 import '../data/recientes_repositorio.dart';
 import '../data/repositorio_simulado.dart';
 import '../data/sesion_repositorio.dart';
+import '../features/cliente/pantalla_cliente.dart';
 import '../ui/dron/dron_viewmodel.dart';
 import '../ui/espacios/espacios_viewmodel.dart';
 import '../ui/recientes/recientes_viewmodel.dart';
 import '../ui/sesion/pantalla_ingreso.dart';
 import '../ui/sesion/sesion_viewmodel.dart';
-import '../ui/visor/pantalla_visor.dart';
 import 'tema.dart';
 
 class UniPaz360App extends StatelessWidget {
@@ -75,11 +75,8 @@ class _RaizUniPazState extends State<_RaizUniPaz> {
         path: '/ingreso',
         builder: (context, state) => const PantallaIngreso(),
       ),
-      GoRoute(
-        path: '/',
-        builder: (context, state) =>
-            const PantallaVisor(espacioId: 'b1-101', escenaPrincipal: true),
-      ),
+      // La app del visitante, tal como la diseña el apartado Cliente de la plataforma.
+      GoRoute(path: '/', builder: (context, state) => const PantallaCliente()),
       // Las rutas antiguas vuelven a la experiencia única del tour.
       GoRoute(path: '/mapa', redirect: (context, state) => '/'),
       GoRoute(path: '/espacios', redirect: (context, state) => '/'),

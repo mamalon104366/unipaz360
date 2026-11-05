@@ -14,7 +14,10 @@ bool get mapaEmbebidoDisponible => switch (defaultTargetPlatform) {
 /// Muestra el marco de Google Maps en Android, iOS y macOS cuando hay internet.
 /// Antes de usarlo, revisar [mapaEmbebidoDisponible].
 class GoogleMapsEmbed extends StatefulWidget {
-  const GoogleMapsEmbed({super.key});
+  const GoogleMapsEmbed({super.key, this.uri});
+
+  /// Lo que se abre; si falta, la ubicación del Centro de Investigaciones Santa Lucía.
+  final Uri? uri;
 
   @override
   State<GoogleMapsEmbed> createState() => _GoogleMapsEmbedState();
@@ -29,7 +32,7 @@ class _GoogleMapsEmbedState extends State<GoogleMapsEmbed> {
     _controlador = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(Colors.white)
-      ..loadRequest(googleMapsEmbedUri);
+      ..loadRequest(widget.uri ?? googleMapsEmbedUri);
   }
 
   @override
