@@ -7,6 +7,35 @@ tags: [unipaz360, sistema, bitacora]
 >
 > **Repositorio real del proyecto:** `C:\Users\mamalon\Pictures\univerrsidadaddadada\unipaz360` (GitHub `mamalon104366/unipaz360`, rama `main`). La carpeta `C:\unipaz360` es solo evidencia.
 
+## 2026-11-05 · La app se ve como la plataforma (commits `9a9c965`, `de6e171` y `8888f4d`)
+
+- **La pantalla principal de la app ahora se arma con la configuración del apartado Cliente.** Lo que se ve en la vista previa es lo que se ve en la app, sin internet:
+  - El encabezado, la barra (o el riel) y el minimapa en sus tres estados.
+  - El botón de inicio y las páginas con pestañas, con el lienzo escalado por `k`.
+  - La ficha de los puntos.
+  - «Cómo llegar», que en la app funciona con el motor de rutas.
+- **Recorrido 360°:**
+  - La foto real con la corrección de horizonte, que se arrastra y se acerca.
+  - Los puntos 2D (6 formas y 8 animaciones) y las capas 3D, colocadas como en Photo Sphere Viewer.
+  - Las flechas a las fotos vecinas y el fundido de 1,1 s al cambiar de foto.
+- **Datos:**
+  - La app arranca con una **semilla** (`app/assets/paquete/`) armada con el mismo código de «Publicar», sin publicar nada: `panel/scripts/semilla-app.mjs`.
+  - La normalización de la apariencia da lo mismo que la del panel: se compara con casos generados por el propio panel.
+- **Lo que hizo falta para que sirva en todas las plataformas:**
+  - En la web, `sqlite3.wasm`.
+  - En Windows, video con `video_player_win` y `app/NuGet.Config`: NuGet no tenía fuentes en el PC y la compilación fallaba.
+  - Las fuentes Roboto y Noto Serif (OFL), recortadas al alfabeto latino.
+  - Las sombras convertidas de CSS a Flutter.
+- **Repositorio:**
+  - Se borraron las etiquetas `archivo/p1-plataforma-grafo` y `archivo/p2-plataforma-completa`.
+  - Ya está activo el Modo de desarrollador de Windows.
+- **Vista previa del panel:** el encabezado y la barra usan Roboto, como la app. Llega a producción cuando se promueva.
+- **Verificación:**
+  - 120 pruebas (22 nuevas) y `flutter analyze` sin problemas.
+  - Compila para web, Android (APK de *release*) y Windows.
+  - Revisado en el navegador y en la ventana de Windows.
+- **Cómo probarlo:** [[Guía de pruebas - app igual a la plataforma]].
+
 ## 2026-11-05 · Flutter listo para empezar (commit `4f041d6`)
 
 - **Revisión antes de la fase B:**

@@ -53,7 +53,7 @@ flowchart TD
 - [ ] **D13** · Windows: Microsoft Store o MSIX propio.
 - [ ] **D14** · ¿Canal de pruebas desde el primer día?
 - [ ] **Logo** definitivo → [[Marca y logo]].
-- [ ] **Modo de desarrollador** de Windows en cada PC que compile la app de Windows (Flutter necesita enlaces simbólicos para los plugins).
+- [x] **Modo de desarrollador** de Windows en cada PC que compile la app de Windows (Flutter necesita enlaces simbólicos para los plugins). ✅ 2026-11-05 en el PC del equipo.
 
 ---
 
@@ -92,10 +92,12 @@ flowchart TD
 - [ ] `core/paquete/verificador.dart`: SHA-256 leyendo por partes, sin cargar el archivo entero en memoria.
 - [ ] `core/paquete/descargador.dart`: progreso, `Range`, reintentos con espera creciente (1, 2 y 4 s) y cancelación.
 - [ ] `core/paquete/actualizador.dart`: la máquina de estados `inactivo → consultando → hay_version → descargando → verificando → aplicando → listo | error`.
-- [ ] `core/datos/base_paquete.dart`: abrir `datos.sqlite` en solo lectura y los repositorios (espacios, vértices, tramos, panorámicas, puntos y configuración).
+- [x] Abrir `datos.sqlite` en solo lectura y leer espacios, vértices, tramos, panorámicas, puntos, flechas, medios y configuración. ✅ 2026-11-05: `core/paquete/datos_paquete.dart`, en memoria.
 - [ ] Reemplazar `repositorio_simulado.dart` por los repositorios del paquete, por partes y con pruebas.
-- [ ] **Semilla**: `app/assets/paquete/`. En el primer arranque se copia al almacén si no hay puntero.
-- [ ] `scripts/semilla.mjs` (en el repo): baja el paquete estable, lo verifica y lo deja en `app/assets/paquete/`.
+- [x] **Semilla** en `app/assets/paquete/`: la app arranca con ella. ✅ 2026-11-05. Falta: copiarla al almacén cuando exista el puntero.
+- [x] Script de la semilla: `panel/scripts/semilla-app.mjs`. ✅ 2026-11-05
+  - La arma con el mismo código de «Publicar», sin publicar nada.
+  - Cuando haya publicaciones podrá bajar la versión estable.
 - [ ] Limpieza al arrancar: borrar las versiones que no sean la vigente ni la anterior, y la carpeta `descargas/` huérfana.
 
 **Pruebas** (unitarias, con un servidor falso)
@@ -137,14 +139,16 @@ flowchart TD
 
 **Windows**
 - [x] Crear la carpeta: `flutter create --platforms=windows .` dentro de `app/`. ✅ 2026-11-05 (commit `4f041d6`)
-- [ ] Activar el **Modo de desarrollador** en el PC que compila (sin eso, `flutter build windows` se detiene).
-- [ ] Video: `video_player` no tiene versión para Windows. Elegir entre `video_player_win` y `media_kit`.
+- [x] Activar el **Modo de desarrollador** en el PC que compila (sin eso, `flutter build windows` se detiene). ✅ 2026-11-05
+- [x] Video en Windows con `video_player_win`. ✅ 2026-11-05
+  - Baja una biblioteca de Microsoft con NuGet. Por eso va `app/NuGet.Config`: en este PC NuGet no tenía fuentes y la compilación fallaba.
 - [ ] Probar `sqlite3.dll` y las rutas en `%LOCALAPPDATA%`.
 - [ ] MSIX con el paquete `msix` y su certificado; si D13 es «MSIX propio», publicar el `.appinstaller` en R2.
 
 **Web**
 - [ ] Hosting con dominio (Vercel o Cloudflare Pages).
-- [ ] SQLite en WASM (`sqlite3.wasm` en `web/`) y el almacén en IndexedDB.
+- [x] SQLite en WASM (`app/web/sqlite3.wasm`, versión 3.9.0). ✅ 2026-11-05
+- [ ] El almacén en IndexedDB.
 - [x] Manifiesto: horizontal, nombre, idioma `es-CO` y color de la marca. ✅ 2026-11-05
 - [ ] *Service worker* propio (Workbox): guarda la app, el paquete y los medios, y avisa «Hay una versión nueva de la app».
 - [ ] Probar el CORS real contra el dominio de los datos.
@@ -175,12 +179,15 @@ flowchart TD
 
 ## Fase F · La app se ve como el apartado Cliente
 
-- [ ] Leer `configuracion_app` (clave `app`) y normalizarla con las mismas reglas de `normalizarConfig`, probada con los mismos casos.
-- [ ] Encabezado, barra lateral y riel con las medidas de `docs/datos/apariencia-app.md`.
-- [ ] Páginas: `Stack` + `Positioned` escalados por `k`. Texto (Roboto y Noto Serif empaquetadas), imagen, botón, forma, video y mapa, con sus enlaces.
-- [ ] Minimapa: lámina con los nodos, estados minimizado, normal y maximizado (`InteractiveViewer` al maximizar) e ir al nodo al tocarlo.
-- [ ] Puntos 360°: 8 formas, color, tamaño, 9 animaciones, corrección de horizonte y flecha en el piso (`docs/datos/puntos-360.md`).
+- [x] Leer `configuracion_app` (clave `app`) y normalizarla con las mismas reglas de `normalizarConfig`, probada con los mismos casos. ✅ 2026-11-05
+  - Los casos los genera `panel/scripts/config-app-flutter.mjs`.
+- [x] Encabezado, barra lateral y riel con las medidas de `docs/datos/apariencia-app.md`. ✅ 2026-11-05
+- [x] Páginas: `Stack` + `Positioned` escalados por `k`. Texto (Roboto y Noto Serif empaquetadas), imagen, botón, forma, video y mapa, con sus enlaces. ✅ 2026-11-05
+- [x] Minimapa: lámina con los nodos, estados minimizado, normal y maximizado, e ir al nodo al tocarlo. ✅ 2026-11-05
+- [x] Puntos 360°: 8 formas, color, tamaño, 9 animaciones, corrección de horizonte y flecha en el piso (`docs/datos/puntos-360.md`). ✅ 2026-11-05
+  - Las capas 3D se colocan como en Photo Sphere Viewer.
 - [ ] Prueba de fidelidad: capturas del panel contra capturas de la app al mismo tamaño (*golden tests*).
+  - Mientras tanto se compara a mano: [[Guía de pruebas - app igual a la plataforma]].
 
 **Está lista cuando:** la app y la vista previa del apartado Cliente se ven igual en celular, Windows y web.
 

@@ -140,8 +140,8 @@ node scripts/empaquetar.mjs --fuente datos/ejemplo --salida <carpeta>
 
 ## 6. Lo que tiene que hacer el equipo (no se puede hacer desde aquí)
 
-- [ ] **Activar el Modo de desarrollador de Windows:** Configuración → Sistema → Para programadores → *Modo de desarrollador*, o `start ms-settings:developers`. Es un ajuste del sistema; después de activarlo, `flutter build windows` funciona.
-- [ ] **Borrar las 2 etiquetas viejas** del remoto. Su contenido ya está en `plataforma`:
+- [x] ✅ Hecho el 5-nov-2026. **Activar el Modo de desarrollador de Windows:** Configuración → Sistema → Para programadores → *Modo de desarrollador*, o `start ms-settings:developers`. Es un ajuste del sistema; después de activarlo, `flutter build windows` funciona.
+- [x] ✅ Hecho el 5-nov-2026. **Borrar las 2 etiquetas viejas** del remoto. Su contenido ya está en `plataforma`:
   ```bash
   git push origin --delete refs/tags/archivo/p1-plataforma-grafo refs/tags/archivo/p2-plataforma-completa
   ```
@@ -153,8 +153,8 @@ node scripts/empaquetar.mjs --fuente datos/ejemplo --salida <carpeta>
 
 1. [ ] **TEC-06:** ordenar `app/lib` en `core/` y `features/`, y partir los archivos gigantes: `pantalla_dron.dart` (2.084 líneas), `contenido_tour.dart` (1.522) y `pantalla_visor.dart` (1.220). Es el prerrequisito de la fase B.
 2. [ ] **Fase B** con las decisiones de la sección 4.
-3. [ ] **Web:** poner `sqlite3.wasm` de la misma versión del paquete en `app/web/`. Sale de los *releases* de `simolus3/sqlite3.dart` en GitHub, etiqueta `sqlite3-3.9.0`, y hay que descargarlo con permiso. Además, guardar en IndexedDB.
-4. [ ] **Video en Windows:** decidir en la fase D entre `video_player_win` (liviano) y `media_kit` (más pesado, trae su propio reproductor).
+3. [x] ✅ Hecho el 5-nov-2026 (`app/web/sqlite3.wasm`). **Web:** poner `sqlite3.wasm` de la misma versión del paquete en `app/web/`. Sale de los *releases* de `simolus3/sqlite3.dart` en GitHub, etiqueta `sqlite3-3.9.0`, y hay que descargarlo con permiso. Además, guardar en IndexedDB.
+4. [x] ✅ Hecho el 5-nov-2026: se eligió `video_player_win`, con `app/NuGet.Config`. **Video en Windows:** decidir entre `video_player_win` (liviano) y `media_kit` (más pesado, trae su propio reproductor).
 5. [ ] **El mapa embebido de Google** depende de internet y de un WebView. La meta sigue siendo el mapa propio con la ortofoto ([[Visión consolidada (nov-2026)]], punto 4).
 6. [ ] **Transiciones:** `go_router` 17 solo reconoce el `MaterialApp` viejo, así que con `material_ui` las páginas cambian sin animación. No es un error. Revisarlo con `go_router` 18 (cambio mayor) o con un `pageBuilder` propio durante TEC-06.
 7. [ ] **Firma de *release* de Android:** hoy usa la llave de depuración (fase D).

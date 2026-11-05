@@ -7,6 +7,8 @@ tags: [unipaz360, sistema, cliente, flutter]
 
 > [!info] Estado del código (5 de noviembre de 2026)
 > La app tiene carpetas para **Android, web y Windows**, está en español (`es-CO`) y usa el Material oficial (`material_ui`). Qué compila, qué falta y la prueba de SQLite: [[Flutter - listo para empezar]].
+>
+> **Desde el 5 de noviembre la pantalla principal se arma con la configuración del apartado Cliente**: lo que se ve en la vista previa es lo que se ve en la app. Cómo probarlo: [[Guía de pruebas - app igual a la plataforma]].
 
 ## Pantallas
 
