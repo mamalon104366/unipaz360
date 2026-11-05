@@ -38,7 +38,8 @@ CREATE TABLE medio (
     bytes    INTEGER,
     sha256   TEXT,
     ancho    INTEGER,
-    alto     INTEGER
+    alto     INTEGER,
+    url      TEXT          -- v3: dirección pública (R2) para descargar el medio
 );
 
 -- ---------------------------------------------------------------------------
@@ -109,12 +110,16 @@ CREATE TABLE panoramica (
     campus_id       TEXT NOT NULL,
     vertice_id      TEXT NOT NULL REFERENCES vertice(id),
     archivo         TEXT NOT NULL,
-    rumbo_inicial   REAL
+    rumbo_inicial   REAL,
+    titulo          TEXT,         -- v3
+    ajustes         TEXT          -- v3: JSON con norte, inclinación, alabeo, luz y color, nadir
 );
 
 CREATE TABLE enlace_panoramica (
     origen_id   TEXT NOT NULL REFERENCES panoramica(id),
     destino_id  TEXT NOT NULL REFERENCES panoramica(id),
+    yaw         REAL,             -- v3: posición manual de la flecha (grados); NULL = automática
+    pitch       REAL,
     PRIMARY KEY (origen_id, destino_id),
     CHECK (origen_id <> destino_id)
 );
@@ -122,6 +127,30 @@ CREATE TABLE enlace_panoramica (
 -- ---------------------------------------------------------------------------
 --  Horarios y calendario (el chatbot los usa)
 -- ---------------------------------------------------------------------------
+-- v3: contenido sobre las panorámicas (información, anuncios, imágenes, videos, enlaces).
+CREATE TABLE punto_informacion (
+    id                     TEXT PRIMARY KEY,
+    panoramica_id          TEXT NOT NULL REFERENCES panoramica(id),
+    tipo                   TEXT NOT NULL CHECK (tipo IN ('informacion','anuncio','imagen','video','enlace','espacio','accesibilidad')),
+    yaw                    REAL NOT NULL,     -- grados; 0 = centro de la foto
+    pitch                  REAL NOT NULL,
+    titulo                 TEXT NOT NULL,
+    texto                  TEXT,
+    medio_id               TEXT REFERENCES medio(id),
+    url                    TEXT,
+    destino_panoramica_id  TEXT REFERENCES panoramica(id),
+    espacio_id             TEXT REFERENCES espacio(id),
+    vigente_desde          TEXT,              -- ISO 8601; la app oculta el punto fuera de su vigencia
+    vigente_hasta          TEXT,
+    estilo                 TEXT               -- JSON: {forma, ancho, alto, rotacion{yaw,pitch,roll}, animacion}; ancho angular (rad) ≈ ancho/1000
+);
+
+-- v3: apariencia de la app (marca, colores, encabezado, barra lateral…), editada en el panel.
+CREATE TABLE configuracion_app (
+    clave  TEXT PRIMARY KEY,      -- 'app'
+    valor  TEXT NOT NULL          -- JSON (ver panel/src/lib/tipos.ts → ConfigApp)
+);
+
 CREATE TABLE horario (
     id           TEXT PRIMARY KEY,
     espacio_id   TEXT NOT NULL REFERENCES espacio(id),
@@ -166,6 +195,7 @@ CREATE INDEX idx_horario_espacio ON horario(espacio_id, dia, hora_inicio);
 CREATE INDEX idx_horario_materia ON horario(materia);
 CREATE INDEX idx_calendario_fecha ON calendario_academico(fecha);
 CREATE INDEX idx_reporte_enviado ON reporte(enviado);
+CREATE INDEX idx_punto_panoramica ON punto_informacion(panoramica_id);
 
 CREATE VIRTUAL TABLE espacio_fts USING fts5(
     id UNINDEXED, nombre, codigo, bloque, servicios,

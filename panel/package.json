@@ -1,0 +1,40 @@
+{
+  "name": "panel",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "postinstall": "node scripts/copiar-worker.mjs",
+    "predev": "node scripts/copiar-worker.mjs",
+    "prebuild": "node scripts/copiar-worker.mjs"
+  },
+  "dependencies": {
+    "@photo-sphere-viewer/core": "^5.15.1",
+    "@photo-sphere-viewer/markers-plugin": "^5.15.1",
+    "aws4fetch": "^1.0.20",
+    "lucide-react": "^1.68.0",
+    "maplibre-gl": "^6.16.0",
+    "next": "16.4.5",
+    "pg": "^8.23.1",
+    "qrcode": "^1.5.4",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "server-only": "^0.0.1",
+    "sharp": "^0.35.5"
+  },
+  "devDependencies": {
+    "@tailwindcss/turbopack": "^4",
+    "@types/node": "^24.19.2",
+    "@types/pg": "^8.23.1",
+    "@types/qrcode": "^1.5.6",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.4.5",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}
