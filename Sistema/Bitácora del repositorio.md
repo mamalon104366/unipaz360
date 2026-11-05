@@ -20,7 +20,7 @@ tags: [unipaz360, sistema, bitacora]
   - En celular va en modo compacto: caben las seis secciones aun con 360 dp de alto.
   - El vidrio pasó de negro al 35 % al 55 %, porque el texto blanco no se leía sobre paredes claras.
 - **Verificación:**
-  - 139 pruebas y `flutter analyze` sin problemas; TypeScript y ESLint del panel sin errores.
+  - 140 pruebas y `flutter analyze` sin problemas; TypeScript y ESLint del panel sin errores. La vista previa en Vercel compiló bien.
   - Compila para web, Windows y Android.
   - Revisado en la ventana de Windows en tamaño de escritorio y de celular, y la vista previa del panel en un servidor local.
 - **Sigue pendiente:** promover el panel a producción (con el OK del equipo) y probar en un celular.
