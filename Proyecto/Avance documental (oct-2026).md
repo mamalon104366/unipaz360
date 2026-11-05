@@ -42,6 +42,20 @@ Cubierta · portada · contenido · listas de tablas y figuras · resumen · abs
 - **Pendiente:** la **Figura 2** (componentes funcionales) es una imagen y debe redibujarse con el quinto módulo y la flecha plataforma → paquete → app.
 - ⚠️ La v2 se editó **directamente sobre el .docx**. Los fuentes `contenido*.js` y `refs.js` de `avance/` **no tienen estos cambios**: si se regenera con `node build.js`, se pierden.
 
+## Versión con marco tecnológico actualizado (2026-11-05)
+
+- **Archivo:** `C:\Users\mamalon\Downloads\UniPaz360 - Avance documental (con marco tecnologico).docx`. Tiene 61 páginas. El equipo pidió hacerlo sobre `UniPaz360 - Avance documental.docx`, que es **el original sin los cambios de la v2**.
+- **Qué se hizo:**
+  - **5.4 MARCO TECNOLÓGICO** (5.4.1–5.4.9), con lo que hay en el código y lo que falta. Marco legal y contextual pasaron a 5.5 y 5.6.
+  - **Figura 4** (arquitectura) y **Tabla 4** (componentes y estado). Se corrieron las demás tablas y figuras y sus menciones en el texto.
+  - 15 notas al pie, 10 referencias nuevas (consultadas el 5 de noviembre) y una frase en la introducción.
+- **Lo que se corrigió del ejemplo que se tomó como base:** no se usa `sqflite` (se usa `sqlite3`, porque cubre Windows y web con la misma interfaz), ni `panorama_viewer` (el visor 360° es propio), ni giroscopio, ni Hostinger.
+- ⚠️ **Dos versiones que no se han unido:**
+  - Esta versión tiene el marco tecnológico al día, pero el resto sigue como el original: título, 4.1, 4.2, Tabla 6 y presupuesto aún no mencionan la plataforma y dicen iOS.
+  - La **v2** tiene todo eso alineado, pero su 5.4 está desactualizado: dice `sqflite` y `flutter_map`.
+  - Hay que decidir la base y pasar el marco nuevo a la v2 si se elige esa.
+- **Cómo se editó:** XML directo y luego Word por COM para actualizar el índice, las listas y los números de página. Los scripts quedaron en la carpeta temporal de la sesión.
+
 ## Cómo regenerarlo
 En `avance/`: editar `contenido1.js`, `contenido2.js` o `contenido3.js` (texto) o `refs.js` (referencias) → `node build.js` → `finalizar.ps1` (Word actualiza la tabla de contenido y exporta el PDF).
 

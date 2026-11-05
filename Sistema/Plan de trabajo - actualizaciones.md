@@ -52,7 +52,7 @@ flowchart TD
 - [ ] **D12** · Identificador definitivo de la app, antes de la primera publicación en Google Play.
 - [ ] **D13** · Windows: Microsoft Store o MSIX propio.
 - [ ] **D14** · ¿Canal de pruebas desde el primer día?
-- [ ] **Logo** definitivo → [[Marca y logo]].
+- [x] **Logo** → [[Marca y logo]]. ✅ 2026-11-05
 - [x] **Modo de desarrollador** de Windows en cada PC que compile la app de Windows (Flutter necesita enlaces simbólicos para los plugins). ✅ 2026-11-05 en el PC del equipo.
 
 ---
@@ -181,7 +181,7 @@ flowchart TD
 
 - [x] Leer `configuracion_app` (clave `app`) y normalizarla con las mismas reglas de `normalizarConfig`, probada con los mismos casos. ✅ 2026-11-05
   - Los casos los genera `panel/scripts/config-app-flutter.mjs`.
-- [x] Encabezado, barra lateral y riel con las medidas de `docs/datos/apariencia-app.md`. ✅ 2026-11-05
+- [x] Barra lateral con el logo y riel con las medidas de `docs/datos/apariencia-app.md` (el encabezado se quitó). ✅ 2026-11-05
 - [x] Páginas: `Stack` + `Positioned` escalados por `k`. Texto (Roboto y Noto Serif empaquetadas), imagen, botón, forma, video y mapa, con sus enlaces. ✅ 2026-11-05
 - [x] Minimapa: lámina con los nodos, estados minimizado, normal y maximizado, e ir al nodo al tocarlo. ✅ 2026-11-05
 - [x] Puntos 360°: 8 formas, color, tamaño, 9 animaciones, corrección de horizonte y flecha en el piso (`docs/datos/puntos-360.md`). ✅ 2026-11-05

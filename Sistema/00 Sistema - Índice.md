@@ -14,7 +14,7 @@ El MVP del curso **no cambia**: sigue el backlog y los Hitos del [[00 UniPaz360 
 | 🔄 [[Flujo de actualización (plataforma → apps)]] | Cómo un cambio de la plataforma llega a Android, web y Windows (después macOS e iOS): versiones, motor de la app, cada plataforma y fallas previstas |
 | 🗺️ [[Plan de trabajo - actualizaciones]] | Fases A a G con tareas, archivos, pruebas y propuestas para el tablero |
 | 💬 [[Plan de trabajo - guía y chatbot]] | La guía sin conexión: motor de rutas y chatbot que te lleva al lugar (fases R1 y H1 a H4) |
-| 🎨 [[Marca y logo]] | Archivos maestros del logo, dónde va en cada plataforma y qué hacer cuando llegue |
+| 🎨 [[Marca y logo]] | El logo de UNIPAZ en vector: archivos maestros, colores, reglas de uso y dónde va en cada plataforma |
 | ✅ [[Guía de pruebas - app igual a la plataforma]] | Cómo abrir la app en cada plataforma, qué comparar con la vista previa del Cliente y qué diferencias son a propósito |
 | 🧰 [[Flutter - listo para empezar]] | Revisión del 5-nov-2026: herramientas, cómo compila la app en Android, web y Windows, prueba de SQLite y lo que falta antes de la fase B |
 | [[Ingeniería inversa de Google Maps]] | Cómo funciona Google Maps por dentro (tiles, grafos, rutas, Street View) y su traducción a UniPaz360 con herramientas libres |

@@ -103,7 +103,7 @@ Volver a [[00 Sistema - Índice]] · [[00 UniPaz360 - Índice]]
 
 ## Apariencia y páginas que manda el panel (contrato)
 
-- La app lee `configuracion_app` (clave `app`) del paquete y dibuja con eso el encabezado, la barra lateral, el minimapa (nodos y estados minimizado, normal y maximizado) y **las páginas de cada sección**.
+- La app lee `configuracion_app` (clave `app`) del paquete y dibuja con eso la barra lateral con el logo de UNIPAZ, el minimapa (nodos y estados minimizado, normal y maximizado) y **las páginas de cada sección**.
 - Las páginas son un lienzo de 1000 unidades de ancho: todo se multiplica por (ancho del panel / 1000). Fuentes: Roboto y Noto Serif, empaquetadas en la app.
 - Recursos `app://imagenes/…` y `app://videos/…` = `assets/` de la app; lo `https://` se descarga del paquete para verse sin conexión.
 - Puntos del 360°: 8 formas, color, tamaño y 9 animaciones. Las posiciones van en el marco de la foto, con la misma corrección de horizonte que la esfera.

@@ -147,7 +147,7 @@ node scripts/empaquetar.mjs --fuente datos/ejemplo --salida <carpeta>
   ```
 - [ ] **Correr** `node panel/scripts/configurar-r2.mjs` para el CORS con `Range`.
 - [ ] **Decisiones D10 a D14.** D12, el identificador de la app, hoy es `co.edu.unipaz.dam.unipaz360` y no se puede cambiar después de publicar en Google Play.
-- [ ] **El logo** → [[Marca y logo]]. Los íconos de Android, web y Windows todavía son los de Flutter.
+- [x] ✅ Hecho el 5-nov-2026. **El logo** → [[Marca y logo]]. Los íconos de Android, web y Windows ya son los de UNIPAZ.
 
 ## 7. Pendientes técnicos, en orden
 

@@ -7,6 +7,25 @@ tags: [unipaz360, sistema, bitacora]
 >
 > **Repositorio real del proyecto:** `C:\Users\mamalon\Pictures\univerrsidadaddadada\unipaz360` (GitHub `mamalon104366/unipaz360`, rama `main`). La carpeta `C:\unipaz360` es solo evidencia.
 
+## 2026-11-05 · Logo de UNIPAZ y barra sin encabezado (commits `77470af` y `8232b8d`)
+
+- **Logo:** el equipo entregó el logo de la universidad (JPG y PNG) y se pasó a vector en `marca/`, con un script que genera lo demás: `node panel/scripts/marca.mjs`. Detalle en [[Marca y logo]].
+  - Íconos de Android (adaptativo y monocromo), web y Windows; favicon, entrada y riel del panel; placas QR y parche del nadir.
+  - Los colores por defecto pasan a los del logo: azul `#233671` y verde `#0a9640`.
+- **Se quitó el encabezado**, a pedido del equipo, tomando como referencia el tour de la Universidad de La Sabana. Desapareció de la configuración (`encabezado`), de la vista previa y de la app.
+  - La barra va de borde a borde, con el logo arriba, las secciones con separadores y el nombre al pie.
+  - Un botón redondo en el borde la pliega. Sin una página abierta se esconde y el logo se queda sobre la foto, con sombra.
+  - La búsqueda pasó a un botón redondo en la esquina contraria, que abre «Cómo llegar».
+  - Campo nuevo: `barraLateral.mostrarLogo`. Ancho por defecto: 20 % (mínimo 210 dp).
+  - En celular va en modo compacto: caben las seis secciones aun con 360 dp de alto.
+  - El vidrio pasó de negro al 35 % al 55 %, porque el texto blanco no se leía sobre paredes claras.
+- **Verificación:**
+  - 139 pruebas y `flutter analyze` sin problemas; TypeScript y ESLint del panel sin errores.
+  - Compila para web, Windows y Android.
+  - Revisado en la ventana de Windows en tamaño de escritorio y de celular, y la vista previa del panel en un servidor local.
+- **Sigue pendiente:** promover el panel a producción (con el OK del equipo) y probar en un celular.
+- **Documento de grado:** se agregó el numeral 5.4 Marco tecnológico. Ver [[Avance documental (oct-2026)]].
+
 ## 2026-11-05 · La app se ve como la plataforma (commits `9a9c965`, `de6e171` y `8888f4d`)
 
 - **La pantalla principal de la app ahora se arma con la configuración del apartado Cliente.** Lo que se ve en la vista previa es lo que se ve en la app, sin internet:

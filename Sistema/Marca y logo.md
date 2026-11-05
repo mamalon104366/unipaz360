@@ -1,115 +1,98 @@
 ---
 tags: [unipaz360, sistema, marca, logo]
 fecha: 2026-11-05
-estado: esperando el logo definitivo
+estado: integrado
 ---
 # Marca y logo
 
-> [!info] Estado
-> Estructura lista para cuando llegue el logo de UniPaz360. **Todavía no se ha cambiado nada**:
-> - En el panel, el parche del suelo de las fotos 360° usa un logo provisional (`panel/src/lib/imagen.ts`).
-> - En la app, el encabezado muestra las iniciales «UN».
-> - Los íconos de Android, la web y el panel son los que traen Flutter y Next.js por defecto.
+> [!success] Estado (5 de noviembre de 2026, commit `77470af`)
+> El logo de UNIPAZ ya está en la app y en el panel. Llegó como una imagen (JPG de 1042 px y un PNG del símbolo), así que se pasó a vector para que se vea nítido en cualquier tamaño y en todos los íconos.
+>
+> Si la institución entrega el logo en vector, se reemplazan los maestros y se corre el script: nada más cambia.
 
 ---
 
 ## 1. Un solo lugar para los archivos maestros
 
-Carpeta `marca/` en la raíz del repositorio. Todo lo demás se **genera** desde aquí, nunca se edita a mano.
+Carpeta `marca/` en la raíz del repositorio (rama `plataforma`). Todo lo demás se **genera** desde aquí, nunca se edita a mano.
 
 ```
 marca/
-├── logo.svg            ← maestro vectorial a color (horizontal, con el nombre)
-├── logo-blanco.svg     ← para fondos oscuros
-├── logo-negro.svg      ← para impresión a una tinta
-├── isotipo.svg         ← solo el símbolo: ícono de la app y favicon
-├── isotipo-fondo.svg   ← el símbolo sobre su color (para íconos sin transparencia)
-├── nadir.svg           ← versión circular para tapar el trípode en las fotos 360°
-└── LEEME.md            ← colores, márgenes, tamaños mínimos y usos
+├── logo-vertical.svg      ← el logo oficial: símbolo arriba, nombre debajo
+├── logo-horizontal.svg    ← derivado: símbolo a la izquierda y el mismo bloque de texto a la derecha
+├── isotipo.svg            ← solo el símbolo
+├── LEEME.md               ← colores, reglas de uso y qué genera el script
+└── fuente/                ← la imagen original y los scripts que la vectorizaron
 ```
 
-> [!warning] Requisitos del maestro
-> - **SVG** con `viewBox`, los textos convertidos a trazos, sin imágenes incrustadas y con el fondo transparente.
-> - Si solo hay PNG: mínimo 2048 × 2048 px, con transparencia.
+> [!note] Cómo se vectorizó
+> `fuente/trazar_logo.py` calcula la cobertura de cada tinta (azul, verde y negro) con la luminancia del JPG, saca el contorno con *marching squares*, afila las esquinas y ajusta curvas de Bézier. Los bordes rectos del rombo quedaron como rectas exactas. Se comparó con el original a 4× de aumento.
 
 ---
 
 ## 2. Colores de la marca
 
-| Uso | Color | Dónde está hoy |
+Se midieron en el logo y reemplazaron a los provisionales (`#163E78` y `#179B55`).
+
+| Uso | Color | Dónde está |
 |---|---|---|
-| Principal (azul UNIPAZ) | `#163E78` | Por defecto en `configuracion_app.marca.colorPrimario` |
-| Acento (verde UNIPAZ) | `#179B55` | Por defecto en `configuracion_app.marca.colorAcento` |
-| Texto secundario | `#526071` | Páginas iniciales del apartado Cliente |
+| Principal (azul del logo) | `#233671` | `configuracion_app.marca.colorPrimario` |
+| Acento (verde del logo) | `#0A9640` | `configuracion_app.marca.colorAcento` |
+| Texto del logo | `#1D1D1B` | Solo en el logo |
 
-Si el logo trae otros tonos, se ajustan aquí y en el apartado Cliente (Marca y colores): eso **llega a las apps con el paquete**, sin una versión nueva.
-
----
-
-## 3. Dónde va y cómo se actualiza
-
-| Lugar | Archivo y tamaño | Cómo se genera | ¿Versión nueva de la app? |
-|---|---|---|---|
-| Ícono de Android | Adaptativo: primer plano de 432 × 432 px con zona segura del 66 %, fondo de color y versión monocroma (Android 13+) | `flutter_launcher_icons` desde `isotipo.svg` | **Sí** |
-| Ícono de iOS | 1024 × 1024 px, sin transparencia | `flutter_launcher_icons` | **Sí** |
-| Ícono de macOS | `.icns` | `flutter_launcher_icons` | **Sí** |
-| Ícono de Windows | `app_icon.ico` (16 a 256 px) y mosaicos del MSIX | Script + paquete `msix` | **Sí** |
-| Web | Favicon de 16 y 32 px, íconos de 192 y 512 px (también *maskable*) y `apple-touch-icon` de 180 px | Script | Despliegue de la web |
-| Pantalla de arranque | Logo centrado sobre el azul. En Android 12+: ícono de 288 dp con círculo seguro de 192 dp | `flutter_native_splash` | **Sí** |
-| Logo dentro de la app (encabezado y páginas) | PNG o SVG | **Por el paquete**: campo nuevo `configuracion_app.marca.logo` (`app://imagenes/logo.png` o https) | **No** |
-| Panel (favicon, riel, ingreso) | SVG y PNG | Copia en `panel/public/marca/` | No (despliegue del panel) |
-| Parche del suelo en las fotos 360° | `nadir.svg` (circular) | El panel lo usa al generar las versiones de cada foto | No, pero hay que **regenerar** las fotos ya editadas (guardar de nuevo sus ajustes) |
-| Placas QR impresas | SVG | Hoja imprimible del panel | No |
-| Documento de grado y presentaciones | PNG y SVG | — | — |
-
-> [!tip] Lo que se puede cambiar sin tiendas
-> El logo **dentro** de la app y los colores van en el paquete: se publican desde la plataforma y llegan con el aviso de siempre.
-> El **ícono** y la pantalla de arranque están dentro del instalador: cambian con la siguiente versión de la app. Ver [[Flujo de actualización (plataforma → apps)]].
+Los colores se pueden cambiar en el apartado Cliente (Marca y colores) y **llegan a las apps con el paquete**, sin una versión nueva.
 
 ---
 
-## 4. Un comando para generar todo (por hacer)
+## 3. Cómo se usa
 
-`node scripts/marca.mjs` leerá `marca/*.svg` y, con `sharp`, generará:
+- **A color:** solo sobre blanco o un fondo muy claro. La paloma es el papel.
+- **En blanco:** sobre fondos oscuros y fotos. La tinta se vuelve blanca y la paloma queda del color del fondo. Sobre una foto lleva una sombra suave.
+- **Margen libre:** al menos la altura de la U de UNIPAZ.
+- **Tamaño mínimo:** 24 px de alto en pantalla y 15 mm impreso. Por debajo, solo el símbolo.
+- No deformar, no cambiar los colores y no ponerlo sobre fondos con poco contraste (mínimo 3:1, WCAG 2.2).
+- El nombre del producto se escribe **UniPaz360**.
 
-- `app/assets/marca/` (logo para la app y para la semilla del paquete);
-- `app/web/icons/*` y `app/web/favicon.png`;
-- `panel/public/marca/*` y `panel/src/app/favicon.ico`;
-- el parche del nadir que usa el panel.
+---
 
-Después:
+## 4. Dónde va y cómo se actualiza
+
+| Lugar | Qué se puso | ¿Versión nueva de la app? |
+|---|---|---|
+| Barra lateral de la app | Logo horizontal dibujado con sus trazos (`app/lib/core/marca/logo_unipaz.dart`), en blanco o a color según la barra. Plegada, queda sobre la foto con sombra. En el riel, solo el símbolo | **Sí** |
+| Pantalla de ingreso de la app | Logo horizontal en blanco | **Sí** |
+| Ícono de Android | Adaptativo y vectorial, con versión monocroma (Android 13+) y PNG de respaldo | **Sí** |
+| Pantalla de arranque de Android | El símbolo sobre blanco (hasta Android 11). Desde Android 12 el sistema usa el ícono adaptativo | **Sí** |
+| Ícono de Windows | `app_icon.ico` de 16 a 256 px | **Sí** |
+| Web | Favicon e íconos del manifiesto (normales y *maskable*) | Despliegue de la web |
+| Vista previa del Cliente | Los SVG de `panel/public/marca/` | No |
+| Panel | Favicon, entrada y riel | No (despliegue del panel) |
+| Placas QR impresas | El símbolo a color | No |
+| Parche del suelo en las fotos 360° | El símbolo en blanco sobre un disco oscuro | No, pero solo cambia en las fotos que se vuelvan a procesar (guardar de nuevo sus ajustes) |
+
+> [!tip] Cambio respecto al plan inicial
+> El plan era un campo `configuracion_app.marca.logo` para cambiar el logo por el paquete. Como es el logo de la institución y cambia muy rara vez, va **dentro de la app, en vector**: se ve nítido, funciona sin red desde el primer arranque y se pinta en blanco o a color según el fondo. `barraLateral.mostrarLogo` permite ocultarlo.
+
+---
+
+## 5. Un comando para generar todo
 
 ```bash
-dart run flutter_launcher_icons
+node panel/scripts/marca.mjs
 ```
 
-```bash
-dart run flutter_native_splash:create
-```
-
-Esos dos comandos hacen los íconos y la pantalla de arranque de cada plataforma, con la configuración guardada en `app/pubspec.yaml`.
+Lee `marca/*.svg` y, con `sharp`, genera todo lo de la tabla anterior. Lista completa en `marca/LEEME.md`.
 
 ---
 
-## 5. Reglas de uso
+## 6. Lo que falta
 
-- **Margen libre** alrededor del logo: al menos la altura de la letra principal.
-- **Tamaño mínimo:** 24 px de alto en pantalla y 15 mm impreso.
-- No deformar, no cambiar los colores y no ponerlo sobre fondos que bajen el contraste (mínimo 3:1, WCAG 2.2).
-- El nombre se escribe **UniPaz360**. Hoy dicen `unipaz360` el `android:label` de Android y el `manifest.json` de la web: se corrigen junto con el logo.
+- [ ] **Aprobar con el equipo el logo horizontal.** Es un derivado: se armó con las piezas del logo oficial, con el texto intacto.
+- [ ] **Pedir el vector oficial a la institución** y reemplazar los maestros, si lo tienen.
+- [ ] **Regenerar las fotos 360° que ya tenían parche** en el nadir, para que tomen el símbolo nuevo.
+- [ ] **Promover el panel a producción** para ver el favicon, la entrada y la vista previa nuevos.
+- [ ] Íconos de iOS y macOS y mosaicos del MSIX: cuando se empaquete cada plataforma (fase D).
 
----
-
-## 6. Checklist cuando llegue el logo
-
-1. Guardar el maestro en `marca/` y revisar que el SVG esté limpio (viewBox, trazos y transparencia).
-2. Sacar las variantes (blanco, negro, isotipo y circular para el nadir) y aprobarlas con el equipo.
-3. Crear y correr `scripts/marca.mjs`.
-4. **Panel:** favicon, riel, ingreso y parche del nadir → desplegar → regenerar las fotos 360° que ya tenían parche.
-5. **Apariencia:** subir el logo y ponerlo en `configuracion_app.marca.logo` → publicar. Llega a las apps **sin** versión nueva.
-6. **App:** íconos y pantalla de arranque de cada plataforma → salen con la siguiente versión de la app.
-7. Corregir el nombre visible (**UniPaz360**) en Android, web, Windows y las tiendas.
-
-Relacionado: [[Flujo de actualización (plataforma → apps)]] · [[Plan de trabajo - actualizaciones]] · [[Cliente Flutter]] · [[Plataforma de administración]]
+Relacionado: [[Flujo de actualización (plataforma → apps)]] · [[Plan de trabajo - actualizaciones]] · [[Cliente Flutter]] · [[Plataforma de administración]] · [[Guía de pruebas - app igual a la plataforma]]
 
 Volver a [[00 Sistema - Índice]] · [[00 UniPaz360 - Índice]]

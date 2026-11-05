@@ -42,11 +42,14 @@ estado: vigente
 
 ## 3. Qué comparar
 
-- [ ] **Encabezado:** el logo con las iniciales, el título, el subtítulo, el buscador y el botón de ocultar. Probar los estilos oscuro, claro y vidrio.
+- [ ] **Logo:** arriba de la barra, en blanco sobre vidrio u oscuro y a color sobre claro. Al plegar la barra se queda en el mismo lugar, sobre la foto y con sombra. En el riel, solo el símbolo.
+- [ ] **Botón de buscar:** redondo, arriba del lado contrario a la barra. Abre «Cómo llegar» y desaparece con una página abierta o el mapa maximizado.
 - [ ] **Barra:**
-  - Las secciones, con la activa en el color principal.
-  - Se pliega a riel de íconos.
-  - En celular, con una página abierta, queda como riel.
+  - Pegada al borde, de arriba abajo, con separadores entre las secciones y el nombre al pie.
+  - La sección abierta con fondo tenue y una barrita verde.
+  - El botón redondo del borde la pliega y la vuelve a abrir, con el mismo movimiento.
+  - Con una página abierta queda como riel en celular, y en escritorio si se pliega.
+  - Probar los estilos vidrio, oscuro y claro, y la barra a la derecha.
 - [ ] **Páginas:**
   - El título en mayúsculas con la barra de color y las pestañas.
   - Los textos con **los mismos saltos de línea**.
@@ -81,9 +84,9 @@ estado: vigente
 
 | Plataforma | Estado |
 |---|---|
-| Windows | ✅ Compila. Se revisó la ventana: encabezado, barra, foto 360°, minimapa e inicio. |
+| Windows | ✅ Compila. Se revisó la ventana en 1280 × 720 y en 915 × 412: barra, logo, plegado, riel, página, foto 360°, minimapa e inicio. |
 | Web | ✅ Probada en el navegador, con la foto 360° real y el punto de video en 3D. |
-| Android | ✅ El APK de *release* compila. Falta probarlo en un celular. |
+| Android | ✅ El APK de *release* compila, con el ícono adaptativo. Falta probarlo en un celular. |
 | macOS e iOS | Cuando haya un Mac (fase D). |
 
 ---
