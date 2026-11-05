@@ -32,7 +32,7 @@ tags: [unipaz360, sistema, arquitectura]
 | **API** | Versión, paquete, reportes | Vercel Functions (TypeScript) |
 | **Base central** | Fuente de la verdad | **Neon (PostgreSQL + PostGIS)** |
 | **Objetos** | Paquetes, fotos, videos, tiles | **Cloudflare R2 + CDN** |
-| **Pipeline** | Valida, empaqueta y publica | GitHub Actions (Node) |
+| **Pipeline** | Valida, empaqueta y publica | La plataforma (función de Vercel) desde noviembre de 2026; GitHub Actions queda para compilar la app |
 | **Repo** | Código + datos fuente + docs | Monorepo — ver [[Datos y publicación]] |
 
 ## Monorepo propuesto (decisión D1)
@@ -62,6 +62,9 @@ Mover carpetas **antes** de que exista código cuesta minutos; después cuesta d
 | Preview | rama por PR | deploy automático Vercel | sin publicar |
 | Producción | `main` | Vercel prod | público en R2 |
 
+> [!note] Producción del panel (noviembre de 2026)
+> Hoy sale al promover la vista previa de `plataforma`. La decisión D10 define si pasa a salir sola al fusionar a `main`. Ver [[Flujo de actualización (plataforma → apps)]].
+
 ## La regla que evita sorpresas
 
 **Los medios pesados nunca pasan por Vercel.** Paquetes, fotos y tiles siempre por R2. Ver [[Plataforma de administración]].
@@ -79,7 +82,7 @@ Mover carpetas **antes** de que exista código cuesta minutos; después cuesta d
 | `app/` | `flutter analyze` + pruebas (como hoy) |
 | `panel/` | `tsc`, lint, build de Next |
 | `datos/` o `scripts/` | Validación del grafo y del formato |
-| Botón Publicar | Workflow `publicar.yml` → valida → empaqueta → sube a R2 |
+| Botón Publicar | La plataforma valida, empaqueta, sube a R2 y mueve `version.json` (sin workflow) |
 | Tag `app-vX.Y.Z` | APK/AAB firmado + builds de web/escritorio |
 
 Volver a [[00 Sistema - Índice]] · [[00 UniPaz360 - Índice]]

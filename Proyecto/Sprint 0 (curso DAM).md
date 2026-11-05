@@ -64,3 +64,17 @@ Todo está en `curso_dam/sprint0/`:
 - [ ] Confirmar con el profe si un JSON servido por HTTPS cuenta como la «API» del Hito 3. Si no, usar Supabase.
 
 Volver a [[00 UniPaz360 - Índice]]
+
+
+## Actualización del tablero (2026-11-04)
+
+Estados ajustados según lo que hay en el repositorio y **15 tarjetas nuevas** con lo avanzado en la plataforma (issues #36–#50):
+
+| Estado | Tarjetas |
+|---|---|
+| Hecho | TEC-01, TEC-04, TEC-05, INV-02, **TEC-11** (despliegue en Vercel), **TEC-12** (migraciones 0002–0004) |
+| En dispositivo | HU-01, HU-02, HU-10 |
+| En revisión | TEC-07, TEC-10 y las nuevas **HU-15 a HU-27**: ingreso con Google, nodos y rutas, accesibilidad, foto 360°, limpieza de la foto, puntos 3D, flechas, espacios, placas QR, publicar, cuentas y auditoría, apartado Cliente y minimapa |
+| En desarrollo | TEC-06, TEC-02, INV-01, HU-12 |
+
+Las HU-15 a HU-27 están construidas en la rama `plataforma` y desplegadas en producción. Pasan a «Hecho» cuando el equipo las valide entrando con Google.

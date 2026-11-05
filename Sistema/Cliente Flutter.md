@@ -11,7 +11,7 @@ tags: [unipaz360, sistema, cliente, flutter]
 2. **Mapa** — 2D con capas; abajo a la derecha los botones **[360] [2D] [🛰 dron] [🎮 tour]**.
 3. **Ficha de espacio** — nombre, código, bloque, piso, horario, servicios, foto, botón «Cómo llegar».
 4. **Ruta a pie** — estándar o sin escaleras, con distancia y tiempo.
-5. **Chat** (offline) — ver [[Chatbot y horarios]].
+5. **Chat** (offline) — ver [[Chatbot y horarios]] · plan: [[Plan de trabajo - guía y chatbot]].
 6. **Tour QR** — minijuego «Descubre UniPaz» (abajo).
 7. **Mi horario** · 8. **Ajustes**.
 
@@ -79,6 +79,7 @@ Navegación con `go_router` y **deep links** compartibles: `https://unipaz360.ap
 - «Más tarde» ⇒ se vuelve a preguntar en la próxima apertura. **Jamás se actualiza en silencio.**
 - El aviso dice qué cambió («2 bloques nuevos», «fotos del Bloque 3»).
 - Ajustes: «Descargar todo (Wi-Fi)», «Solo datos básicos», «Borrar medios», con tamaños a la vista.
+- Diseño completo del motor (carpetas, verificación y cada plataforma): [[Flujo de actualización (plataforma → apps)]] · plan: [[Plan de trabajo - actualizaciones]].
 
 ## Arquitectura interna
 
@@ -94,3 +95,11 @@ plataforma/  archivos, conectividad, cámara, compartir
 - Meta de accesibilidad WCAG 2.2 AA — ver [[Evaluación de usabilidad]].
 
 Volver a [[00 Sistema - Índice]] · [[00 UniPaz360 - Índice]]
+
+## Apariencia y páginas que manda el panel (contrato)
+
+- La app lee `configuracion_app` (clave `app`) del paquete y dibuja con eso el encabezado, la barra lateral, el minimapa (nodos y estados minimizado, normal y maximizado) y **las páginas de cada sección**.
+- Las páginas son un lienzo de 1000 unidades de ancho: todo se multiplica por (ancho del panel / 1000). Fuentes: Roboto y Noto Serif, empaquetadas en la app.
+- Recursos `app://imagenes/…` y `app://videos/…` = `assets/` de la app; lo `https://` se descarga del paquete para verse sin conexión.
+- Puntos del 360°: 8 formas, color, tamaño y 9 animaciones. Las posiciones van en el marco de la foto, con la misma corrección de horizonte que la esfera.
+- Detalle: `docs/datos/apariencia-app.md` y `docs/datos/puntos-360.md` del repositorio. Ver [[Bitácora del repositorio]].

@@ -7,6 +7,79 @@ tags: [unipaz360, sistema, bitacora]
 >
 > **Repositorio real del proyecto:** `C:\Users\mamalon\Pictures\univerrsidadaddadada\unipaz360` (GitHub `mamalon104366/unipaz360`, rama `main`). La carpeta `C:\unipaz360` es solo evidencia.
 
+## 2026-11-05 · Plan de actualizaciones a las apps y estructura del logo (solo documentación)
+
+- **Notas nuevas:** [[Flujo de actualización (plataforma → apps)]], [[Plan de trabajo - actualizaciones]] y [[Marca y logo]].
+- **Qué queda definido:**
+  - Los tres tipos de cambio: el contenido llega por el paquete, sin tiendas; el código necesita una versión nueva de la app.
+  - El contrato de versiones: versión del paquete, esquema, versión de la app y `app_minima`. Se compara por «distinta», así una reversión también llega.
+  - En el dispositivo: las carpetas, el puntero atómico `actual.json`, la semilla para el primer arranque sin red y la política de medios.
+  - Cada plataforma (Android, web y Windows; después macOS e iOS) con sus trampas conocidas, la tabla de fallas previstas y las fases A a G con tareas y pruebas.
+- **Hallazgos que quedaron como tareas:**
+  - Las apps no deben bajar de `r2.dev`: hace falta un dominio propio.
+  - Falta el CORS para la app web.
+  - Falta un candado al publicar.
+  - El identificador `co.edu.unipaz.dam.unipaz360` hay que decidirlo antes de Google Play.
+  - Ya existían HU-09 (descargar datos actualizados) y TEC-07 (API del paquete); el plan se apoya en ellas y propone TEC-13 a TEC-19 y HU-28 a HU-31 (sin crearlas).
+- **Decisiones nuevas** D10 a D14 en el [[00 Sistema - Índice]].
+- **No se tocó código:** el usuario pidió estructurar primero y construir después. El logo llega pronto.
+- **Guía sin conexión con chatbot:** nueva nota [[Plan de trabajo - guía y chatbot]]. Incluye el motor de rutas (R1), el motor del asistente con pruebas doradas (H1), el chat en la app con «Ver en el mapa» y «Seguir en 360°» (H2), y lo editable desde la plataforma (H3 y H4). El asistente nunca usa la red. Se apoya en HU-01, HU-03 a HU-08, HU-11 y HU-12, y propone TEC-20, TEC-21, HU-32 y HU-33.
+- **El usuario aprobó empezar** cuando el plan estuviera completo: primero la fase A (servidor) y los motores R1 y H1, que no dependen de nada más.
+
+## 2026-11-04 (noche) · Producción actualizada y por qué no se veía
+
+- **Qué pasó:** en Vercel la rama de producción es `main`. Un push a `plataforma` solo crea una **vista previa**; producción cambia cuando esa vista previa se promueve. Por eso el usuario no veía los cambios.
+- **Hecho:** el push forzado de `plataforma` (historia sin coautoría + commit `b019652`) generó la vista previa `fa87z02v8`. Se promovió a producción con `vercel promote`, que creó el despliegue `rmlro8w7n`. Comprobado en https://unipaz360-panel.vercel.app:
+  - `/app/imagenes/…` y el video responden 200 (solo existen en la versión nueva).
+  - `/ingreso` responde 200.
+  - Sin sesión, la API responde 401 y `/cliente` manda a ingresar.
+- **PR #35 (plataforma → main):** se fusionó con *squash* (`ff19088`) desde la versión anterior de `plataforma`, y GitHub copió las líneas «Co-Authored-By: Claude» al mensaje. Quedó listo el commit limpio `a855e10` (mismo contenido, autor Marlon) en la rama local `main-limpio`. Para reemplazarlo: `git push --force-with-lease=main:ff19088 origin main-limpio:main`.
+- **También con coautoría:** las etiquetas `archivo/p1-plataforma-grafo` y `archivo/p2-plataforma-completa`. Se borran con `git push origin --delete refs/tags/archivo/p1-plataforma-grafo refs/tags/archivo/p2-plataforma-completa`.
+- **Pendiente de decidir:** que producción salga sola al fusionar un PR a `main`, o directo de cada push a `plataforma`.
+
+## 2026-11-04 · Páginas tipo Figma, minimapa con nodos y editor 360° pulido (rama `plataforma`)
+
+- **Editor 360°** (lo que "no se guardaba"):
+  - Causa del «Ir a»: solo existe una foto 360° (P-002), así que el punto no tenía a dónde llevar y el servidor lo rechazaba. Ahora el editor lo explica y lleva al mapa. Hay tarjetas del destino con su miniatura y el título se llena solo ("Ir a …"). El servidor valida que el destino exista y no sea la misma foto.
+  - Cambios sin guardar: el botón de abajo decía «Todo guardado» aunque el punto tuviera cambios. Ahora guarda el punto y los ajustes juntos (también con Ctrl+S). Avisa «Sin guardar» y pregunta antes de salir; al cambiar de punto, lo pendiente se guarda solo.
+  - Los puntos se **arrastran** sobre la foto, como en Figma; un toque los selecciona. Atajos: Esc y Supr.
+  - **8 formas**: etiqueta, ícono, anillo, pin, tarjeta, miniatura, flecha en el piso y capa dentro de la imagen. Más **color** y **tamaño** por punto.
+  - **9 animaciones**: pulso, latido, flotar, rebote, onda, girar, balanceo, parpadeo y ninguna.
+  - La flecha se acuesta en el piso sola según su altura.
+  - Los puntos quedan pegados a la foto aunque se corrija el horizonte (misma rotación que la esfera, comprobada contra three.js con un error de 1e-12°).
+- **Apartado Cliente:**
+  - Al tocar una sección de la barra se abre **su página con el contenido que ya tenía la app** (Nosotros con 3 pestañas, Video institucional, Admisiones con 4 pestañas y Ubicación), con las mismas imágenes y el mismo video.
+  - Las páginas se editan **como en Figma**:
+    - Seleccionar, arrastrar, cambiar el tamaño, girar y escribir con doble clic.
+    - Guías inteligentes, selección con recuadro y varios elementos con Mayús.
+    - Capas, alinear, duplicar, copiar y pegar, flechas y deshacer o rehacer (Ctrl+Z).
+    - Elementos: texto, imagen, botón, forma, video y mapa.
+  - Regla para Flutter: lienzo de 1000 unidades, la app escala todo por (ancho del panel / 1000).
+  - **Minimapa:** los nodos del recorrido se ubican arrastrándolos sobre la foto del dron. Con 3 o más ubicados, el resto se calcula con un ajuste afín (lat, lon → x, y). El visitante tiene 3 estados (**minimizado, normal y maximizado**) y toca un nodo para ir a esa foto. Se puede seguir al visitante.
+  - La vista previa es una pantalla a escala (915 dp en celular, 1440 dp en escritorio) con el recorrido real y sus puntos.
+- **Contratos para Flutter:** `docs/datos/apariencia-app.md` y `docs/datos/puntos-360.md`.
+- **Recursos de la app en el panel:** `panel/public/app/` es copia de `app/assets` (`node panel/scripts/sincronizar-recursos-app.mjs`). Se escriben como `app://imagenes/…` y `app://videos/…`.
+- **Probado:**
+  - `tsc`, `eslint`, `next build` y `scripts/pruebas.mjs` pasan.
+  - 14 pruebas de `normalizarConfig` pasan: migración de la versión anterior, enlaces `javascript:` y rutas `file://` rechazados, campos por tipo.
+  - El ajuste afín es exacto con 3 puntos y rechaza puntos en línea.
+  - En el navegador, con datos de ejemplo: arrastrar, redimensionar, girar, deshacer, escribir en el lienzo, agregar y borrar, pestañas, editor de nodos y estados del minimapa, formas y animaciones 360°, arrastre de puntos y descartar cambios.
+- **Falta:** probar con la sesión real (guardar en Neon) y hacer push. La rama local `plataforma` tiene la historia sin el trailer de coautoría; el usuario debe correr `git push --force-with-lease origin plataforma informativa`. Luego se promueve a producción.
+
+## 2026-11-04 · Producción, ramas y minimapa del dron
+
+- **Producción pública:** https://unipaz360-panel.vercel.app. Se promovió la rama `plataforma` y todas las variables quedaron en el entorno *Production*. Se entra solo con Google `@unipaz.edu.co` autorizado.
+- **Ramas:** quedan solo `main` (app y datos), `plataforma` (panel) e `informativa` (este vault, sin la carpeta `convertido md` por derechos de autor). Las demás se archivaron como etiquetas `archivo/<rama>` y se borraron. El PR #34 se cerró, reemplazado por `plataforma`.
+- **Cómo publicar en producción:**
+  1. Push a `plataforma`, que crea una vista previa en https://unipaz360-panel-git-plataforma-mamalon104366s-projects.vercel.app
+  2. `vercel promote <url de la vista previa>`
+- **Cliente:**
+  - El minimapa usa la foto del dron del proyecto (`public/marca/mapa-dron.jpg`; en la config se guarda `app://mapa-dron`) o una subida, con zoom, giro, encuadre y opacidad.
+  - Hay tamaños ajustables (alto del encabezado, ancho de la barra, tamaño del minimapa, escala de textos).
+  - El encabezado, la barra y el minimapa se pueden ocultar con botones, con la opción de que empiecen ocultos.
+  - La vista previa usa el visor 360° esférico.
+- **URIs de Google a registrar:** localhost:3060, la vista previa de `plataforma` y `https://unipaz360-panel.vercel.app/api/sesion/google/callback`.
+
 ## 2026-11-04 · Ingreso con Google, apartado Cliente y navegación por áreas (commit `1e456cb`)
 
 - **Ingreso solo con Google:** OAuth con flujo de código, `state` y `nonce`. Solo entran cuentas `@unipaz.edu.co` verificadas **y** autorizadas en "Cuentas y roles"; por ahora la única es `esteban.merlanoqu@unipaz.edu.co`. Se retiraron las contraseñas.

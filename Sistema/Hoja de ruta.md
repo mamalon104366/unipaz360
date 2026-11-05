@@ -41,6 +41,13 @@ tags: [unipaz360, sistema, roadmap]
 | 11 | **Analítica de producto** | Qué rutas/espacios más se buscan | F4 |
 | 12 | **Presupuesto de impresión de QR** | Placas resistentes: costo real fuera del backlog | F2/F3 |
 
+## Plan vigente para las apps (noviembre de 2026)
+
+Dos planes que avanzan juntos, todo **sin internet** en el teléfono:
+
+- **Actualizaciones** ([[Flujo de actualización (plataforma → apps)]] · [[Plan de trabajo - actualizaciones]]): **A** servidor para las apps → **B** núcleo del paquete en Flutter → **C** aviso y ajustes → **D** plataformas → **E** canal de pruebas → **F** la app se ve como el apartado Cliente → **G** refuerzo.
+- **Guía y chatbot** ([[Plan de trabajo - guía y chatbot]]): **R1** motor de rutas y **H1** motor del asistente (al tiempo con A y B) → **H2** chat en la app → **H3** capa «Asistente» en el apartado Cliente → **H4** conocimiento editable desde la plataforma.
+
 ## Riesgos principales
 
 | Riesgo | Mitigación |
@@ -52,6 +59,8 @@ tags: [unipaz360, sistema, roadmap]
 | Permisos de dron | Empezar con ortomosaico satelital libre; dron como fase aparte |
 | Pérdida de datos | PITR + respaldos diarios + paquetes inmutables |
 | Privacidad (personas en fotos/videos) | Difuminar personas; regla de publicación |
+| Datos servidos desde `r2.dev` (con límites) | Dominio propio en Cloudflare (D11) antes de publicar las apps |
+| Identificador de la app que no se puede cambiar | Decidirlo (D12) antes de la primera publicación en Google Play |
 
 ## Presupuesto global estimado
 

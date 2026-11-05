@@ -11,6 +11,10 @@ El MVP del curso **no cambia**: sigue el backlog y los Hitos del [[00 UniPaz360 
 | Nota | Qué contiene |
 |---|---|
 | ⭐ [[Visión consolidada (nov-2026)]] | **Plan vigente**: app cliente + plataforma editora del tour (nodos, rutas, 360°, edición, anuncios), plataformas, diagnóstico del código y cambios al documento |
+| 🔄 [[Flujo de actualización (plataforma → apps)]] | Cómo un cambio de la plataforma llega a Android, web y Windows (después macOS e iOS): versiones, motor de la app, cada plataforma y fallas previstas |
+| 🗺️ [[Plan de trabajo - actualizaciones]] | Fases A a G con tareas, archivos, pruebas y propuestas para el tablero |
+| 💬 [[Plan de trabajo - guía y chatbot]] | La guía sin conexión: motor de rutas y chatbot que te lleva al lugar (fases R1 y H1 a H4) |
+| 🎨 [[Marca y logo]] | Archivos maestros del logo, dónde va en cada plataforma y qué hacer cuando llegue |
 | [[Ingeniería inversa de Google Maps]] | Cómo funciona Google Maps por dentro (tiles, grafos, rutas, Street View) y su traducción a UniPaz360 con herramientas libres |
 | [[Arquitectura general]] | Piezas del sistema, monorepo, tecnologías, entornos, CI/CD y seguridad |
 | [[Datos y publicación]] | Modelo de datos en PostgreSQL, paquete offline v2, botón «Enviar a producción», versiones y reversión |
@@ -47,5 +51,10 @@ El MVP del curso **no cambia**: sigue el backlog y los Hitos del [[00 UniPaz360 
 | D7 | Dron | Definir quién vuela y permisos (UAEAC) antes de volar |
 | D8 | ¿La app es para invitados o con cuenta? | **Ambas.** El invitado ve mapa, rutas, 360°, chatbot y reportes; el correo institucional (`@unipaz.edu.co`) agrega horarios de salones y calendario. ✅ **Decidido** |
 | D9 | ¿Dónde vive el esquema de la base central? | Carpeta `db/` con migraciones versionadas aplicadas a Neon (PostgreSQL + PostGIS). ✅ **Hecho** (migración 0001) |
+| D10 | ¿La producción del panel sale al fusionar a `main` o directo de `plataforma`? | Al fusionar a `main` (ver [[Flujo de actualización (plataforma → apps)]]) |
+| D11 | Dominio propio para los datos que bajan las apps | `datos.<dominio>` en Cloudflare, antes de publicar las apps |
+| D12 | Identificador definitivo de la app (hoy `co.edu.unipaz.dam.unipaz360`) | `co.edu.unipaz.unipaz360`, antes de la primera publicación en Google Play |
+| D13 | Distribución en Windows | Microsoft Store o MSIX propio con `.appinstaller` |
+| D14 | ¿Canal de pruebas desde el primer día? | Sí |
 
 Volver a [[00 UniPaz360 - Índice]]

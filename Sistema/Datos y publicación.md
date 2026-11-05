@@ -63,9 +63,12 @@ unipaz360-2026.11.1/
 └── version.json       ← puntero a la última
 ```
 
-En el teléfono: `paquete-actual/` + `paquete-anterior/` (reversión) + `descargas/` (en curso).
+En el teléfono: `paquete-actual/` + `paquete-anterior/` (reversión) + `descargas/` (en curso). Se refina con un puntero `actual.json`: ver [[Flujo de actualización (plataforma → apps)#Carpetas en el dispositivo]].
 
 ## El botón «Enviar a producción»
+
+> [!info] Actualizado (noviembre de 2026)
+> La publicación ya la hace la **plataforma**, no un GitHub Action: valida, construye `datos.sqlite`, sube el paquete inmutable a R2 y mueve `version.json` de último. El recorrido completo hasta las apps, con lo que falta del lado de Flutter, está en [[Flujo de actualización (plataforma → apps)]].
 
 ```
 Panel: Publicar (v2026.11.2, notas) → fila en PUBLICACION

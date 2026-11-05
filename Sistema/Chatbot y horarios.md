@@ -3,6 +3,9 @@ tags: [unipaz360, sistema, chatbot]
 ---
 # Chatbot y horarios
 
+> [!todo] Plan para construirlo (noviembre de 2026)
+> El paso a paso del motor de rutas, el asistente y su conexión con la plataforma está en [[Plan de trabajo - guía y chatbot]]. El chatbot **nunca usa la red**.
+
 > «Una IA súper low que haga cosas básicas y funcione sin internet». Traducción correcta: **motor de intenciones + reglas + búsqueda difusa**, 100 % offline, predecible y testeable. Detalle extenso: `docs/plan/06-chatbot-y-horarios.md`.
 
 ## Principio de diseño

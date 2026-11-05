@@ -29,6 +29,7 @@ tags: [unipaz360, indice]
 - 🧭 [[00 Sistema - Índice|Sistema — Índice]]: plan técnico completo (cliente Flutter + panel de administración + datos)
 - [[Ingeniería inversa de Google Maps]] · [[Arquitectura general]] · [[Datos y publicación]]
 - [[Cliente Flutter]] · [[Plataforma de administración]] · [[Chatbot y horarios]] · [[Hoja de ruta]]
+- 🔄 [[Flujo de actualización (plataforma → apps)]] · [[Plan de trabajo - actualizaciones]] · [[Plan de trabajo - guía y chatbot]] · [[Marca y logo]]: cómo llega cada cambio de la plataforma a Android, web y Windows, la guía sin conexión con chatbot y el logo
 - 📓 [[Bitácora del repositorio]]: qué se ha agregado al código y cuándo
 
 ## Funciones de la app
