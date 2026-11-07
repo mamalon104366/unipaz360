@@ -24,6 +24,14 @@ comandos absolutos `M`, `L`, `C` y `Z`, que es lo que entienden el script y la a
 > Si la institución entrega el logo en vector, se reemplazan estos maestros y se vuelve a correr
 > el script. Nada más cambia.
 
+## Logo de Google
+
+`app/assets/marca/google-g.png` y `panel/public/marca/google-g.png` son la «G» oficial de los botones
+«Continuar con Google». Se recortó del paquete que publica Google (`signin-assets.zip`, PNG @4x, tema
+claro, sin texto, cuadrado) sin cambiarla: solo se quitó el marco del botón, que es blanco como los
+nuestros. No la genera el script. Desde 2025 la G de Google lleva degradados que el SVG oficial dibuja
+con efectos de Figma: por eso va en PNG.
+
 ## Colores
 
 | Tinta | Color | Dónde más se usa |

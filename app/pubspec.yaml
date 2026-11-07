@@ -38,6 +38,7 @@ flutter:
     - assets/videos/
     # La configuración por defecto del apartado Cliente (panel/scripts/config-app-flutter.mjs).
     - assets/config/
+    - assets/marca/
     # La semilla: el paquete con el que arranca la app sin internet (panel/scripts/semilla-app.mjs).
     - assets/paquete/
     - assets/paquete/medios/

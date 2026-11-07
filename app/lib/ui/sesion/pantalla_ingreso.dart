@@ -153,15 +153,14 @@ class _BotonGoogle extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // La marca oficial de Google se agrega cuando la institución
-              // registre el proyecto; por ahora va la "G" de la casa.
-              Text(
-                'G',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF4285F4),
-                ),
+              // La «G» oficial de Google, del paquete de recursos que Google publica para
+              // los botones de ingreso (signin-assets.zip, tema claro).
+              Image(
+                image: AssetImage('assets/marca/google-g.png'),
+                width: 20,
+                height: 20,
+                filterQuality: FilterQuality.medium,
+                excludeFromSemantics: true,
               ),
               SizedBox(width: 12),
               Text(
