@@ -97,7 +97,7 @@ export async function exportarDatos(): Promise<DatosPaquete> {
       `SELECT id, panoramica_id, tipo, yaw, pitch, titulo, texto, medio_id, url, destino_panoramica_id, espacio_id,
               to_char(vigente_desde AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS vigente_desde,
               to_char(vigente_hasta AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS vigente_hasta, estilo,
-              COALESCE(to_jsonb(punto_informacion) ->> 'audiencia', 'todos') AS audiencia
+              COALESCE(to_jsonb(punto_informacion) ->> 'audiencia', estilo ->> 'audiencia', 'todos') AS audiencia
          FROM punto_informacion WHERE campus_id = $1 ORDER BY id`,
     ),
     q<DatosPaquete['horarios'][number]>(

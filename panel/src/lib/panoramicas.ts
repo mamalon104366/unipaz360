@@ -269,13 +269,13 @@ export async function enlacesDe(p: Panoramica): Promise<Enlace[]> {
 const SELECT_PUNTO = `
   SELECT h.id, h.panoramica_id, h.tipo, h.yaw, h.pitch, h.titulo, h.texto, h.medio_id, m.url_publica AS medio_url,
          h.url, h.destino_panoramica_id, h.espacio_id, h.vigente_desde, h.vigente_hasta, h.estilo,
-         COALESCE(to_jsonb(h) ->> 'audiencia', 'todos') AS audiencia
+         COALESCE(to_jsonb(h) ->> 'audiencia', h.estilo ->> 'audiencia', 'todos') AS audiencia
     FROM punto_informacion h LEFT JOIN medio m ON m.id = h.medio_id`;
 
 /**
- * La columna `audiencia` llega con la migración 0005 (`db/migraciones`). Mientras no esté, los
- * puntos son para todos y solo se avisa si alguien intenta guardar uno institucional. Se guarda en
- * memoria solo el «sí»: así, apenas se aplique la migración, el panel la empieza a usar.
+ * La columna `audiencia` llega con la migración 0005 (`db/migraciones`). Mientras no esté, un punto
+ * institucional lo guarda dentro de `estilo` (`estilo.audiencia`) y se lee de ahí; la migración lo
+ * pasa a la columna. Se recuerda solo el «sí»: apenas se aplique, el panel empieza a usarla.
  */
 let conAudiencia = false;
 async function columnaAudiencia(c: Consultor) {
@@ -285,12 +285,11 @@ async function columnaAudiencia(c: Consultor) {
   return conAudiencia;
 }
 
-async function audienciaGuardable(c: Consultor, d: { audiencia: string }) {
+/** Lo que se guarda: la columna si existe; si no, `estilo` lleva la audiencia cuando es institucional. */
+async function paraGuardar(c: Consultor, d: { audiencia: string; estilo: Estilo }) {
   const hay = await columnaAudiencia(c);
-  if (!hay && d.audiencia === 'institucional') {
-    throw new ErrorDatos('Para guardar «Solo con cuenta institucional» falta aplicar la migración 0005 en la base de datos (cd db && node migrar.mjs).');
-  }
-  return hay;
+  const estilo = hay || d.audiencia !== 'institucional' ? d.estilo : { ...d.estilo, audiencia: d.audiencia };
+  return { hay, estilo: JSON.stringify(estilo) };
 }
 
 export async function listarPuntos(panoramicaId: string): Promise<Punto[]> {
@@ -359,7 +358,7 @@ export async function crearPunto(u: Usuario, panoramicaId: string, datos: Partia
   return transaccion(async (c) => {
     await obtenerPanoramica(panoramicaId, c);
     await validarDestino(c, panoramicaId, d);
-    const hay = await audienciaGuardable(c, d);
+    const { hay, estilo } = await paraGuardar(c, d);
     const id = await siguienteId(c, 'punto');
     await c.query(
       `INSERT INTO punto_informacion (id, campus_id, panoramica_id, tipo, yaw, pitch, titulo, texto, medio_id, url,
@@ -380,7 +379,7 @@ export async function crearPunto(u: Usuario, panoramicaId: string, datos: Partia
         d.espacio_id,
         d.vigente_desde,
         d.vigente_hasta,
-        JSON.stringify(d.estilo),
+        estilo,
         ...(hay ? [d.audiencia] : []),
       ],
     );
@@ -396,7 +395,7 @@ export async function actualizarPunto(u: Usuario, id: string, datos: Partial<Pun
     if (!a.rows[0]) throw new ErrorDatos('El punto no existe.', 404);
     const d = limpiarPunto({ ...a.rows[0], ...datos });
     await validarDestino(c, a.rows[0].panoramica_id, d);
-    const hay = await audienciaGuardable(c, d);
+    const { hay, estilo } = await paraGuardar(c, d);
     await c.query(
       `UPDATE punto_informacion SET tipo = $2, yaw = $3, pitch = $4, titulo = $5, texto = $6, medio_id = $7, url = $8,
               destino_panoramica_id = $9, espacio_id = $10, vigente_desde = $11, vigente_hasta = $12, estilo = $13${hay ? ', audiencia = $14' : ''}
@@ -414,7 +413,7 @@ export async function actualizarPunto(u: Usuario, id: string, datos: Partial<Pun
         d.espacio_id,
         d.vigente_desde,
         d.vigente_hasta,
-        JSON.stringify(d.estilo),
+        estilo,
         ...(hay ? [d.audiencia] : []),
       ],
     );

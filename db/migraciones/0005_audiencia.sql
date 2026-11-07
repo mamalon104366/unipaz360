@@ -10,5 +10,9 @@ ALTER TABLE punto_informacion
     ADD COLUMN audiencia TEXT NOT NULL DEFAULT 'todos'
         CHECK (audiencia IN ('todos', 'institucional'));
 
+-- Antes de esta migración el panel guardaba la audiencia dentro de `estilo`: se pasa a la columna.
+UPDATE punto_informacion SET audiencia = 'institucional' WHERE estilo ->> 'audiencia' = 'institucional';
+UPDATE punto_informacion SET estilo = estilo - 'audiencia' WHERE estilo ? 'audiencia';
+
 COMMENT ON COLUMN punto_informacion.audiencia IS
     'Quién lo ve en la app: todos, o institucional (solo con la cuenta @unipaz.edu.co).';

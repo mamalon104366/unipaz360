@@ -63,9 +63,9 @@ Con "reducir movimiento" activado en el sistema, las animaciones se apagan.
 ## Quién lo ve (`audiencia`)
 
 `todos` (por defecto) o `institucional`: el punto solo se dibuja para quien entró con la cuenta
-`@unipaz.edu.co`. Columna de la migración `0005_audiencia.sql`. Mientras la base no la tenga, el panel
-trata todos los puntos como `todos` y no deja guardar uno institucional (lo avisa). Detalle y límites
-en `apariencia-app.md`, «Quién lo ve».
+`@unipaz.edu.co`. Es una columna de la migración `0005_audiencia.sql`. Mientras la base no la tenga, el
+panel la guarda dentro de `estilo` (`estilo.audiencia`) y la lee de ahí; la migración la pasa a la
+columna. En el paquete siempre va en la columna. Detalle y límites en `apariencia-app.md`, «Quién lo ve».
 
 ## «Ir a» otra foto
 
