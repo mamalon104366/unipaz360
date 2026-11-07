@@ -7,6 +7,7 @@
  * ANCHO_PAGINA unidades de ancho: la app multiplica todo por (ancho real del panel / 1000),
  * así se ve igual en el celular, en Windows y en la web. Contrato: docs/datos/apariencia-app.md
  */
+import { AUDIENCIAS, type Audiencia } from './audiencia';
 import { paginaInicial } from './paginasIniciales';
 
 export const ICONOS_SECCION = ['info', 'video', 'escuela', 'orbita', 'mapa', 'ruta', 'calendario', 'estrella'] as const;
@@ -57,6 +58,8 @@ export interface Elemento {
   opacidad: number;
   bloqueado: boolean;
   oculto: boolean;
+  /** Quién lo ve en la app: todos, o solo con la cuenta institucional (falta = todos). */
+  audiencia?: Audiencia;
   // Texto y botón
   texto?: string;
   fuente?: 'sans' | 'serif';
@@ -232,7 +235,7 @@ export const enlaceValido = (v: unknown): v is string =>
 
 /** Valores por defecto de cada tipo de elemento. */
 export function elementoBase(tipo: TipoElemento): Omit<Elemento, 'id'> {
-  const comun = { tipo, nombre: ETIQUETA_ELEMENTO[tipo], x: 50, y: 40, rotacion: 0, opacidad: 1, bloqueado: false, oculto: false };
+  const comun = { tipo, nombre: ETIQUETA_ELEMENTO[tipo], x: 50, y: 40, rotacion: 0, opacidad: 1, bloqueado: false, oculto: false, audiencia: 'todos' as const };
   const tipografia = { fuente: 'sans' as const, tamano: 18, peso: 400 as const, cursiva: false, mayusculas: false, color: '#1c1c1f', alineacion: 'izquierda' as const, interlineado: 1.4 };
   switch (tipo) {
     case 'texto':
@@ -267,6 +270,7 @@ export function normalizarElemento(e: Partial<Elemento> | null | undefined, i: n
     opacidad: red(num(x.opacidad, 0, 1, 1)),
     bloqueado: bool(x.bloqueado, false),
     oculto: bool(x.oculto, false),
+    audiencia: uno(x.audiencia, AUDIENCIAS, 'todos'),
   };
   if (tipo === 'texto' || tipo === 'boton') {
     r.texto = typeof x.texto === 'string' ? x.texto.slice(0, 4000) : b.texto;

@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { Play } from 'lucide-react';
+import { GraduationCap, Play } from 'lucide-react';
 import { ANCHO_PAGINA, type Elemento, type PestanaPagina } from '@/lib/configApp';
 import { cajaDe, MARGEN, type Caja } from './operaciones';
 import { urlRecurso } from './recursos';
@@ -180,6 +180,7 @@ export function LienzoPagina({
   editandoTexto,
   alEditarTexto,
   alActivar,
+  verComo = 'institucional',
 }: {
   pestana: PestanaPagina;
   k: number;
@@ -191,6 +192,8 @@ export function LienzoPagina({
   editandoTexto: string | null;
   alEditarTexto: (id: string | null) => void;
   alActivar?: (enlace: string) => void;
+  /** Como invitado no se ven los elementos solo para la cuenta institucional (al editar, se atenúan). */
+  verComo?: 'invitado' | 'institucional';
 }) {
   const raiz = useRef<HTMLDivElement>(null);
   const arrastre = useRef<Arrastre | null>(null);
@@ -198,7 +201,8 @@ export function LienzoPagina({
   const ultimoToque = useRef<{ id: string; t: number } | null>(null);
   const [guias, setGuias] = useState<Guias>({ x: [], y: [] });
   const [marquesina, setMarquesina] = useState<Caja | null>(null);
-  const visibles = pestana.elementos.filter((e) => !e.oculto);
+  const paraInvitado = (e: Elemento) => verComo === 'institucional' || e.audiencia !== 'institucional';
+  const visibles = pestana.elementos.filter((e) => !e.oculto && (editable || paraInvitado(e)));
   const unico = seleccion.length === 1 ? pestana.elementos.find((e) => e.id === seleccion[0] && !e.oculto) : undefined;
 
   const punto = (ev: { clientX: number; clientY: number }) => {
@@ -380,10 +384,15 @@ export function LienzoPagina({
             width: e.ancho * k,
             height: e.alto * k,
             transform: e.rotacion ? `rotate(${e.rotacion}deg)` : undefined,
-            opacity: e.opacidad,
+            opacity: paraInvitado(e) ? e.opacidad : e.opacidad * 0.35,
             cursor: editable && !e.bloqueado ? 'move' : undefined,
           }}
         >
+          {editable && e.audiencia === 'institucional' && (
+            <span className="pointer-events-none absolute -left-2 -top-2 z-10 grid h-5 w-5 place-items-center rounded-full bg-riel text-white shadow" title="Solo con cuenta institucional">
+              <GraduationCap size={11} />
+            </span>
+          )}
           {editandoTexto === e.id ? (
             <textarea
               autoFocus

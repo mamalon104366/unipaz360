@@ -56,6 +56,7 @@ export interface DatosPaquete {
     vigente_desde: string | null;
     vigente_hasta: string | null;
     estilo: unknown;
+    audiencia: string;
   }[];
   horarios: { id: string; espacio_id: string; dia: number; hora_inicio: string; hora_fin: string; materia: string | null; programa: string | null; semestre: number | null; grupo: string | null; docente: string | null }[];
   calendario: { fecha: string; tipo: string; descripcion: string | null }[];
@@ -95,7 +96,8 @@ export async function exportarDatos(): Promise<DatosPaquete> {
     q<DatosPaquete['puntos'][number]>(
       `SELECT id, panoramica_id, tipo, yaw, pitch, titulo, texto, medio_id, url, destino_panoramica_id, espacio_id,
               to_char(vigente_desde AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS vigente_desde,
-              to_char(vigente_hasta AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS vigente_hasta, estilo
+              to_char(vigente_hasta AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS vigente_hasta, estilo,
+              COALESCE(to_jsonb(punto_informacion) ->> 'audiencia', 'todos') AS audiencia
          FROM punto_informacion WHERE campus_id = $1 ORDER BY id`,
     ),
     q<DatosPaquete['horarios'][number]>(

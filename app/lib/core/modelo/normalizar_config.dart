@@ -257,6 +257,7 @@ ElementoPagina normalizarElemento(Object? crudo, int i) {
     opacidad: _red(_num(x['opacidad'], 0, 1, 1)),
     bloqueado: _bool(x['bloqueado'], false),
     oculto: _bool(x['oculto'], false),
+    audiencia: _uno(x['audiencia'], audiencias, 'todos'),
     texto: esTexto
         ? (x['texto'] is String
               ? _cortar(x['texto']! as String, 4000)

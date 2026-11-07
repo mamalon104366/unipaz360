@@ -33,6 +33,19 @@ const casos = [
   {},
   { marca: { nombre: '   ', subtitulo: 'x'.repeat(120), colorPrimario: '#ABCDEF', colorAcento: 'verde' }, interfaz: { escala: 3 } },
   // El encabezado ya no existe: se ignora. mostrarLogo solo acepta booleanos.
+  // Quién ve cada elemento: solo 'institucional' cambia algo; lo demás es para todos.
+  {
+    paginas: {
+      nosotros: {
+        pestanas: [
+          {
+            titulo: 'Audiencias',
+            elementos: [el({ audiencia: 'institucional' }), el({ id: 'b', audiencia: 'estudiantes' }), el({ id: 'c', tipo: 'video', audiencia: 'todos' }), el({ id: 'd', tipo: 'imagen' })],
+          },
+        ],
+      },
+    },
+  },
   { encabezado: { titulo: '  Hola  ', alto: 10, estilo: 'neón', mostrarLogo: 'si', plegable: false }, barraLateral: { mostrarLogo: 'si', ancho: 5 }, inicio: { pantalla: 'mapa', textoBoton: 'Volver al inicio del recorrido completo', bienvenida: '' } },
   {
     barraLateral: {

@@ -91,7 +91,8 @@ subrayado de 3 dp en la activa); con una sola, no.
 
 Campos comunes: `id`, `tipo`, `nombre`, `x`, `y`, `ancho`, `alto` (unidades de
 diseño), `rotacion` (grados, alrededor del centro), `opacidad` (0–1),
-`bloqueado` (solo para el editor) y `oculto` (no se dibuja).
+`bloqueado` (solo para el editor), `oculto` (no se dibuja) y `audiencia` (`todos` o `institucional`,
+ver «Quién lo ve»).
 
 | `tipo` | Campos propios |
 | ------ | -------------- |
@@ -114,6 +115,38 @@ diseño), `rotacion` (grados, alrededor del centro), `opacidad` (0–1),
 
 El contenido inicial de las páginas es el que ya tenía la app (Nosotros, Video
 institucional, Admisiones y Ubicación): `panel/src/lib/paginasIniciales.ts`.
+
+## Quién lo ve: todos o solo con la cuenta institucional
+
+Cada elemento de las páginas (`audiencia`) y cada punto de las fotos 360°
+(`punto_informacion.audiencia`) dice quién lo ve en la app:
+
+| Valor | En la app |
+| ----- | --------- |
+| `todos` (por defecto) | Lo ven todos, también los invitados. |
+| `institucional` | Solo quien entró con su correo `@unipaz.edu.co`. A los invitados no se les dibuja. |
+
+Lo que no se reconoce es `todos`. Las reglas están en `panel/src/lib/audiencia.ts` y, en la app, en
+`visibleEnApp()` (`lienzo_pagina.dart`) y `PuntoPanoramica.visiblePara()` (`recorrido.dart`).
+
+- **En el panel**: el control «Quién lo ve en la app» está en las propiedades de cada elemento y en
+  el formulario de cada punto. Los institucionales llevan un birrete en el lienzo, en la lista de capas
+  y en la lista de puntos.
+- **Vista previa**: el selector «Ver como» (Invitado o Cuenta institucional) muestra lo que ve cada
+  quien. Al editar, lo institucional se atenúa en vez de esconderse, para poder seleccionarlo.
+- **Botón de cuenta**: redondo, de 40 dp, junto al de buscar (o en su lugar si no hay buscador).
+  En la app abre la cuenta (entrar con la cuenta institucional o salir); con la cuenta institucional
+  muestra un birrete. Se oculta con una página abierta o el mapa maximizado.
+
+> [!WARNING]
+> **No es secreto.** El contenido institucional viaja en el paquete de datos, que se descarga sin
+> iniciar sesión: la app solo lo oculta a los invitados. Sirve para ordenar lo que ve cada quien, no
+> para información confidencial. Además, mientras no esté el ingreso con Google, la app acepta la
+> entrada temporal con un correo `@unipaz.edu.co` sin verificarlo.
+
+**Compatibilidad**: la columna es aditiva (no sube el esquema). La app la lee solo si el paquete la
+trae. Una app anterior a este cambio que reciba un paquete nuevo mostraría todo a todos: hoy no hay
+apps publicadas, pero si se publica una antes, hay que subir `app_minima`.
 
 ## Minimapa
 

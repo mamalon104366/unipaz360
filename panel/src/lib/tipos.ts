@@ -1,4 +1,5 @@
 /** Modelo de la plataforma tal como lo maneja el panel (espejo de `db/`). */
+import type { Audiencia } from './audiencia';
 
 // ------------------------------------------------------------------ grafo
 export const TIPOS_VERTICE = ['acceso', 'puerta', 'cruce', 'escalera', 'rampa', 'ascensor', 'referencia'] as const;
@@ -330,6 +331,8 @@ export interface Punto {
   vigente_desde: string | null;
   vigente_hasta: string | null;
   estilo: Estilo;
+  /** Quién lo ve en la app (`lib/audiencia.ts`). */
+  audiencia: Audiencia;
 }
 
 /** Flecha automática hacia una panorámica vecina (según los tramos del mapa). */

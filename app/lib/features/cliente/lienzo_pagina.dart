@@ -15,12 +15,22 @@ import '../visor360/animacion_punto.dart';
 import 'estilo_cliente.dart';
 import 'video_cliente.dart';
 
+/// ¿Se dibuja en la app? Los ocultos nunca; los institucionales, solo con esa cuenta.
+bool visibleEnApp(ElementoPagina e, {required bool institucional}) =>
+    !e.oculto && (institucional || e.audiencia != 'institucional');
+
 /// Alto que ocupa la pestaña: el lienzo o, si algo se sale por abajo, hasta ese elemento
 /// (en el panel el lienzo no recorta y el panel se desplaza hasta allí).
-double altoContenido(PestanaPagina p, double k) {
+double altoContenido(
+  PestanaPagina p,
+  double k, {
+  bool institucional = false,
+}) {
   var alto = p.alto * k;
   for (final e in p.elementos) {
-    if (!e.oculto) alto = math.max(alto, (e.y + e.alto) * k);
+    if (visibleEnApp(e, institucional: institucional)) {
+      alto = math.max(alto, (e.y + e.alto) * k);
+    }
   }
   return alto;
 }
@@ -33,6 +43,7 @@ class LienzoPagina extends StatelessWidget {
     required this.paquete,
     required this.hayRed,
     required this.alActivar,
+    this.institucional = false,
   });
 
   final PestanaPagina pestana;
@@ -45,12 +56,15 @@ class LienzoPagina extends StatelessWidget {
   /// Lo que hace un enlace (`https://…`, `seccion:<id>` o `panoramica:<id>`).
   final ValueChanged<String> alActivar;
 
+  /// Quien entró con la cuenta institucional también ve lo que es solo para esa cuenta.
+  final bool institucional;
+
   @override
   Widget build(BuildContext context) {
     final k = ancho / anchoPagina;
     return SizedBox(
       width: ancho,
-      height: altoContenido(pestana, k),
+      height: altoContenido(pestana, k, institucional: institucional),
       child: Stack(
         clipBehavior: Clip.none,
         children: <Widget>[
@@ -62,7 +76,7 @@ class LienzoPagina extends StatelessWidget {
             child: ColoredBox(color: colorHex(pestana.fondo)),
           ),
           for (final e in pestana.elementos)
-            if (!e.oculto)
+            if (visibleEnApp(e, institucional: institucional))
               Positioned(
                 key: ValueKey<String>(e.id),
                 left: e.x * k,

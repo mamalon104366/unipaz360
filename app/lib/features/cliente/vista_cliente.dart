@@ -25,12 +25,20 @@ class VistaCliente extends StatefulWidget {
     super.key,
     required this.paquete,
     this.comprobarRed = true,
+    this.institucional = false,
+    this.alAbrirCuenta,
   });
 
   final PaqueteLocal paquete;
 
   /// En las pruebas no se consulta la red.
   final bool comprobarRed;
+
+  /// Entró con la cuenta institucional: ve también lo que es solo para esa cuenta.
+  final bool institucional;
+
+  /// Abre la cuenta (entrar o salir). Sin ella no se muestra el botón de cuenta.
+  final VoidCallback? alAbrirCuenta;
 
   @override
   State<VistaCliente> createState() => _VistaClienteState();
@@ -184,6 +192,10 @@ class _VistaClienteState extends State<VistaCliente> {
           final rutas = _seccionRutas;
           final buscador =
               rutas != null && abierta == null && _estadoMapa != 'maximizado';
+          final cuenta =
+              widget.alAbrirCuenta != null &&
+              abierta == null &&
+              _estadoMapa != 'maximizado';
           final actual = _actual;
           final datos = widget.paquete.datos;
           final nodos = <String, NodoInfo>{
@@ -214,6 +226,7 @@ class _VistaClienteState extends State<VistaCliente> {
                         paquete: widget.paquete,
                         panoramica: actual,
                         reinicio: _reinicio,
+                        institucional: widget.institucional,
                         alIrA: _irA,
                         alTocarPunto: (p) => setState(() => _ficha = p),
                       ),
@@ -221,7 +234,7 @@ class _VistaClienteState extends State<VistaCliente> {
               if (c.minimapa.visible && abierta == null)
                 (_estadoMapa == 'maximizado'
                         ? m.areaLibre
-                        : m.minimapa(conBuscador: buscador))
+                        : m.minimapa(conBuscador: buscador || cuenta))
                     .ubicar(
                   child: MinimapaCliente(
                     config: c,
@@ -252,6 +265,7 @@ class _VistaClienteState extends State<VistaCliente> {
                     paquete: widget.paquete,
                     hayRed: _hayRed,
                     derecha: m.derecha,
+                    institucional: widget.institucional,
                     alCerrar: () => setState(() => _seccion = null),
                     alCambiarPestana: (id) => setState(() => _pestana = id),
                     alActivar: _activarEnlace,
@@ -280,6 +294,16 @@ class _VistaClienteState extends State<VistaCliente> {
                     alTocar: () => _abrirSeccion(rutas),
                   ),
                 ),
+              if (cuenta)
+                m
+                    .botonCuenta(conBuscador: buscador)
+                    .ubicar(
+                      child: BotonCuenta(
+                        config: c,
+                        institucional: widget.institucional,
+                        alTocar: widget.alAbrirCuenta!,
+                      ),
+                    ),
               if (c.barraLateral.mostrarLogo && !m.riel && m.anchoLogo > 0)
                 m.logo.ubicar(child: LogoBarra(config: c, medidas: m)),
               if (c.barraLateral.plegable && !(m.movil && abierta != null))

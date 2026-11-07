@@ -21,6 +21,7 @@ import {
   type Usuario,
   type VersionMedio,
 } from './tipos';
+import { audienciaValida } from './audiencia';
 
 const SELECT = `
   SELECT p.id, p.vertice_id, p.titulo, p.rumbo_inicial, p.ajustes, p.medio_id, p.actualizado_en,
@@ -267,8 +268,30 @@ export async function enlacesDe(p: Panoramica): Promise<Enlace[]> {
 
 const SELECT_PUNTO = `
   SELECT h.id, h.panoramica_id, h.tipo, h.yaw, h.pitch, h.titulo, h.texto, h.medio_id, m.url_publica AS medio_url,
-         h.url, h.destino_panoramica_id, h.espacio_id, h.vigente_desde, h.vigente_hasta, h.estilo
+         h.url, h.destino_panoramica_id, h.espacio_id, h.vigente_desde, h.vigente_hasta, h.estilo,
+         COALESCE(to_jsonb(h) ->> 'audiencia', 'todos') AS audiencia
     FROM punto_informacion h LEFT JOIN medio m ON m.id = h.medio_id`;
+
+/**
+ * La columna `audiencia` llega con la migración 0005 (`db/migraciones`). Mientras no esté, los
+ * puntos son para todos y solo se avisa si alguien intenta guardar uno institucional. Se guarda en
+ * memoria solo el «sí»: así, apenas se aplique la migración, el panel la empieza a usar.
+ */
+let conAudiencia = false;
+async function columnaAudiencia(c: Consultor) {
+  if (conAudiencia) return true;
+  const r = await c.query(`SELECT 1 FROM information_schema.columns WHERE table_name = 'punto_informacion' AND column_name = 'audiencia'`);
+  conAudiencia = !!r.rowCount;
+  return conAudiencia;
+}
+
+async function audienciaGuardable(c: Consultor, d: { audiencia: string }) {
+  const hay = await columnaAudiencia(c);
+  if (!hay && d.audiencia === 'institucional') {
+    throw new ErrorDatos('Para guardar «Solo con cuenta institucional» falta aplicar la migración 0005 en la base de datos (cd db && node migrar.mjs).');
+  }
+  return hay;
+}
 
 export async function listarPuntos(panoramicaId: string): Promise<Punto[]> {
   const r = await pool.query<Punto>(`${SELECT_PUNTO} WHERE h.panoramica_id = $1 ORDER BY h.id`, [panoramicaId]);
@@ -322,6 +345,7 @@ function limpiarPunto(d: Partial<Punto>) {
     vigente_desde: fecha(d.vigente_desde),
     vigente_hasta: fecha(d.vigente_hasta),
     estilo: limpiarEstilo(d.tipo as TipoPunto, d.estilo),
+    audiencia: audienciaValida(d.audiencia),
   };
   if (p.tipo === 'enlace' && !p.destino_panoramica_id) throw new ErrorDatos('Elige a qué panorámica lleva el «Ir a». Si todavía no hay otra, sube la foto 360° de otro nodo en el mapa.');
   if (p.tipo === 'espacio' && !p.espacio_id) throw new ErrorDatos('Elige el espacio.');
@@ -335,12 +359,30 @@ export async function crearPunto(u: Usuario, panoramicaId: string, datos: Partia
   return transaccion(async (c) => {
     await obtenerPanoramica(panoramicaId, c);
     await validarDestino(c, panoramicaId, d);
+    const hay = await audienciaGuardable(c, d);
     const id = await siguienteId(c, 'punto');
     await c.query(
       `INSERT INTO punto_informacion (id, campus_id, panoramica_id, tipo, yaw, pitch, titulo, texto, medio_id, url,
-                                      destino_panoramica_id, espacio_id, vigente_desde, vigente_hasta, estilo)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
-      [id, CAMPUS_ID, panoramicaId, d.tipo, d.yaw, d.pitch, d.titulo, d.texto, d.medio_id, d.url, d.destino_panoramica_id, d.espacio_id, d.vigente_desde, d.vigente_hasta, JSON.stringify(d.estilo)],
+                                      destino_panoramica_id, espacio_id, vigente_desde, vigente_hasta, estilo${hay ? ', audiencia' : ''})
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15${hay ? ', $16' : ''})`,
+      [
+        id,
+        CAMPUS_ID,
+        panoramicaId,
+        d.tipo,
+        d.yaw,
+        d.pitch,
+        d.titulo,
+        d.texto,
+        d.medio_id,
+        d.url,
+        d.destino_panoramica_id,
+        d.espacio_id,
+        d.vigente_desde,
+        d.vigente_hasta,
+        JSON.stringify(d.estilo),
+        ...(hay ? [d.audiencia] : []),
+      ],
     );
     const r = await c.query<Punto>(`${SELECT_PUNTO} WHERE h.id = $1`, [id]);
     await auditar(c, u, 'crear', 'punto', id, undefined, r.rows[0]);
@@ -354,10 +396,27 @@ export async function actualizarPunto(u: Usuario, id: string, datos: Partial<Pun
     if (!a.rows[0]) throw new ErrorDatos('El punto no existe.', 404);
     const d = limpiarPunto({ ...a.rows[0], ...datos });
     await validarDestino(c, a.rows[0].panoramica_id, d);
+    const hay = await audienciaGuardable(c, d);
     await c.query(
       `UPDATE punto_informacion SET tipo = $2, yaw = $3, pitch = $4, titulo = $5, texto = $6, medio_id = $7, url = $8,
-              destino_panoramica_id = $9, espacio_id = $10, vigente_desde = $11, vigente_hasta = $12, estilo = $13 WHERE id = $1`,
-      [id, d.tipo, d.yaw, d.pitch, d.titulo, d.texto, d.medio_id, d.url, d.destino_panoramica_id, d.espacio_id, d.vigente_desde, d.vigente_hasta, JSON.stringify(d.estilo)],
+              destino_panoramica_id = $9, espacio_id = $10, vigente_desde = $11, vigente_hasta = $12, estilo = $13${hay ? ', audiencia = $14' : ''}
+        WHERE id = $1`,
+      [
+        id,
+        d.tipo,
+        d.yaw,
+        d.pitch,
+        d.titulo,
+        d.texto,
+        d.medio_id,
+        d.url,
+        d.destino_panoramica_id,
+        d.espacio_id,
+        d.vigente_desde,
+        d.vigente_hasta,
+        JSON.stringify(d.estilo),
+        ...(hay ? [d.audiencia] : []),
+      ],
     );
     const r = await c.query<Punto>(`${SELECT_PUNTO} WHERE h.id = $1`, [id]);
     await auditar(c, u, 'actualizar', 'punto', id, a.rows[0], r.rows[0]);

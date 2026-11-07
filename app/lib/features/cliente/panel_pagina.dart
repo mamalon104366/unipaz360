@@ -26,10 +26,14 @@ class PanelPagina extends StatelessWidget {
     required this.alActivar,
     required this.rutas,
     required this.derecha,
+    this.institucional = false,
   });
 
   final ConfigApp config;
   final SeccionApp seccion;
+
+  /// Quien entró con la cuenta institucional también ve lo que es solo para esa cuenta.
+  final bool institucional;
   final String? pestanaId;
   final PaqueteLocal paquete;
   final bool hayRed;
@@ -164,6 +168,7 @@ class PanelPagina extends StatelessWidget {
                         paquete: paquete,
                         hayRed: hayRed,
                         alActivar: alActivar,
+                        institucional: institucional,
                       ),
                     ),
                   ),

@@ -94,6 +94,10 @@ El esquema vive en **[`db/esquema-local.sql`](../../db/esquema-local.sql)** (v2)
 `panoramica`, `enlace_panoramica`, `horario`, `calendario_academico`, `reporte`,
 y las tablas de búsqueda `espacio_fts` y `materia_fts` (FTS5).
 
+`punto_informacion.audiencia` (`todos` o `institucional`) llegó en noviembre de 2026 sin subir el
+esquema, porque es aditiva: la app la lee solo si la columna existe. Ver `apariencia-app.md`,
+«Quién lo ve».
+
 ## Columnas de los CSV (`datos/`)
 
 Separador `;`. Los encabezados y su significado:

@@ -60,6 +60,13 @@ Color por defecto según el tipo: información `#2563eb`, anuncio `#f59e0b`, ima
 
 Con "reducir movimiento" activado en el sistema, las animaciones se apagan.
 
+## Quién lo ve (`audiencia`)
+
+`todos` (por defecto) o `institucional`: el punto solo se dibuja para quien entró con la cuenta
+`@unipaz.edu.co`. Columna de la migración `0005_audiencia.sql`. Mientras la base no la tenga, el panel
+trata todos los puntos como `todos` y no deja guardar uno institucional (lo avisa). Detalle y límites
+en `apariencia-app.md`, «Quién lo ve».
+
 ## «Ir a» otra foto
 
 - El destino (`destino_panoramica_id`) tiene que existir y ser otra panorámica; el

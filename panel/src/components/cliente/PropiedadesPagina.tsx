@@ -18,6 +18,7 @@ import {
   Copy,
   Eye,
   EyeOff,
+  GraduationCap,
   Image as ImageIcon,
   ImageUp,
   Lock,
@@ -309,6 +310,20 @@ export function PropiedadesPagina({
                 {e.oculto ? <Eye size={14} /> : <EyeOff size={14} />} {e.oculto ? 'Mostrar' : 'Ocultar'}
               </button>
             </div>
+            <Opciones
+              etiqueta="Quién lo ve en la app"
+              valor={e.audiencia ?? 'todos'}
+              opciones={[
+                ['todos', 'Todos'],
+                ['institucional', 'Cuenta institucional'],
+              ]}
+              alCambiar={(v) => cambiar({ audiencia: v })}
+            />
+            {e.audiencia === 'institucional' && (
+              <p className="text-[12px] leading-snug text-tinta-tenue">
+                Lo ven quienes entran con su correo @unipaz.edu.co. No es secreto: viaja en el paquete de la app, así que no pongas información confidencial.
+              </p>
+            )}
           </Seccion>
 
           {(e.tipo === 'texto' || e.tipo === 'boton') && <Fuente e={e} cambiar={cambiar} />}
@@ -393,6 +408,11 @@ export function PropiedadesPagina({
                   <span className="min-w-0 flex-1 truncate" title={`${ETIQUETA_ELEMENTO[x.tipo]} · ${x.nombre}`}>
                     {x.nombre}
                   </span>
+                  {x.audiencia === 'institucional' && (
+                    <span title="Solo con cuenta institucional">
+                      <GraduationCap size={12} className="shrink-0 opacity-60" />
+                    </span>
+                  )}
                   <span className="flex opacity-0 transition group-hover:opacity-100">
                     <button
                       type="button"

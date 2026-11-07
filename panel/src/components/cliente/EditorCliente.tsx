@@ -39,6 +39,7 @@ import {
   Trash2,
   Type,
   Undo2,
+  UserRound,
   Video,
   X,
   Image as ImageIcon,
@@ -187,6 +188,8 @@ export function EditorCliente({
   const [seleccion, setSeleccion] = useState<string[]>([]);
   const [editandoTexto, setEditandoTexto] = useState<string | null>(null);
   const [visitante, setVisitante] = useState(!puedeEditar);
+  // Lo que ve en la app un invitado o quien entra con la cuenta institucional (`lib/audiencia.ts`).
+  const [verComo, setVerComo] = useState<'invitado' | 'institucional'>('institucional');
   const [editorMapa, setEditorMapa] = useState(false);
   const [subiendo, setSubiendo] = useState<number | null>(null);
   const portapapeles = useRef<PestanaPagina['elementos']>([]);
@@ -289,6 +292,7 @@ export function EditorCliente({
       m.setMarkers([
         ...actual.puntos
           .filter((p) => (!p.vigente_desde || new Date(p.vigente_desde).getTime() <= ahora) && (!p.vigente_hasta || new Date(p.vigente_hasta).getTime() >= ahora))
+          .filter((p) => verComo === 'institucional' || p.audiencia !== 'institucional')
           .map((p) =>
             marcadorDe(p, estiloDe(p), {
               id: `p:${p.id}`,
@@ -329,7 +333,7 @@ export function EditorCliente({
     return () => {
       vivo = false;
     };
-  }, [listo, actual, panoramicas]);
+  }, [listo, actual, panoramicas, verComo]);
 
   // ---------------------------------------------------------------- acciones
   async function guardar() {
@@ -512,12 +516,14 @@ export function EditorCliente({
   // El botón redondo de buscar abre la sección «Buscador de rutas» (si hay una visible).
   const seccionRutas = secciones.find((s) => s.tipo === 'rutas') ?? null;
   const buscador = !!seccionRutas && !seccionAbierta && estadoMapa !== 'maximizado';
+  // El botón de cuenta va junto al de buscar (en la app abre el inicio de sesión).
+  const cuenta = !seccionAbierta && estadoMapa !== 'maximizado';
   const ladoBoton = 40 * e * u;
   const posMapa: React.CSSProperties =
     c.minimapa.posicion === 'abajo-izquierda'
       ? { bottom: m12, left: derecha ? m12 : ocupado }
       : c.minimapa.posicion === 'arriba-derecha'
-        ? { top: buscador && !derecha ? m12 + ladoBoton + 10 * u : m12, right: derecha ? ocupado : m12 }
+        ? { top: (buscador || cuenta) && !derecha ? m12 + ladoBoton + 10 * u : m12, right: derecha ? ocupado : m12 }
         : { bottom: m12, right: derecha ? ocupado : m12 };
   const areaMapa: React.CSSProperties = { top: m12, bottom: m12, ...(derecha ? { left: m12, right: ocupado } : { left: ocupado, right: m12 }) };
   const colores = { primario: c.marca.colorPrimario, acento: c.marca.colorAcento };
@@ -574,6 +580,23 @@ export function EditorCliente({
                   onClick={() => setDispositivo(id)}
                   title={t}
                   className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-[13px] ${dispositivo === id ? 'vidrio font-medium' : 'text-tinta-suave'}`}
+                >
+                  <Icono size={15} /> <span className="hidden 2xl:inline">{t}</span>
+                </button>
+              ))}
+            </div>
+            <div className="hundido flex rounded-xl p-1">
+              {(
+                [
+                  ['invitado', UserRound, 'Invitado'],
+                  ['institucional', GraduationCap, 'Cuenta institucional'],
+                ] as const
+              ).map(([id, Icono, t]) => (
+                <button
+                  key={id}
+                  onClick={() => setVerComo(id)}
+                  title={`Ver como: ${t}`}
+                  className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-[13px] ${verComo === id ? 'vidrio font-medium' : 'text-tinta-suave'}`}
                 >
                   <Icono size={15} /> <span className="hidden 2xl:inline">{t}</span>
                 </button>
@@ -749,6 +772,18 @@ export function EditorCliente({
                 </button>
               )}
 
+              {/* Cuenta: en la app abre el inicio de sesión; aquí cambia «Ver como» */}
+              {cuenta && (
+                <button
+                  onClick={() => setVerComo((v) => (v === 'invitado' ? 'institucional' : 'invitado'))}
+                  title={verComo === 'invitado' ? 'Cuenta: invitado (en la app abre el inicio de sesión)' : 'Cuenta institucional (en la app abre el inicio de sesión)'}
+                  className={`pointer-events-auto absolute z-30 grid place-items-center rounded-full ${superficie(c.barraLateral.estilo)}`}
+                  style={{ width: ladoBoton, height: ladoBoton, top: m12, [derecha ? 'left' : 'right']: buscador ? m12 + ladoBoton + 8 * u : m12 }}
+                >
+                  {verComo === 'invitado' ? <UserRound size={18 * e * u} /> : <GraduationCap size={18 * e * u} />}
+                </button>
+              )}
+
               {/* Minimapa */}
               {c.minimapa.visible && !seccionAbierta && (
                 <MinimapaVista
@@ -852,6 +887,7 @@ export function EditorCliente({
                           h.cortar();
                         }}
                         alActivar={activarEnlace}
+                        verComo={verComo}
                       />
                     ) : (
                       <RutasApp u={u} escala={c.interfaz.escala} />

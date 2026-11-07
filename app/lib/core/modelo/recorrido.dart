@@ -239,6 +239,7 @@ class PuntoPanoramica {
     this.vigenteDesde,
     this.vigenteHasta,
     required this.estilo,
+    this.audiencia = 'todos',
   });
 
   final String id;
@@ -259,6 +260,13 @@ class PuntoPanoramica {
   final EstiloPunto estilo;
 
   /// Los anuncios con fecha solo se ven dentro de su vigencia.
+  /// `todos` o `institucional`: solo quien entra con la cuenta @unipaz.edu.co.
+  final String audiencia;
+
+  /// Los puntos institucionales no se muestran a los invitados.
+  bool visiblePara({required bool institucional}) =>
+      institucional || audiencia != 'institucional';
+
   bool vigenteEn(DateTime ahora) =>
       (vigenteDesde == null || !vigenteDesde!.isAfter(ahora)) &&
       (vigenteHasta == null || !vigenteHasta!.isBefore(ahora));

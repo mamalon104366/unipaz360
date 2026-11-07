@@ -123,6 +123,10 @@ const List<SeccionApp> seccionesPorDefecto = <SeccionApp>[
 
 /// Un elemento del lienzo. Los campos propios de cada tipo son `null` en los demás tipos
 /// (igual que en el panel, donde no existen).
+/// Quién ve un contenido en la app (`lib/audiencia.ts` del panel): `todos`, o `institucional`
+/// para quien entra con la cuenta @unipaz.edu.co. Lo que no se reconoce es para todos.
+const List<String> audiencias = <String>['todos', 'institucional'];
+
 class ElementoPagina {
   const ElementoPagina({
     required this.id,
@@ -136,6 +140,7 @@ class ElementoPagina {
     required this.opacidad,
     required this.bloqueado,
     required this.oculto,
+    this.audiencia = 'todos',
     this.texto,
     this.fuente,
     this.tamano,
@@ -175,6 +180,9 @@ class ElementoPagina {
   final double opacidad;
   final bool bloqueado;
   final bool oculto;
+
+  /// `todos` o `institucional` (ver [audiencias]).
+  final String audiencia;
 
   // Texto y botón.
   final String? texto;
@@ -232,6 +240,7 @@ class ElementoPagina {
     opacidad: opacidad,
     bloqueado: bloqueado,
     oculto: oculto,
+    audiencia: audiencia,
     texto: texto,
     fuente: fuente,
     tamano: tamano,
@@ -268,6 +277,7 @@ class ElementoPagina {
     'opacidad': opacidad,
     'bloqueado': bloqueado,
     'oculto': oculto,
+    'audiencia': audiencia,
     if (texto != null) 'texto': texto,
     if (fuente != null) 'fuente': fuente,
     if (tamano != null) 'tamano': tamano,

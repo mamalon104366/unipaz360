@@ -15,6 +15,7 @@ import {
   Crosshair,
   Eye,
   Footprints,
+  GraduationCap,
   Hand,
   Info,
   MapPinPlus,
@@ -51,6 +52,7 @@ import {
   type Punto,
   type TipoPunto,
 } from '@/lib/tipos';
+import type { Audiencia } from '@/lib/audiencia';
 import { estiloDe, marcadorDe, tintaSobre, type CacheCapas } from './capas';
 import { aFoto, aVista, type Posicion } from './correccion';
 import { grados, normalizar, rad, urlMedio } from './medio';
@@ -78,6 +80,7 @@ interface DatosPunto {
   vigente_desde: string;
   vigente_hasta: string;
   estilo: Estilo;
+  audiencia: Audiencia;
 }
 
 interface Edicion {
@@ -132,6 +135,7 @@ function datosDe(p: Partial<Punto> & { tipo: TipoPunto }, otras: OtraPanoramica[
     vigente_desde: aLocal(p.vigente_desde),
     vigente_hasta: aLocal(p.vigente_hasta),
     estilo: estiloDe(p),
+    audiencia: p.audiencia ?? 'todos',
   };
 }
 
@@ -147,6 +151,7 @@ function aEnvio(d: DatosPunto): Partial<Punto> {
     vigente_desde: d.vigente_desde ? new Date(d.vigente_desde).toISOString() : null,
     vigente_hasta: d.vigente_hasta ? new Date(d.vigente_hasta).toISOString() : null,
     estilo: d.estilo,
+    audiencia: d.audiencia,
   };
 }
 
@@ -806,6 +811,11 @@ export function EditorPanoramica({
                           </span>
                           {actual && puntoSucio && <span className="h-2 w-2 shrink-0 rounded-full bg-alerta" title="Sin guardar" />}
                           {v && <span className={`chip ${v.clase}`}>{v.texto}</span>}
+                          {p.audiencia === 'institucional' && (
+                            <span className="chip bg-black/5 text-tinta-suave" title="Solo con cuenta institucional">
+                              <GraduationCap size={12} />
+                            </span>
+                          )}
                         </button>
                       </li>
                     );
@@ -1261,6 +1271,17 @@ function FormPunto({
           </Campo>
         </div>
       )}
+      <Campo etiqueta="Quién lo ve en la app">
+        <select value={f.audiencia} onChange={(ev) => set('audiencia', ev.target.value as Audiencia)} className="campo">
+          <option value="todos">Todos</option>
+          <option value="institucional">Solo con cuenta institucional</option>
+        </select>
+        {f.audiencia === 'institucional' && (
+          <p className="mt-1.5 text-[12px] leading-snug text-tinta-tenue">
+            Lo ven quienes entran con su correo @unipaz.edu.co. No es secreto: viaja en el paquete de la app, así que no pongas información confidencial.
+          </p>
+        )}
+      </Campo>
 
       <div className="space-y-3.5 rounded-2xl bg-black/[0.03] p-3">
         <div className="text-[13px] font-medium">Cómo se ve en la foto</div>

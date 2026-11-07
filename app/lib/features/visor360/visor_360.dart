@@ -42,6 +42,7 @@ class Visor360 extends StatefulWidget {
     required this.alIrA,
     required this.alTocarPunto,
     this.reinicio = 0,
+    this.institucional = false,
   });
 
   final PaqueteLocal paquete;
@@ -55,6 +56,9 @@ class Visor360 extends StatefulWidget {
 
   /// Cuando cambia, la vista vuelve a su encuadre inicial (botón de inicio).
   final int reinicio;
+
+  /// Los puntos institucionales solo se ven con esa cuenta.
+  final bool institucional;
 
   @override
   State<Visor360> createState() => _Visor360State();
@@ -257,6 +261,7 @@ class _Visor360State extends State<Visor360>
     for (final punto
         in widget.paquete.datos.puntos[p.id] ?? const <PuntoPanoramica>[]) {
       if (!punto.vigenteEn(ahora)) continue;
+      if (!punto.visiblePara(institucional: widget.institucional)) continue;
       final vista = aVista(punto.yaw, punto.pitch, a.inclinacion, a.alabeo);
       void tocar() {
         if (punto.tipo == 'enlace' && punto.destinoPanoramicaId != null) {

@@ -142,10 +142,11 @@ CREATE TABLE punto_informacion (
     espacio_id             TEXT REFERENCES espacio(id),
     vigente_desde          TEXT,              -- ISO 8601; la app oculta el punto fuera de su vigencia
     vigente_hasta          TEXT,
-    estilo                 TEXT               -- JSON: {forma, ancho, alto, rotacion{yaw,pitch,roll}, animacion}; ancho angular (rad) ≈ ancho/1000
+    estilo                 TEXT,              -- JSON: {forma, ancho, alto, rotacion{yaw,pitch,roll}, animacion}; ancho angular (rad) ≈ ancho/1000
+    audiencia              TEXT NOT NULL DEFAULT 'todos'  -- 'todos' o 'institucional': la app lo oculta a los invitados
 );
 
--- v3: apariencia de la app (marca, colores, encabezado, barra lateral…), editada en el panel.
+-- v3: apariencia de la app (marca, colores, barra lateral, minimapa y páginas), editada en el panel.
 CREATE TABLE configuracion_app (
     clave  TEXT PRIMARY KEY,      -- 'app'
     valor  TEXT NOT NULL          -- JSON (ver panel/src/lib/tipos.ts → ConfigApp)

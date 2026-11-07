@@ -268,9 +268,13 @@ class DatosPaquete {
         ),
     ];
     final puntos = <String, List<PuntoPanoramica>>{};
+    // `audiencia` es aditiva (los paquetes viejos no la traen): se lee solo si está.
+    final conAudiencia = db
+        .select('PRAGMA table_info(punto_informacion)')
+        .any((c) => c['name'] == 'audiencia');
     for (final f in db.select(
-      'SELECT id, panoramica_id, tipo, yaw, pitch, titulo, texto, medio_id, url, destino_panoramica_id, espacio_id, vigente_desde, vigente_hasta, estilo '
-      'FROM punto_informacion ORDER BY id',
+      'SELECT id, panoramica_id, tipo, yaw, pitch, titulo, texto, medio_id, url, destino_panoramica_id, espacio_id, vigente_desde, vigente_hasta, estilo'
+      '${conAudiencia ? ', audiencia' : ''} FROM punto_informacion ORDER BY id',
     )) {
       final tipo = f['tipo'] as String;
       final p = PuntoPanoramica(
@@ -288,6 +292,9 @@ class DatosPaquete {
         vigenteDesde: DateTime.tryParse('${f['vigente_desde'] ?? ''}'),
         vigenteHasta: DateTime.tryParse('${f['vigente_hasta'] ?? ''}'),
         estilo: EstiloPunto.de(tipo, f['estilo'] as String?),
+        audiencia: conAudiencia && f['audiencia'] == 'institucional'
+            ? 'institucional'
+            : 'todos',
       );
       (puntos[p.panoramicaId] ??= <PuntoPanoramica>[]).add(p);
     }

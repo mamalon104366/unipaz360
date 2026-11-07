@@ -76,10 +76,10 @@ export async function construirSqlite(d: DatosPaquete, version: string) {
     for (const e of d.enlaces) insEP.run(e.origen_id, e.destino_id, e.yaw, e.pitch);
 
     const insH = db.prepare(
-      'INSERT INTO punto_informacion (id, panoramica_id, tipo, yaw, pitch, titulo, texto, medio_id, url, destino_panoramica_id, espacio_id, vigente_desde, vigente_hasta, estilo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO punto_informacion (id, panoramica_id, tipo, yaw, pitch, titulo, texto, medio_id, url, destino_panoramica_id, espacio_id, vigente_desde, vigente_hasta, estilo, audiencia) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
     );
     for (const h of d.puntos) {
-      insH.run(h.id, h.panoramica_id, h.tipo, h.yaw, h.pitch, h.titulo, h.texto, h.medio_id, h.url, h.destino_panoramica_id, h.espacio_id, h.vigente_desde, h.vigente_hasta, JSON.stringify(h.estilo ?? {}));
+      insH.run(h.id, h.panoramica_id, h.tipo, h.yaw, h.pitch, h.titulo, h.texto, h.medio_id, h.url, h.destino_panoramica_id, h.espacio_id, h.vigente_desde, h.vigente_hasta, JSON.stringify(h.estilo ?? {}), h.audiencia === 'institucional' ? 'institucional' : 'todos');
     }
 
     const insHo = db.prepare('INSERT INTO horario (id, espacio_id, dia, hora_inicio, hora_fin, materia, programa, semestre, grupo, docente) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');

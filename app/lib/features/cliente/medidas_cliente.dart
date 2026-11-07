@@ -165,6 +165,14 @@ class MedidasCliente {
       ? const Lugar2D(arriba: margen, izquierda: margen)
       : const Lugar2D(arriba: margen, derecha: margen);
 
+  /// El botón de cuenta: junto al de buscar (o en su lugar si no hay buscador).
+  Lugar2D botonCuenta({required bool conBuscador}) {
+    final x = conBuscador ? margen + ladoBuscar * escala + 8 : margen;
+    return derecha
+        ? Lugar2D(arriba: margen, izquierda: x)
+        : Lugar2D(arriba: margen, derecha: x);
+  }
+
   /// El minimapa en estado normal o minimizado, según `minimapa.posicion`. Arriba a la
   /// derecha baja si ahí está el botón de buscar.
   Lugar2D minimapa({required bool conBuscador}) =>

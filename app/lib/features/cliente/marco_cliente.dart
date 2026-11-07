@@ -402,6 +402,58 @@ class BotonBuscar extends StatelessWidget {
   }
 }
 
+/// El botón redondo de cuenta, junto al de buscar: abre la cuenta (entrar con la cuenta
+/// institucional o salir). Con la cuenta institucional muestra el birrete.
+class BotonCuenta extends StatelessWidget {
+  const BotonCuenta({
+    super.key,
+    required this.config,
+    required this.institucional,
+    required this.alTocar,
+  });
+
+  final ConfigApp config;
+  final bool institucional;
+  final VoidCallback alTocar;
+
+  @override
+  Widget build(BuildContext context) {
+    final e = config.escala;
+    final sup = Superficie.de(config.barraLateral.estilo);
+    final ayuda = institucional ? 'Cuenta institucional' : 'Cuenta: invitado';
+    return Tooltip(
+      message: ayuda,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: Semantics(
+          button: true,
+          label: ayuda,
+          excludeSemantics: true,
+          child: GestureDetector(
+            onTap: alTocar,
+            child: SizedBox(
+              width: ladoBuscar * e,
+              height: ladoBuscar * e,
+              child: sup.caja(
+                radio: ladoBuscar * e / 2,
+                child: Center(
+                  child: Icon(
+                    institucional
+                        ? LucideIcons.graduationCap
+                        : LucideIcons.userRound,
+                    size: 18 * e,
+                    color: sup.tinta,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// El botón de inicio, abajo al centro.
 class BotonInicio extends StatelessWidget {
   const BotonInicio({super.key, required this.config, required this.alTocar});

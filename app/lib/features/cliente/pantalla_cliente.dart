@@ -2,9 +2,12 @@
 library;
 
 import 'package:material_ui/material_ui.dart';
+import 'package:provider/provider.dart';
 
 import '../../core/paquete/datos_paquete.dart';
 import '../../core/paquete/paquete_local.dart';
+import '../../ui/sesion/dialogo_cuenta.dart';
+import '../../ui/sesion/sesion_viewmodel.dart';
 import 'estilo_cliente.dart';
 import 'vista_cliente.dart';
 
@@ -40,9 +43,21 @@ class _PantallaClienteState extends State<PantallaCliente> {
       future: _paquete,
       builder: (context, s) {
         if (s.hasData) {
+          // La sesión decide qué contenido institucional se ve. Las pruebas que montan solo esta
+          // pantalla no traen la sesión: se trata como invitado y sin botón de cuenta.
+          SesionViewModel? sesion;
+          try {
+            sesion = context.watch<SesionViewModel>();
+          } on ProviderNotFoundException {
+            sesion = null;
+          }
           return VistaCliente(
             paquete: s.data!,
             comprobarRed: PantallaCliente.comprobarRed,
+            institucional: sesion?.sesion?.esInstitucional ?? false,
+            alAbrirCuenta: sesion == null
+                ? null
+                : () => mostrarDialogoCuenta(context),
           );
         }
         if (s.hasError) {
