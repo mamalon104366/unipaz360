@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import { ETIQUETA_ROL, type Resumen, type Usuario } from '@/lib/tipos';
 import { CAPAS, type Capa } from '@/lib/configApp';
+import { LOGOS } from '@/lib/marca.generado';
 import { areaDe } from './areas';
 
 const ICONO_CAPA: Record<Capa, LucideIcon> = { marca: Palette, barra: PanelLeft, minimapa: MapIcon, inicio: Play };
@@ -137,12 +138,19 @@ export function BarraLateral({
       aria-hidden={!abierta}
     >
       <div className="flex h-full w-[292px] flex-col px-4 pb-4 pt-5">
-        <div className="flex items-center justify-between px-2">
-          <div className="flex gap-2" aria-hidden>
-            <span className="h-3 w-3 rounded-full bg-[#e8a0a0] shadow-[0_1px_2px_rgb(0_0_0/0.2)_inset]" />
-            <span className="h-3 w-3 rounded-full bg-[#e6cf8f] shadow-[0_1px_2px_rgb(0_0_0/0.2)_inset]" />
-            <span className="h-3 w-3 rounded-full bg-[#9fd4b8] shadow-[0_1px_2px_rgb(0_0_0/0.2)_inset]" />
-          </div>
+        <div className="flex items-start justify-between gap-2 pl-2 pr-1">
+          {/* El logo de UNIPAZ (maestro en marca/; se regenera con scripts/marca.mjs). */}
+          <Link href="/" title="Inicio" className="block rounded-xl outline-offset-4 transition hover:opacity-85">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/marca/logo-horizontal.svg"
+              alt="UNIPAZ · Instituto Universitario de la Paz"
+              width={LOGOS.horizontal.ancho}
+              height={LOGOS.horizontal.alto}
+              className="h-[62px] w-auto select-none"
+              draggable={false}
+            />
+          </Link>
           <button
             onClick={alAlternar}
             title="Contraer menú"
