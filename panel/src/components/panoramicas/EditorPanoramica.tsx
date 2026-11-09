@@ -2,7 +2,7 @@
 
 import '@photo-sphere-viewer/core/index.css';
 import '@photo-sphere-viewer/markers-plugin/index.css';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { Viewer } from '@photo-sphere-viewer/core';
@@ -10,26 +10,40 @@ import type { MarkersPlugin } from '@photo-sphere-viewer/markers-plugin';
 import {
   ArrowLeft,
   Box,
+  ChevronDown,
   ChevronsUp,
+  ClipboardPaste,
   Compass,
+  Copy,
+  CopyPlus,
   Crosshair,
   Eye,
+  FileText,
   Footprints,
   GraduationCap,
+  Grid3x3,
   Hand,
-  Info,
+  LocateFixed,
   MapPinPlus,
   Move,
   Navigation,
+  Paintbrush,
+  Palette,
   Plus,
+  Redo2,
   RotateCcw,
   Save,
   ScanFace,
+  Search,
+  Shapes,
+  Sparkles,
   Trash2,
+  Undo2,
   Upload,
 } from 'lucide-react';
 import { api } from '@/components/ui/api';
 import { Campo } from '@/components/ui/Modal';
+import { Interruptor } from '@/components/cliente/controles';
 import { useAvisos } from '@/components/ui/useAvisos';
 import { useGuardiaCambios } from '@/components/ui/useGuardiaCambios';
 import { subirArchivo, subirMedio, medirImagen } from '@/components/ui/subida';
@@ -38,25 +52,32 @@ import {
   ANIMACIONES,
   COLOR_PUNTO,
   ETIQUETA_ANIMACION,
+  ETIQUETA_FONDO,
   ETIQUETA_FORMA,
   ETIQUETA_PUNTO,
+  FONDOS,
   FORMAS_3D,
+  FORMAS_ROTULO,
   TIPOS_PUNTO,
   estiloPorDefecto,
+  fondoDe,
   inclinacionSuelo,
   type Ajustes,
   type Enlace,
   type Estilo,
+  type Fondo,
   type Forma,
   type Panoramica,
   type Punto,
   type TipoPunto,
 } from '@/lib/tipos';
 import type { Audiencia } from '@/lib/audiencia';
+import { aparienciaDe, conApariencia, conForma, formasDe, limpiarEstilo, type Apariencia } from '@/lib/estiloPunto';
+import { ETIQUETA_ICONO, ICONOS_PUNTO, type IconoPunto } from '@/lib/iconosPunto.generado';
 import { estiloDe, marcadorDe, tintaSobre, type CacheCapas } from './capas';
 import { aFoto, aVista, type Posicion } from './correccion';
 import { grados, normalizar, rad, urlMedio } from './medio';
-import { iconoPunto } from './iconosPunto';
+import { iconoDe, iconoPunto, svgIcono } from './iconosPunto';
 
 type Modo = 'navegar' | 'punto' | 'difuminar' | 'norte' | 'reubicar';
 type Pestana = 'puntos' | 'ajustes' | 'detalles';
@@ -90,6 +111,75 @@ interface Edicion {
   pos: Posicion;
   base: DatosPunto | null;
   datos: DatosPunto;
+  /** Deshacer y rehacer: lo que había antes de cada cambio y lo que se deshizo. */
+  antes: DatosPunto[];
+  despues: DatosPunto[];
+  /** Hora del último cambio: los que llegan seguidos (arrastrar un deslizador, escribir) son un solo paso. */
+  marca: number;
+}
+
+const PASOS_HISTORIAL = 60;
+const PAUSA_HISTORIAL = 700;
+
+function edicionNueva(id: string | null, pos: Posicion, base: DatosPunto | null, datos: DatosPunto): Edicion {
+  return { id, pos, base, datos, antes: [], despues: [], marca: 0 };
+}
+
+/** Aplica un cambio guardando lo anterior para deshacerlo. */
+function conCambio(e: Edicion, datos: DatosPunto, seguido: boolean): Edicion {
+  if (iguales(datos, e.datos)) return e;
+  const ahora = Date.now();
+  const unir = seguido && e.antes.length > 0 && ahora - e.marca < PAUSA_HISTORIAL;
+  return { ...e, datos, antes: unir ? e.antes : [...e.antes, e.datos].slice(-PASOS_HISTORIAL), despues: [], marca: seguido ? ahora : 0 };
+}
+
+/** Los apartados del formulario del punto (se recuerda cuáles están abiertos). */
+type Apartado = 'contenido' | 'forma' | 'color' | 'animacion' | 'posicion' | 'visibilidad';
+const APARTADOS_ABIERTOS: Record<Apartado, boolean> = { contenido: true, forma: true, color: true, animacion: false, posicion: false, visibilidad: false };
+const CLAVE_APARTADOS = 'unipaz360.editor360.apartados';
+const CLAVE_GUIAS = 'unipaz360.editor360.guias';
+const CLAVE_APARIENCIA = 'unipaz360.editor360.estilo-copiado';
+
+// Preferencias del navegador: se guardan en localStorage (y en memoria, por si no hay) y se leen con
+// useSyncExternalStore, así el primer dibujo coincide con el del servidor.
+const EVENTO_PREFERENCIA = 'unipaz360:preferencia';
+const memoriaPreferencias = new Map<string, string>();
+const suscribirPreferencias = (avisar: () => void) => {
+  window.addEventListener(EVENTO_PREFERENCIA, avisar);
+  return () => window.removeEventListener(EVENTO_PREFERENCIA, avisar);
+};
+function leerPreferencia(clave: string): string | null {
+  if (memoriaPreferencias.has(clave)) return memoriaPreferencias.get(clave) ?? null;
+  try {
+    return localStorage.getItem(clave);
+  } catch {
+    return null;
+  }
+}
+function guardarPreferencia(clave: string, valor: unknown) {
+  const texto = JSON.stringify(valor);
+  memoriaPreferencias.set(clave, texto);
+  try {
+    localStorage.setItem(clave, texto);
+  } catch {
+    // Sin almacenamiento (ventana privada): dura mientras la página esté abierta.
+  }
+  window.dispatchEvent(new Event(EVENTO_PREFERENCIA));
+}
+function usePreferencia(clave: string): unknown {
+  const texto = useSyncExternalStore(
+    suscribirPreferencias,
+    () => leerPreferencia(clave),
+    () => null,
+  );
+  return useMemo(() => {
+    if (texto === null) return undefined;
+    try {
+      return JSON.parse(texto) as unknown;
+    } catch {
+      return undefined;
+    }
+  }, [texto]);
 }
 
 /** Lo que el visor (registrado una sola vez) llama en cada evento. */
@@ -164,12 +254,8 @@ function circulo(yaw: number, pitch: number, radio: number): [number, number][] 
   });
 }
 
-function formasDe(t: TipoPunto): Forma[] {
-  if (t === 'enlace') return ['flecha', 'miniatura', 'etiqueta', 'pin', 'icono', 'circulo'];
-  if (t === 'imagen') return ['capa3d', 'miniatura', 'burbuja', 'etiqueta', 'icono', 'pin'];
-  if (t === 'video') return ['capa3d', 'etiqueta', 'burbuja', 'icono', 'pin'];
-  return ['etiqueta', 'burbuja', 'icono', 'pin', 'circulo', 'capa3d'];
-}
+/** Sin tildes y en minúscula, para buscar. */
+const sinTildes = (t: string) => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
 const enCampo = (t: EventTarget | null) => t instanceof HTMLElement && (t.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName));
 
@@ -209,7 +295,21 @@ export function EditorPanoramica({
   const [guardando, setGuardando] = useState<string | null>(null);
   const [listo, setListo] = useState(false);
   const [ficha, setFicha] = useState<Punto | null>(null);
+  const [busqueda, setBusqueda] = useState('');
   const cache = useRef<CacheCapas>(new Map());
+
+  // Preferencias del editor: guías, apartados abiertos y el estilo copiado (sirve entre fotos).
+  const guias = usePreferencia(CLAVE_GUIAS) === true;
+  const abiertosGuardados = usePreferencia(CLAVE_APARTADOS);
+  const abiertos = useMemo(
+    () => ({ ...APARTADOS_ABIERTOS, ...(abiertosGuardados && typeof abiertosGuardados === 'object' ? (abiertosGuardados as Partial<Record<Apartado, boolean>>) : {}) }),
+    [abiertosGuardados],
+  );
+  const copiadaGuardada = usePreferencia(CLAVE_APARIENCIA);
+  const copiada = useMemo<Apariencia | null>(
+    () => (copiadaGuardada && typeof copiadaGuardada === 'object' ? aparienciaDe(limpiarEstilo('informacion', copiadaGuardada)) : null),
+    [copiadaGuardada],
+  );
 
   const panoSucia = !iguales(ajustes, pano.ajustes) || titulo !== (pano.titulo ?? '') || rumbo !== (pano.rumbo_inicial ?? 0);
   const puntoSucio = sucia(edicion);
@@ -279,6 +379,52 @@ export function EditorPanoramica({
     if (!listo || !visor.current) return;
     visor.current.setOption('sphereCorrection', { tilt: rad(inclinacion), roll: rad(alabeo) });
   }, [listo, inclinacion, alabeo]);
+
+  // Guías para alinear: el horizonte real (ya corregido) y una cuadrícula cada 30°. Van en la capa
+  // de la foto, debajo de los puntos, y se redibujan con cada cuadro del visor.
+  useEffect(() => {
+    const v = visor.current;
+    if (!listo || !v || !guias || previa) return;
+    const NS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('class', 'guias-360');
+    const rejilla = document.createElementNS(NS, 'path');
+    rejilla.setAttribute('class', 'guias-360-rejilla');
+    const horizonte = document.createElementNS(NS, 'path');
+    horizonte.setAttribute('class', 'guias-360-horizonte');
+    svg.append(rejilla, horizonte);
+    (v.container.querySelector('.psv-canvas-container') ?? v.container).appendChild(svg);
+
+    const camino = (muestras: [number, number][]) => {
+      const dir = v.state.direction;
+      let d = '';
+      let abierto = false;
+      for (const [yaw, pitch] of muestras) {
+        const p = v.dataHelper.sphericalCoordsToVector3({ yaw: rad(yaw), pitch: rad(pitch) });
+        // Solo lo que queda delante de la cámara (lo de atrás se proyectaría al revés).
+        if (p.dot(dir) / (p.length() * dir.length()) < 0.05) {
+          abierto = false;
+          continue;
+        }
+        const { x, y } = v.dataHelper.vector3ToViewerCoords(p);
+        d += `${abierto ? 'L' : 'M'}${x} ${y}`;
+        abierto = true;
+      }
+      return d;
+    };
+    const vuelta = (pitch: number) => Array.from({ length: 121 }, (_, i): [number, number] => [i * 3, pitch]);
+    const meridiano = (yaw: number) => Array.from({ length: 41 }, (_, i): [number, number] => [yaw, -80 + i * 4]);
+    const dibujar = () => {
+      rejilla.setAttribute('d', [...[-60, -30, 30, 60].map(vuelta), ...Array.from({ length: 12 }, (_, i) => meridiano(i * 30))].map(camino).join(''));
+      horizonte.setAttribute('d', camino(vuelta(0)));
+    };
+    dibujar();
+    v.addEventListener('render', dibujar);
+    return () => {
+      v.removeEventListener('render', dibujar);
+      svg.remove();
+    };
+  }, [listo, guias, previa]);
 
   // Arrastrar puntos sobre la foto (como en Figma). Un toque sin mover lo selecciona.
   useEffect(() => {
@@ -413,6 +559,19 @@ export function EditorPanoramica({
         return;
       }
       if (enCampo(e.target) || ref.current.previa) return;
+      const comando = e.ctrlKey || e.metaKey;
+      const letra = e.key.toLowerCase();
+      if (comando && (letra === 'z' || letra === 'y')) {
+        e.preventDefault();
+        if (letra === 'y' || e.shiftKey) rehacer();
+        else deshacer();
+        return;
+      }
+      if (comando && letra === 'd' && ref.current.edicion?.id) {
+        e.preventDefault();
+        void duplicarPunto();
+        return;
+      }
       if (e.key === 'Escape') {
         if (ref.current.modo !== 'navegar') setModo('navegar');
         else void seleccionar(null);
@@ -436,7 +595,7 @@ export function EditorPanoramica({
 
   function nuevaEdicion(p: Punto): Edicion {
     const d = datosDe(p, otras, espacios);
-    return { id: p.id, pos: { yaw: p.yaw, pitch: p.pitch }, base: d, datos: d };
+    return edicionNueva(p.id, { yaw: p.yaw, pitch: p.pitch }, d, d);
   }
 
   /** Guarda (o crea) el punto en edición. Devuelve false si no se pudo. */
@@ -451,13 +610,18 @@ export function EditorPanoramica({
       if (e.id === null) {
         const r = await api<Punto>(`/api/panoramicas/${pano.id}/puntos`, 'POST', { ...aEnvio(enviados), yaw: e.pos.yaw, pitch: e.pos.pitch });
         setPuntos((ps) => [...ps, r]);
-        setEdicion((x) => (x && x.id === null ? (iguales(x.datos, enviados) ? nuevaEdicion(r) : { ...nuevaEdicion(r), datos: x.datos }) : x));
+        // Lo que se pueda deshacer sigue disponible después de guardar.
+        setEdicion((x) =>
+          x && x.id === null ? { ...nuevaEdicion(r), ...(iguales(x.datos, enviados) ? {} : { datos: x.datos }), antes: x.antes, despues: x.despues } : x,
+        );
         avisar('Punto creado.', 'ok');
         router.refresh();
       } else {
         const r = await api<Punto>(`/api/puntos/${e.id}`, 'PATCH', aEnvio(enviados));
         setPuntos((ps) => ps.map((p) => (p.id === r.id ? r : p)));
-        setEdicion((x) => (x && x.id === r.id ? (iguales(x.datos, enviados) ? nuevaEdicion(r) : { ...x, base: datosDe(r, otras, espacios) }) : x));
+        setEdicion((x) =>
+          x && x.id === r.id ? (iguales(x.datos, enviados) ? { ...nuevaEdicion(r), antes: x.antes, despues: x.despues } : { ...x, base: datosDe(r, otras, espacios) }) : x,
+        );
         avisar('Punto guardado.', 'ok');
       }
       return true;
@@ -510,7 +674,7 @@ export function EditorPanoramica({
       void (async () => {
         if (!(await soltarEdicion())) return;
         const d = datosDe({ tipo: 'informacion', estilo: estiloPorDefecto('informacion', foto.pitch) }, otras, espacios);
-        setEdicion({ id: null, pos: foto, base: null, datos: d });
+        setEdicion(edicionNueva(null, foto, null, d));
         setPestana('puntos');
         setModo('navegar');
       })();
@@ -565,6 +729,92 @@ export function EditorPanoramica({
       avisar((e as Error).message);
     }
   }
+
+  // ------------------------------------------------------------------ diseño del punto
+  /** Cambia lo que se edita; los cambios seguidos (`seguido`) se deshacen de una vez. */
+  function cambiarDatos(f: (d: DatosPunto) => DatosPunto, seguido = true) {
+    setEdicion((e) => (e ? conCambio(e, f(e.datos), seguido) : e));
+  }
+
+  function deshacer() {
+    setEdicion((e) =>
+      e && e.antes.length ? { ...e, datos: e.antes[e.antes.length - 1], antes: e.antes.slice(0, -1), despues: [e.datos, ...e.despues], marca: 0 } : e,
+    );
+  }
+
+  function rehacer() {
+    setEdicion((e) => (e && e.despues.length ? { ...e, datos: e.despues[0], antes: [...e.antes, e.datos], despues: e.despues.slice(1), marca: 0 } : e));
+  }
+
+  /** Lleva el punto en edición a donde mira la vista ahora (el centro de la pantalla). */
+  function alCentro() {
+    const e = ref.current.edicion;
+    if (!e || !visor.current) return;
+    const v = visor.current.getPosition();
+    void moverPunto(e.id ?? 'nuevo', aFoto({ yaw: normalizar(grados(v.yaw)), pitch: grados(v.pitch) }, inclinacion, alabeo));
+  }
+
+  /** Crea una copia del punto (guarda antes lo pendiente) un poco a la derecha y la abre. */
+  async function duplicarPunto() {
+    const e = ref.current.edicion;
+    if (!e?.id || !(await soltarEdicion())) return;
+    const original = ref.current.puntos.find((p) => p.id === e.id);
+    const pos = original ? { yaw: original.yaw, pitch: original.pitch } : e.pos;
+    try {
+      const r = await api<Punto>(`/api/panoramicas/${pano.id}/puntos`, 'POST', {
+        ...aEnvio(e.datos),
+        titulo: `${e.datos.titulo} (copia)`.slice(0, 140),
+        yaw: normalizar(pos.yaw + 8),
+        pitch: pos.pitch,
+      });
+      setPuntos((ps) => [...ps, r]);
+      setEdicion(nuevaEdicion(r));
+      avisar('Punto duplicado: la copia quedó un poco a la derecha del original.', 'ok');
+      router.refresh();
+    } catch (err) {
+      avisar((err as Error).message);
+    }
+  }
+
+  function copiarEstilo() {
+    const e = ref.current.edicion;
+    if (!e) return;
+    guardarPreferencia(CLAVE_APARIENCIA, aparienciaDe(e.datos.estilo));
+    avisar('Estilo copiado. Pégalo en otro punto, de esta foto o de otra.', 'ok');
+  }
+
+  function pegarEstilo() {
+    if (!copiada || !posEdicion) return;
+    const pitch = posEdicion.pitch;
+    cambiarDatos((d) => ({ ...d, estilo: conApariencia(d.estilo, copiada, d.tipo, pitch) }), false);
+  }
+
+  /** Pone la apariencia del punto en edición a los demás puntos de su tipo en esta foto. */
+  async function aplicarATodos() {
+    const e = ref.current.edicion;
+    if (!e) return;
+    const otros = ref.current.puntos.filter((p) => p.tipo === e.datos.tipo && p.id !== e.id);
+    if (!otros.length) return;
+    const cuantos = otros.length === 1 ? 'al otro punto' : `a los otros ${otros.length} puntos`;
+    if (!confirm(`¿Aplicar este estilo ${cuantos} de tipo «${ETIQUETA_PUNTO[e.datos.tipo]}» de esta foto? Cada uno conserva su ícono, su tamaño y su giro.`)) return;
+    const a = aparienciaDe(e.datos.estilo);
+    setGuardando('Aplicando el estilo…');
+    let listos = 0;
+    try {
+      for (const p of otros) {
+        const r = await api<Punto>(`/api/puntos/${p.id}`, 'PATCH', { estilo: conApariencia(estiloDe(p), a, p.tipo, p.pitch) });
+        setPuntos((ps) => ps.map((x) => (x.id === r.id ? r : x)));
+        listos++;
+      }
+      avisar(listos === 1 ? 'Estilo aplicado al otro punto.' : `Estilo aplicado a ${listos} puntos.`, 'ok');
+    } catch (err) {
+      avisar(`Se aplicó a ${listos} de ${otros.length}. ${(err as Error).message}`);
+    } finally {
+      setGuardando(null);
+    }
+  }
+
+  const alternarApartado = (a: Apartado) => guardarPreferencia(CLAVE_APARTADOS, { ...abiertos, [a]: !abiertos[a] });
 
   async function guardarAjustes() {
     if (!panoSucia) return true;
@@ -633,12 +883,21 @@ export function EditorPanoramica({
         ajustes.temperatura < 0 ? `hue-rotate(${(ajustes.temperatura * 14).toFixed(1)}deg)` : '',
       ].join(' ');
   const textoGuardar = !hayCambios ? 'Todo guardado' : puntoSucio && !panoSucia ? (edicion?.id ? 'Guardar punto' : 'Crear punto') : 'Guardar cambios';
+  const buscado = sinTildes(busqueda.trim());
+  const listaPuntos = buscado ? puntos.filter((p) => sinTildes(`${p.titulo} ${ETIQUETA_PUNTO[p.tipo]} ${p.id}`).includes(buscado)) : puntos;
 
   return (
     <div className="flex h-full min-h-0">
       {/* Visor */}
       <div className="relative min-w-0 flex-1 overflow-hidden rounded-l-[24px] bg-riel">
         <div ref={contenedor} className="absolute inset-0 transition-opacity duration-500" style={{ filter: filtro, opacity: listo ? 1 : 0 }} />
+        {guias && !previa && listo && (
+          // El centro de la vista: «Al centro» deja el punto justo aquí.
+          <div className="pointer-events-none absolute left-1/2 top-1/2 z-[5] h-7 w-7 -translate-x-1/2 -translate-y-1/2" aria-hidden>
+            <span className="absolute left-1/2 top-0 h-full w-px -translate-x-1/2 bg-white/90 shadow-[0_0_2px_rgb(0_0_0/0.8)]" />
+            <span className="absolute left-0 top-1/2 h-px w-full -translate-y-1/2 bg-white/90 shadow-[0_0_2px_rgb(0_0_0/0.8)]" />
+          </div>
+        )}
 
         <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-between gap-3 p-4">
           <div className="vidrio pointer-events-auto flex min-w-0 items-center gap-3 rounded-2xl py-2 pl-2 pr-4">
@@ -671,6 +930,16 @@ export function EditorPanoramica({
           )}
 
           <div className="vidrio pointer-events-auto flex items-center gap-1 rounded-2xl p-1.5">
+            {!previa && (
+              <button
+                onClick={() => guardarPreferencia(CLAVE_GUIAS, !guias)}
+                aria-pressed={guias}
+                className={`flex h-9 items-center gap-2 rounded-xl px-3 text-[13px] ${guias ? 'bg-riel text-white' : 'text-tinta-suave hover:bg-black/5'}`}
+                title="Guías: el horizonte, una cuadrícula cada 30° y el centro de la vista"
+              >
+                <Grid3x3 size={16} /> <span className="hidden xl:inline">Guías</span>
+              </button>
+            )}
             {!previa && puedeEditar && (
               <button
                 onClick={() => {
@@ -768,12 +1037,26 @@ export function EditorPanoramica({
                   sucio={puntoSucio}
                   espacios={espacios}
                   otras={otras}
-                  alCambiar={(f) => setEdicion((e) => (e ? { ...e, datos: f(e.datos) } : e))}
+                  abiertos={abiertos}
+                  alAlternar={alternarApartado}
+                  puedeDeshacer={edicion.antes.length > 0}
+                  puedeRehacer={edicion.despues.length > 0}
+                  alDeshacer={deshacer}
+                  alRehacer={rehacer}
+                  alCambiar={cambiarDatos}
                   alGuardar={() => void guardarPunto()}
                   alCerrar={() => void seleccionar(null)}
-                  alDescartar={() => setEdicion((e) => (e && e.base ? { ...e, datos: e.base } : null))}
+                  alDescartar={() => setEdicion((e) => (e && e.base ? conCambio(e, e.base, false) : null))}
                   alEliminar={edicion.id ? () => void eliminarPunto(edicion.id!) : undefined}
                   alReubicar={() => setModo('reubicar')}
+                  alMover={(p) => void moverPunto(edicion.id ?? 'nuevo', p)}
+                  alCentrar={alCentro}
+                  alMirar={() => irA(posEdicion)}
+                  alDuplicar={edicion.id ? () => void duplicarPunto() : undefined}
+                  alCopiarEstilo={copiarEstilo}
+                  alPegarEstilo={copiada ? pegarEstilo : undefined}
+                  otrosDelTipo={puntos.filter((p) => p.tipo === edicion.datos.tipo && p.id !== edicion.id).length}
+                  alAplicarATodos={() => void aplicarATodos()}
                   avisar={avisar}
                 />
               )}
@@ -789,24 +1072,37 @@ export function EditorPanoramica({
                 {puntos.length === 0 && (
                   <p className="text-[13px] text-tinta-tenue">Información, anuncios con fecha de vencimiento, imágenes, GIF, videos, fichas de espacios o flechas para ir a otra foto 360°.</p>
                 )}
+                {puntos.length > 5 && (
+                  <label className="campo mb-2 flex !h-9 items-center gap-2">
+                    <Search size={14} className="shrink-0 text-tinta-tenue" />
+                    <input
+                      value={busqueda}
+                      onChange={(e) => setBusqueda(e.target.value)}
+                      placeholder="Buscar por título o tipo"
+                      className="min-w-0 flex-1 bg-transparent text-[13px] outline-none"
+                    />
+                  </label>
+                )}
+                {listaPuntos.length === 0 && puntos.length > 0 && <p className="px-1 text-[13px] text-tinta-tenue">Ningún punto coincide con «{busqueda.trim()}».</p>}
                 <ul className="space-y-1">
-                  {puntos.map((p) => {
-                    const Icono = iconoPunto(p.tipo);
+                  {listaPuntos.map((p) => {
+                    const est = estiloDe(p);
                     const v = vigencia(p);
                     const actual = edicion?.id === p.id;
+                    const color = actual && edicion ? edicion.datos.estilo.color : est.color;
                     return (
                       <li key={p.id}>
                         <button
                           onClick={() => void seleccionar(p.id, true)}
                           className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[14px] transition ${actual ? 'vidrio' : 'hover:bg-black/[0.04]'}`}
                         >
-                          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg" style={{ background: estiloDe(p).color, color: tintaSobre(estiloDe(p).color) }}>
-                            <Icono size={15} />
+                          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg" style={{ background: color, color: tintaSobre(color) }}>
+                            <IconoSvg icono={iconoDe(p.tipo, actual && edicion ? edicion.datos.estilo.icono : est.icono)} tamano={15} />
                           </span>
                           <span className="min-w-0 flex-1">
                             <span className="block truncate font-medium">{actual && edicion ? edicion.datos.titulo || p.titulo : p.titulo}</span>
                             <span className="text-[12px] text-tinta-tenue">
-                              {ETIQUETA_PUNTO[p.tipo]} · {ETIQUETA_FORMA[estiloDe(p).forma]}
+                              {ETIQUETA_PUNTO[p.tipo]} · {ETIQUETA_FORMA[actual && edicion ? edicion.datos.estilo.forma : est.forma]}
                             </span>
                           </span>
                           {actual && puntoSucio && <span className="h-2 w-2 shrink-0 rounded-full bg-alerta" title="Sin guardar" />}
@@ -991,16 +1287,17 @@ function Dato({ k, v }: { k: string; v: React.ReactNode }) {
   );
 }
 
-const COLORES = ['#2563eb', '#0d9488', '#16a34a', '#f59e0b', '#dc2626', '#7c3aed', '#ffffff', '#1c1c1f'];
+const COLORES = ['#2563eb', '#0d9488', '#16a34a', '#f59e0b', '#dc2626', '#7c3aed', '#233671', '#0a9640', '#ffffff', '#1c1c1f'];
+
+/** Un ícono de los puntos: el mismo SVG que va en la foto. */
+function IconoSvg({ icono, tamano = 16 }: { icono: IconoPunto; tamano?: number }) {
+  return <span className="grid shrink-0 place-items-center" aria-hidden dangerouslySetInnerHTML={{ __html: svgIcono(icono, tamano) }} />;
+}
 
 /** Vista en miniatura de cada forma, con las mismas clases del visor. */
-function MuestraForma({ forma, color }: { forma: Forma; color: string }) {
+function MuestraForma({ forma, color, icono }: { forma: Forma; color: string; icono: IconoPunto }) {
   const estilo = { '--c': color, '--t': tintaSobre(color), fontSize: forma === 'burbuja' ? 4.2 : 6 } as React.CSSProperties;
-  const ico = (
-    <i className="pz-ico">
-      <Info />
-    </i>
-  );
+  const ico = <i className="pz-ico" dangerouslySetInnerHTML={{ __html: svgIcono(icono) }} />;
   switch (forma) {
     case 'etiqueta':
       return (
@@ -1062,6 +1359,98 @@ function MuestraForma({ forma, color }: { forma: Forma; color: string }) {
   }
 }
 
+/** Un apartado plegable del formulario del punto; cerrado, muestra un resumen. */
+function SeccionPunto({
+  titulo,
+  icono,
+  abierto,
+  alAlternar,
+  resumen,
+  children,
+}: {
+  titulo: string;
+  icono: React.ReactNode;
+  abierto: boolean;
+  alAlternar: () => void;
+  resumen?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-2xl bg-black/[0.03]">
+      <button type="button" onClick={alAlternar} aria-expanded={abierto} className="flex w-full items-center gap-2.5 rounded-2xl px-3 py-2.5 text-left transition hover:bg-black/[0.03]">
+        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-white/80 text-tinta-suave">{icono}</span>
+        <span className="flex-1 text-[13.5px] font-medium">{titulo}</span>
+        {!abierto && resumen && <span className="flex min-w-0 max-w-[50%] items-center justify-end gap-1.5 truncate text-[12px] text-tinta-tenue">{resumen}</span>}
+        <ChevronDown size={15} className={`shrink-0 text-tinta-tenue transition-transform ${abierto ? 'rotate-180' : ''}`} />
+      </button>
+      {abierto && <div className="space-y-3.5 px-3 pb-3.5 pt-1">{children}</div>}
+    </section>
+  );
+}
+
+/** Grados escritos a mano: se aplican al salir del campo o con Enter (mientras se escribe no mueve nada). */
+function CampoGrados({ etiqueta, valor, min, max, alCambiar }: { etiqueta: string; valor: number; min: number; max: number; alCambiar: (v: number) => void }) {
+  const [texto, setTexto] = useState<string | null>(null);
+  const confirmar = () => {
+    if (texto === null) return;
+    const n = Number(texto.trim().replace(',', '.'));
+    setTexto(null);
+    if (texto.trim() !== '' && Number.isFinite(n)) alCambiar(Math.min(max, Math.max(min, n)));
+  };
+  return (
+    <label className="block">
+      <span className="mb-1 block text-[12px] text-tinta-suave">{etiqueta}</span>
+      <span className="relative block">
+        <input
+          inputMode="decimal"
+          value={texto ?? String(Math.round(valor * 10) / 10)}
+          onChange={(ev) => setTexto(ev.target.value)}
+          onFocus={(ev) => ev.target.select()}
+          onBlur={confirmar}
+          onKeyDown={(ev) => {
+            if (ev.key === 'Enter') {
+              ev.preventDefault();
+              confirmar();
+            } else if (ev.key === 'Escape') setTexto(null);
+          }}
+          className="campo !pr-7 font-mono !text-[13px]"
+        />
+        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[12px] text-tinta-tenue">°</span>
+      </span>
+    </label>
+  );
+}
+
+/** Botón de solo ícono para las herramientas del punto. */
+function Herramienta({ titulo, onClick, disabled, peligro, children }: { titulo: string; onClick?: () => void; disabled?: boolean; peligro?: boolean; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled || !onClick}
+      title={titulo}
+      aria-label={titulo}
+      className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl transition disabled:opacity-35 ${peligro ? 'text-alerta hover:bg-alerta-suave' : 'text-tinta-suave hover:bg-black/[0.06]'}`}
+    >
+      {children}
+    </button>
+  );
+}
+
+/** Fondo de muestra para los botones de «Fondo». */
+function MuestraFondo({ fondo, color }: { fondo: Fondo; color: string }) {
+  const fondoCss = fondo === 'claro' ? 'rgb(255 255 255 / 0.94)' : fondo === 'color' ? color : 'rgb(24 24 27 / 0.82)';
+  const tinta = fondo === 'claro' ? '#1c1c1f' : fondo === 'color' ? tintaSobre(color) : '#ffffff';
+  return (
+    <span className="flex h-6 items-center gap-1 rounded-full px-2 text-[10px] font-medium ring-1 ring-black/10" style={{ background: fondoCss, color: tinta }}>
+      <span className="h-2.5 w-2.5 rounded-full" style={{ background: fondo === 'color' ? 'rgb(255 255 255 / 0.4)' : color }} />
+      Aa
+    </span>
+  );
+}
+
+const veces = (v: number) => `${Math.round(v * 100) / 100}×`.replace('.', ',');
+
 function FormPunto({
   id,
   pos,
@@ -1069,12 +1458,26 @@ function FormPunto({
   sucio,
   espacios,
   otras,
+  abiertos,
+  alAlternar,
+  puedeDeshacer,
+  puedeRehacer,
+  alDeshacer,
+  alRehacer,
   alCambiar,
   alGuardar,
   alCerrar,
   alDescartar,
   alEliminar,
   alReubicar,
+  alMover,
+  alCentrar,
+  alMirar,
+  alDuplicar,
+  alCopiarEstilo,
+  alPegarEstilo,
+  otrosDelTipo,
+  alAplicarATodos,
   avisar,
 }: {
   id: string | null;
@@ -1083,28 +1486,52 @@ function FormPunto({
   sucio: boolean;
   espacios: { id: string; codigo: string; nombre: string }[];
   otras: OtraPanoramica[];
-  alCambiar: (f: (d: DatosPunto) => DatosPunto) => void;
+  abiertos: Record<Apartado, boolean>;
+  alAlternar: (a: Apartado) => void;
+  puedeDeshacer: boolean;
+  puedeRehacer: boolean;
+  alDeshacer: () => void;
+  alRehacer: () => void;
+  alCambiar: (f: (d: DatosPunto) => DatosPunto, seguido?: boolean) => void;
   alGuardar: () => void;
   alCerrar: () => void;
   alDescartar: () => void;
   alEliminar?: () => void;
   alReubicar: () => void;
+  alMover: (p: Posicion) => void;
+  alCentrar: () => void;
+  alMirar: () => void;
+  alDuplicar?: () => void;
+  alCopiarEstilo: () => void;
+  alPegarEstilo?: () => void;
+  /** Cuántos puntos más hay de este tipo en la foto (para «Aplicar a todos»). */
+  otrosDelTipo: number;
+  alAplicarATodos: () => void;
   avisar: (t: string) => void;
 }) {
   const [subiendo, setSubiendo] = useState<number | null>(null);
-  const set = <K extends keyof DatosPunto>(k: K, v: DatosPunto[K]) => alCambiar((d) => ({ ...d, [k]: v }));
-  const setEstilo = (e: Partial<Estilo>) => alCambiar((d) => ({ ...d, estilo: { ...d.estilo, ...e } }));
+  // Escribir o arrastrar un deslizador son cambios «seguidos» (se deshacen juntos); un clic, no.
+  const set = <K extends keyof DatosPunto>(k: K, v: DatosPunto[K], seguido = true) => alCambiar((d) => ({ ...d, [k]: v }), seguido);
+  const setEstilo = (e: Partial<Estilo>, seguido = false) => alCambiar((d) => ({ ...d, estilo: { ...d.estilo, ...e } }), seguido);
   const e = f.estilo;
   const es3d = FORMAS_3D.includes(e.forma);
   const sinDestino = f.tipo === 'enlace' && otras.length === 0;
   const tituloAuto = (destino: string) => `Ir a ${otras.find((o) => o.id === destino)?.titulo ?? destino}`;
+  const icono = iconoDe(f.tipo, e.icono);
+  const conRotulo = FORMAS_ROTULO.includes(e.forma);
+  const conFondo = e.forma === 'etiqueta' || e.forma === 'burbuja' || e.forma === 'miniatura' || e.forma === 'capa3d' || (conRotulo && e.rotulo);
+  const conIcono = e.forma !== 'circulo' && e.forma !== 'flecha';
+  const ladoCorto = Math.min(Math.max(20, e.ancho), Math.max(20, e.alto));
+  const maxEsquinas = Math.max(1, Math.floor(ladoCorto / 2));
+  const fondo = fondoDe(e);
+  const conVigencia = f.tipo === 'anuncio' || f.tipo === 'informacion' || f.tipo === 'imagen' || f.tipo === 'video';
 
   async function medio(archivo: File | undefined) {
     if (!archivo) return;
     try {
       setSubiendo(0);
       const m = await subirMedio(archivo, setSubiendo);
-      alCambiar((d) => ({ ...d, medio_id: m.id, medio_url: m.url }));
+      alCambiar((d) => ({ ...d, medio_id: m.id, medio_url: m.url }), false);
     } catch (err) {
       avisar((err as Error).message);
     } finally {
@@ -1113,25 +1540,18 @@ function FormPunto({
   }
 
   function cambiarTipo(t: TipoPunto) {
-    alCambiar((d) => ({
-      ...d,
-      tipo: t,
-      estilo: estiloPorDefecto(t, pos.pitch),
-      titulo: t === 'enlace' && !d.titulo.trim() && d.destino_panoramica_id ? tituloAuto(d.destino_panoramica_id) : d.titulo,
-    }));
+    alCambiar(
+      (d) => ({
+        ...d,
+        tipo: t,
+        estilo: estiloPorDefecto(t, pos.pitch),
+        titulo: t === 'enlace' && !d.titulo.trim() && d.destino_panoramica_id ? tituloAuto(d.destino_panoramica_id) : d.titulo,
+      }),
+      false,
+    );
   }
 
-  function cambiarForma(fo: Forma) {
-    const base = estiloPorDefecto(f.tipo, pos.pitch);
-    const tam3d = fo === 'flecha' ? { ancho: 160, alto: 160 } : { ancho: f.tipo === 'video' ? 480 : 320, alto: f.tipo === 'video' ? 270 : f.tipo === 'imagen' ? 320 : 200 };
-    setEstilo({
-      forma: fo,
-      ...(FORMAS_3D.includes(fo) && (!e.ancho || !e.alto || e.forma !== fo) ? tam3d : {}),
-      ...(fo === 'flecha' && e.forma !== 'flecha' ? { rotacion: { yaw: 0, pitch: inclinacionSuelo(pos.pitch), roll: 0 } } : {}),
-      ...(fo === 'capa3d' && e.forma === 'flecha' ? { rotacion: { yaw: 0, pitch: 0, roll: 0 } } : {}),
-      escala: e.escala || base.escala,
-    });
-  }
+  const cambiarForma = (fo: Forma) => alCambiar((d) => ({ ...d, estilo: conForma(d.estilo, fo, d.tipo, pos.pitch) }), false);
 
   function enviar(ev: React.FormEvent) {
     ev.preventDefault();
@@ -1140,151 +1560,140 @@ function FormPunto({
   }
 
   return (
-    <form onSubmit={enviar} className="relieve space-y-3.5 rounded-[20px] p-4">
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 text-[15px] font-medium">
-          {id ?? 'Nuevo punto'}
-          {sucio && <span className="chip bg-alerta-suave text-alerta">{id ? 'Sin guardar' : 'Sin crear'}</span>}
+    <form onSubmit={enviar} className="relieve space-y-2.5 rounded-[20px] p-3.5">
+      <div className="flex items-center justify-between gap-2 px-0.5">
+        <div className="flex min-w-0 items-center gap-2 text-[15px] font-medium">
+          <span className="truncate">{id ?? 'Nuevo punto'}</span>
+          {sucio && <span className="chip shrink-0 bg-alerta-suave text-alerta">{id ? 'Sin guardar' : 'Sin crear'}</span>}
         </div>
-        <span className="font-mono text-[12px] text-tinta-tenue" title="Posición en la foto">
-          {Math.round(pos.yaw)}° · {Math.round(pos.pitch)}°
-        </span>
-      </div>
-      <div className="grid grid-cols-4 gap-1.5">
-        {TIPOS_PUNTO.map((t) => {
-          const Icono = iconoPunto(t);
-          return (
-            <button
-              type="button"
-              key={t}
-              onClick={() => cambiarTipo(t)}
-              title={ETIQUETA_PUNTO[t]}
-              className={`flex flex-col items-center gap-1 rounded-xl px-1 py-2 text-[10.5px] leading-tight transition ${f.tipo === t ? 'bg-riel text-white' : 'bg-black/[0.04] text-tinta-suave hover:bg-black/[0.08]'}`}
-            >
-              <Icono size={16} />
-              {t === 'enlace' ? 'Ir a' : ETIQUETA_PUNTO[t].split(' ')[0]}
-            </button>
-          );
-        })}
+        <div className="-mr-1 flex shrink-0 items-center">
+          <Herramienta titulo="Deshacer (Ctrl + Z)" onClick={alDeshacer} disabled={!puedeDeshacer}>
+            <Undo2 size={16} />
+          </Herramienta>
+          <Herramienta titulo="Rehacer (Ctrl + Y)" onClick={alRehacer} disabled={!puedeRehacer}>
+            <Redo2 size={16} />
+          </Herramienta>
+        </div>
       </div>
 
-      {f.tipo === 'enlace' && (
-        <div className="space-y-2">
-          <div className="text-[13px] font-medium text-tinta-suave">Lleva a</div>
-          {sinDestino ? (
-            <div className="rounded-2xl border border-alerta/30 bg-alerta-suave p-3 text-[13px] leading-snug text-alerta">
-              Para usar «Ir a» necesitas otra foto 360°. Sube la foto de otro nodo en el mapa; si los dos nodos están unidos por un tramo, la flecha aparece sola.
-              <Link href="/mapa" className="boton-suave mt-2.5 w-full !h-9 !text-[13px]">
-                <Footprints size={14} /> Ir al mapa
-              </Link>
-            </div>
-          ) : (
-            <div className="grid max-h-56 grid-cols-2 gap-2 overflow-y-auto p-0.5">
-              {otras.map((o) => (
-                <button
-                  type="button"
-                  key={o.id}
-                  onClick={() =>
-                    alCambiar((d) => ({
-                      ...d,
-                      destino_panoramica_id: o.id,
-                      titulo: !d.titulo.trim() || d.titulo === tituloAuto(d.destino_panoramica_id) ? tituloAuto(o.id) : d.titulo,
-                    }))
-                  }
-                  className={`overflow-hidden rounded-xl text-left text-[12px] transition ${f.destino_panoramica_id === o.id ? 'ring-2 ring-riel' : 'ring-1 ring-black/10 hover:ring-black/25'}`}
-                >
-                  {o.miniatura ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={o.miniatura} alt="" className="h-16 w-full object-cover" />
-                  ) : (
-                    <span className="grid h-16 place-items-center bg-black/5 text-tinta-tenue">360°</span>
-                  )}
-                  <span className="block truncate px-2 pt-1.5 font-medium">{o.titulo}</span>
-                  <span className="block px-2 pb-1.5 font-mono text-[11px] text-tinta-tenue">
-                    {o.id} · {o.vertice_id}
-                  </span>
-                </button>
-              ))}
-            </div>
-          )}
+      <SeccionPunto titulo="Contenido" icono={<FileText size={15} />} abierto={abiertos.contenido} alAlternar={() => alAlternar('contenido')} resumen={ETIQUETA_PUNTO[f.tipo]}>
+        <div className="grid grid-cols-4 gap-1.5">
+          {TIPOS_PUNTO.map((t) => {
+            const Icono = iconoPunto(t);
+            return (
+              <button
+                type="button"
+                key={t}
+                onClick={() => cambiarTipo(t)}
+                title={ETIQUETA_PUNTO[t]}
+                className={`flex flex-col items-center gap-1 rounded-xl px-1 py-2 text-[10.5px] leading-tight transition ${f.tipo === t ? 'bg-riel text-white' : 'bg-white/70 text-tinta-suave hover:bg-white'}`}
+              >
+                <Icono size={16} />
+                {t === 'enlace' ? 'Ir a' : ETIQUETA_PUNTO[t].split(' ')[0]}
+              </button>
+            );
+          })}
         </div>
-      )}
 
-      <Campo etiqueta="Título">
-        <input
-          required
-          value={f.titulo}
-          onChange={(ev) => set('titulo', ev.target.value)}
-          className="campo"
-          placeholder={f.tipo === 'anuncio' ? 'Inscripciones abiertas' : f.tipo === 'enlace' ? 'Ir a la biblioteca' : 'Biblioteca'}
-        />
-      </Campo>
-      {f.tipo !== 'enlace' && (
-        <Campo etiqueta="Texto">
-          <textarea rows={3} value={f.texto} onChange={(ev) => set('texto', ev.target.value)} className="campo resize-none" />
-        </Campo>
-      )}
-      {(f.tipo === 'imagen' || f.tipo === 'video') && (
-        <div className="space-y-2">
-          <label className="campo flex cursor-pointer items-center gap-2">
-            <Upload size={16} className="text-tinta-tenue" />
-            <span className="truncate text-tinta-suave">
-              {subiendo !== null ? `Subiendo… ${Math.round(subiendo * 100)} %` : f.medio_id ? `Cambiar ${f.tipo === 'imagen' ? 'imagen o GIF' : 'video'}` : `Subir ${f.tipo === 'imagen' ? 'imagen o GIF' : 'video (MP4)'}`}
-            </span>
-            <input type="file" className="hidden" accept={f.tipo === 'video' ? 'video/mp4,video/webm' : 'image/jpeg,image/png,image/webp,image/gif'} onChange={(ev) => medio(ev.target.files?.[0])} />
-          </label>
-          {f.medio_url && f.tipo === 'imagen' && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={f.medio_url} alt="" className="h-28 w-full rounded-xl object-cover" />
-          )}
-          {f.medio_url && f.tipo === 'video' && <video src={f.medio_url} controls className="w-full rounded-xl" />}
-          <input value={f.url} onChange={(ev) => set('url', ev.target.value)} placeholder="…o pega un enlace (https://)" className="campo" />
-        </div>
-      )}
-      {(f.tipo === 'informacion' || f.tipo === 'anuncio') && (
-        <Campo etiqueta="Enlace (opcional)">
-          <input value={f.url} onChange={(ev) => set('url', ev.target.value)} placeholder="https://unipaz.edu.co/…" className="campo" />
-        </Campo>
-      )}
-      {f.tipo === 'espacio' && (
-        <Campo etiqueta="Espacio">
-          {espacios.length === 0 ? (
-            <p className="text-[13px] text-alerta">Todavía no hay espacios registrados. Créalos en Campus → Espacios.</p>
-          ) : (
-            <select value={f.espacio_id} onChange={(ev) => set('espacio_id', ev.target.value)} className="campo">
-              {espacios.map((x) => (
-                <option key={x.id} value={x.id}>
-                  {x.codigo} · {x.nombre}
-                </option>
-              ))}
-            </select>
-          )}
-        </Campo>
-      )}
-      {(f.tipo === 'anuncio' || f.tipo === 'informacion' || f.tipo === 'imagen' || f.tipo === 'video') && (
-        <div className="grid grid-cols-2 gap-2">
-          <Campo etiqueta="Visible desde">
-            <input type="datetime-local" value={f.vigente_desde} onChange={(ev) => set('vigente_desde', ev.target.value)} className="campo !px-2 !text-[13px]" />
-          </Campo>
-          <Campo etiqueta="Hasta">
-            <input type="datetime-local" value={f.vigente_hasta} onChange={(ev) => set('vigente_hasta', ev.target.value)} className="campo !px-2 !text-[13px]" />
-          </Campo>
-        </div>
-      )}
-      <Campo etiqueta="Quién lo ve en la app">
-        <select value={f.audiencia} onChange={(ev) => set('audiencia', ev.target.value as Audiencia)} className="campo">
-          <option value="todos">Todos</option>
-          <option value="institucional">Solo con cuenta institucional</option>
-        </select>
-        {f.audiencia === 'institucional' && (
-          <p className="mt-1.5 text-[12px] leading-snug text-tinta-tenue">
-            Lo ven quienes entran con su correo @unipaz.edu.co. No es secreto: viaja en el paquete de la app, así que no pongas información confidencial.
-          </p>
+        {f.tipo === 'enlace' && (
+          <div className="space-y-2">
+            <div className="text-[13px] font-medium text-tinta-suave">Lleva a</div>
+            {sinDestino ? (
+              <div className="rounded-2xl border border-alerta/30 bg-alerta-suave p-3 text-[13px] leading-snug text-alerta">
+                Para usar «Ir a» necesitas otra foto 360°. Sube la foto de otro nodo en el mapa; si los dos nodos están unidos por un tramo, la flecha aparece sola.
+                <Link href="/mapa" className="boton-suave mt-2.5 w-full !h-9 !text-[13px]">
+                  <Footprints size={14} /> Ir al mapa
+                </Link>
+              </div>
+            ) : (
+              <div className="grid max-h-56 grid-cols-2 gap-2 overflow-y-auto p-0.5">
+                {otras.map((o) => (
+                  <button
+                    type="button"
+                    key={o.id}
+                    onClick={() =>
+                      alCambiar(
+                        (d) => ({
+                          ...d,
+                          destino_panoramica_id: o.id,
+                          titulo: !d.titulo.trim() || d.titulo === tituloAuto(d.destino_panoramica_id) ? tituloAuto(o.id) : d.titulo,
+                        }),
+                        false,
+                      )
+                    }
+                    className={`overflow-hidden rounded-xl bg-white/70 text-left text-[12px] transition ${f.destino_panoramica_id === o.id ? 'ring-2 ring-riel' : 'ring-1 ring-black/10 hover:ring-black/25'}`}
+                  >
+                    {o.miniatura ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={o.miniatura} alt="" className="h-16 w-full object-cover" />
+                    ) : (
+                      <span className="grid h-16 place-items-center bg-black/5 text-tinta-tenue">360°</span>
+                    )}
+                    <span className="block truncate px-2 pt-1.5 font-medium">{o.titulo}</span>
+                    <span className="block px-2 pb-1.5 font-mono text-[11px] text-tinta-tenue">
+                      {o.id} · {o.vertice_id}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         )}
-      </Campo>
 
-      <div className="space-y-3.5 rounded-2xl bg-black/[0.03] p-3">
-        <div className="text-[13px] font-medium">Cómo se ve en la foto</div>
+        <Campo etiqueta="Título">
+          <input
+            required
+            value={f.titulo}
+            onChange={(ev) => set('titulo', ev.target.value)}
+            className="campo"
+            placeholder={f.tipo === 'anuncio' ? 'Inscripciones abiertas' : f.tipo === 'enlace' ? 'Ir a la biblioteca' : 'Biblioteca'}
+          />
+        </Campo>
+        {f.tipo !== 'enlace' && (
+          <Campo etiqueta="Texto">
+            <textarea rows={3} value={f.texto} onChange={(ev) => set('texto', ev.target.value)} className="campo resize-none" />
+          </Campo>
+        )}
+        {(f.tipo === 'imagen' || f.tipo === 'video') && (
+          <div className="space-y-2">
+            <label className="campo flex cursor-pointer items-center gap-2">
+              <Upload size={16} className="text-tinta-tenue" />
+              <span className="truncate text-tinta-suave">
+                {subiendo !== null ? `Subiendo… ${Math.round(subiendo * 100)} %` : f.medio_id ? `Cambiar ${f.tipo === 'imagen' ? 'imagen o GIF' : 'video'}` : `Subir ${f.tipo === 'imagen' ? 'imagen o GIF' : 'video (MP4)'}`}
+              </span>
+              <input type="file" className="hidden" accept={f.tipo === 'video' ? 'video/mp4,video/webm' : 'image/jpeg,image/png,image/webp,image/gif'} onChange={(ev) => medio(ev.target.files?.[0])} />
+            </label>
+            {f.medio_url && f.tipo === 'imagen' && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={f.medio_url} alt="" className="h-28 w-full rounded-xl object-cover" />
+            )}
+            {f.medio_url && f.tipo === 'video' && <video src={f.medio_url} controls className="w-full rounded-xl" />}
+            <input value={f.url} onChange={(ev) => set('url', ev.target.value)} placeholder="…o pega un enlace (https://)" className="campo" />
+          </div>
+        )}
+        {(f.tipo === 'informacion' || f.tipo === 'anuncio') && (
+          <Campo etiqueta="Enlace (opcional)">
+            <input value={f.url} onChange={(ev) => set('url', ev.target.value)} placeholder="https://unipaz.edu.co/…" className="campo" />
+          </Campo>
+        )}
+        {f.tipo === 'espacio' && (
+          <Campo etiqueta="Espacio">
+            {espacios.length === 0 ? (
+              <p className="text-[13px] text-alerta">Todavía no hay espacios registrados. Créalos en Campus → Espacios.</p>
+            ) : (
+              <select value={f.espacio_id} onChange={(ev) => set('espacio_id', ev.target.value, false)} className="campo">
+                {espacios.map((x) => (
+                  <option key={x.id} value={x.id}>
+                    {x.codigo} · {x.nombre}
+                  </option>
+                ))}
+              </select>
+            )}
+          </Campo>
+        )}
+      </SeccionPunto>
+
+      <SeccionPunto titulo="Forma y tamaño" icono={<Shapes size={15} />} abierto={abiertos.forma} alAlternar={() => alAlternar('forma')} resumen={ETIQUETA_FORMA[e.forma]}>
         <div className="grid grid-cols-3 gap-1.5">
           {formasDe(f.tipo).map((fo) => (
             <button
@@ -1294,15 +1703,64 @@ function FormPunto({
               className={`flex flex-col items-center justify-end gap-1.5 rounded-xl px-1 pb-1.5 pt-2 text-[11px] transition ${e.forma === fo ? 'bg-riel text-white' : 'bg-white/70 text-tinta-suave hover:bg-white'}`}
             >
               <span className="grid h-9 place-items-center">
-                <MuestraForma forma={fo} color={e.color} />
+                <MuestraForma forma={fo} color={e.color} icono={icono} />
               </span>
               {ETIQUETA_FORMA[fo]}
             </button>
           ))}
         </div>
 
+        {conRotulo && <Interruptor etiqueta="Mostrar el nombre debajo" ayuda="Se lee sin pasar el mouse: útil en el celular." valor={e.rotulo} alCambiar={(v) => setEstilo({ rotulo: v })} />}
+
+        {!es3d && <Deslizador etiqueta="Tamaño" valor={e.escala} min={0.5} max={2.5} paso={0.05} formato={(v) => `${Math.round(v * 100)} %`} alCambiar={(v) => setEstilo({ escala: v }, true)} />}
+        {es3d && (
+          <>
+            <div className="grid grid-cols-2 gap-2">
+              <Deslizador etiqueta="Ancho" valor={e.ancho} min={40} max={1600} paso={10} alCambiar={(v) => setEstilo({ ancho: v }, true)} />
+              <Deslizador etiqueta="Alto" valor={e.alto} min={40} max={1600} paso={10} alCambiar={(v) => setEstilo({ alto: v }, true)} />
+            </div>
+            <Deslizador etiqueta="Girar (yaw)" valor={e.rotacion.yaw} min={-180} max={180} paso={1} unidad="°" alCambiar={(v) => setEstilo({ rotacion: { ...e.rotacion, yaw: v } }, true)} />
+            <Deslizador etiqueta="Inclinar (pitch)" valor={e.rotacion.pitch} min={-90} max={90} paso={1} unidad="°" alCambiar={(v) => setEstilo({ rotacion: { ...e.rotacion, pitch: v } }, true)} />
+            <Deslizador etiqueta="Rotar (roll)" valor={e.rotacion.roll} min={-180} max={180} paso={1} unidad="°" alCambiar={(v) => setEstilo({ rotacion: { ...e.rotacion, roll: v } }, true)} />
+            {e.forma === 'flecha' ? (
+              <button type="button" onClick={() => setEstilo({ rotacion: { yaw: e.rotacion.yaw, pitch: inclinacionSuelo(pos.pitch), roll: 0 } })} className="boton-suave w-full !h-9 !text-[13px]">
+                <Footprints size={14} /> Acostar en el piso
+              </button>
+            ) : (
+              <>
+                <Deslizador
+                  etiqueta="Esquinas"
+                  valor={Math.min(e.esquinas, maxEsquinas)}
+                  min={0}
+                  max={maxEsquinas}
+                  paso={1}
+                  formato={(v) => (v >= maxEsquinas ? 'Redonda' : v === 0 ? 'Rectas' : `${v} px`)}
+                  // Al tope queda redonda aunque después cambie de tamaño.
+                  alCambiar={(v) => setEstilo({ esquinas: v >= maxEsquinas ? 2000 : v }, true)}
+                />
+                <Deslizador etiqueta="Marco" valor={e.marco} min={0} max={40} paso={1} formato={(v) => (v === 0 ? 'Sin marco' : `${v} px`)} alCambiar={(v) => setEstilo({ marco: v }, true)} />
+                <p className="text-[11px] text-tinta-tenue">Ajusta el tamaño y el giro hasta que encaje con la pared, el piso o la pantalla de la foto. El marco toma el color de acento.</p>
+              </>
+            )}
+          </>
+        )}
+      </SeccionPunto>
+
+      <SeccionPunto
+        titulo="Color e ícono"
+        icono={<Palette size={15} />}
+        abierto={abiertos.color}
+        alAlternar={() => alAlternar('color')}
+        resumen={
+          <>
+            <span className="h-3.5 w-3.5 shrink-0 rounded-full ring-1 ring-black/15" style={{ background: e.color }} />
+            {conIcono && <IconoSvg icono={icono} tamano={13} />}
+            {conFondo && <span className="truncate">{ETIQUETA_FONDO[fondo]}</span>}
+          </>
+        }
+      >
         <div>
-          <div className="mb-1.5 text-[13px] text-tinta-suave">Color</div>
+          <div className="mb-1.5 text-[13px] text-tinta-suave">Color de acento</div>
           <div className="flex flex-wrap items-center gap-1.5">
             {[...new Set([COLOR_PUNTO[f.tipo], ...COLORES])].map((c) => (
               <button
@@ -1310,72 +1768,165 @@ function FormPunto({
                 key={c}
                 onClick={() => setEstilo({ color: c })}
                 title={c}
+                aria-label={`Color ${c}`}
                 className={`h-7 w-7 rounded-full ring-1 ring-black/15 transition ${e.color === c ? 'scale-110 outline outline-2 outline-offset-2 outline-riel' : 'hover:scale-105'}`}
                 style={{ background: c }}
               />
             ))}
             <label className="relative h-7 w-7 cursor-pointer overflow-hidden rounded-full ring-1 ring-black/15" title="Otro color" style={{ background: 'conic-gradient(red, yellow, lime, aqua, blue, magenta, red)' }}>
-              <input type="color" value={e.color} onChange={(ev) => setEstilo({ color: ev.target.value })} className="absolute inset-0 cursor-pointer opacity-0" />
+              <input type="color" value={e.color} onChange={(ev) => setEstilo({ color: ev.target.value }, true)} className="absolute inset-0 cursor-pointer opacity-0" />
             </label>
           </div>
         </div>
 
-        {!es3d && <Deslizador etiqueta="Tamaño" valor={e.escala} min={0.5} max={2.5} paso={0.05} formato={(v) => `${Math.round(v * 100)} %`} alCambiar={(v) => setEstilo({ escala: v })} />}
-        {es3d && (
-          <>
-            <div className="grid grid-cols-2 gap-2">
-              <Deslizador etiqueta="Ancho" valor={e.ancho} min={40} max={1600} paso={10} alCambiar={(v) => setEstilo({ ancho: v })} />
-              <Deslizador etiqueta="Alto" valor={e.alto} min={40} max={1600} paso={10} alCambiar={(v) => setEstilo({ alto: v })} />
+        {conFondo && (
+          <div>
+            <div className="mb-1.5 text-[13px] text-tinta-suave">{e.forma === 'miniatura' || (conRotulo && e.rotulo) ? 'Fondo del nombre' : 'Fondo'}</div>
+            <div className="grid grid-cols-3 gap-1.5">
+              {FONDOS.map((fo) => (
+                <button
+                  type="button"
+                  key={fo}
+                  onClick={() => setEstilo({ fondo: fo })}
+                  aria-pressed={fondo === fo}
+                  className={`flex flex-col items-center gap-1.5 rounded-xl px-1 py-2 text-[11px] transition ${fondo === fo ? 'bg-riel text-white' : 'bg-white/70 text-tinta-suave hover:bg-white'}`}
+                >
+                  <MuestraFondo fondo={fo} color={e.color} />
+                  {ETIQUETA_FONDO[fo]}
+                </button>
+              ))}
             </div>
-            <Deslizador etiqueta="Girar (yaw)" valor={e.rotacion.yaw} min={-180} max={180} paso={1} unidad="°" alCambiar={(v) => setEstilo({ rotacion: { ...e.rotacion, yaw: v } })} />
-            <Deslizador etiqueta="Inclinar (pitch)" valor={e.rotacion.pitch} min={-90} max={90} paso={1} unidad="°" alCambiar={(v) => setEstilo({ rotacion: { ...e.rotacion, pitch: v } })} />
-            <Deslizador etiqueta="Rotar (roll)" valor={e.rotacion.roll} min={-180} max={180} paso={1} unidad="°" alCambiar={(v) => setEstilo({ rotacion: { ...e.rotacion, roll: v } })} />
-            {e.forma === 'flecha' ? (
-              <button type="button" onClick={() => setEstilo({ rotacion: { yaw: e.rotacion.yaw, pitch: inclinacionSuelo(pos.pitch), roll: 0 } })} className="boton-suave w-full !h-9 !text-[13px]">
-                <Footprints size={14} /> Acostar en el piso
-              </button>
-            ) : (
-              <p className="text-[11px] text-tinta-tenue">Ajusta el tamaño y el giro hasta que encaje con la pared, el piso o la pantalla de la foto.</p>
-            )}
-          </>
+          </div>
         )}
 
-        <div>
-          <div className="mb-1.5 text-[13px] text-tinta-suave">Animación</div>
-          <div className="grid grid-cols-3 gap-1.5">
-            {ANIMACIONES.map((a) => (
+        {conIcono && (
+          <div>
+            <div className="mb-1.5 flex items-baseline justify-between gap-2 text-[13px] text-tinta-suave">
+              <span>Ícono</span>
+              <span className="truncate text-[12px] text-tinta-tenue">{e.icono ? ETIQUETA_ICONO[e.icono] : `El del tipo (${ETIQUETA_ICONO[icono]})`}</span>
+            </div>
+            <div className="grid grid-cols-8 gap-1">
               <button
                 type="button"
-                key={a}
-                onClick={() => setEstilo({ animacion: a })}
-                className={`muestra-anim flex items-center gap-2 rounded-xl px-2 py-2 text-[11.5px] transition ${e.animacion === a ? 'activa bg-riel text-white' : 'bg-white/70 text-tinta-suave hover:bg-white'}`}
+                onClick={() => setEstilo({ icono: '' })}
+                title="El ícono del tipo de punto"
+                aria-pressed={!e.icono}
+                className={`col-span-2 flex h-8 items-center justify-center rounded-lg text-[11px] transition ${!e.icono ? 'bg-riel text-white' : 'bg-white/70 text-tinta-suave hover:bg-white'}`}
               >
-                <span className="pz pz-icono pointer-events-none" style={{ '--c': e.color, '--t': tintaSobre(e.color), fontSize: 5 } as React.CSSProperties}>
-                  <span className={`pz-cuerpo${a !== 'ninguna' ? ` anim-${a}` : ''}`}>
-                    <i className="pz-ico">
-                      <Info />
-                    </i>
-                  </span>
-                </span>
-                {ETIQUETA_ANIMACION[a]}
+                Del tipo
               </button>
-            ))}
+              {ICONOS_PUNTO.map((ic) => (
+                <button
+                  type="button"
+                  key={ic}
+                  onClick={() => setEstilo({ icono: ic })}
+                  title={ETIQUETA_ICONO[ic]}
+                  aria-label={ETIQUETA_ICONO[ic]}
+                  aria-pressed={e.icono === ic}
+                  className={`grid h-8 place-items-center rounded-lg transition ${e.icono === ic ? 'bg-riel text-white' : 'bg-white/70 text-tinta-suave hover:bg-white'}`}
+                >
+                  <IconoSvg icono={ic} tamano={15} />
+                </button>
+              ))}
+            </div>
+            {(e.forma === 'miniatura' || e.forma === 'capa3d') && <p className="mt-1.5 text-[11px] text-tinta-tenue">Se ve cuando el punto no tiene foto.</p>}
           </div>
-        </div>
-      </div>
+        )}
 
-      <div className="flex flex-wrap gap-2 pt-1">
+        <Deslizador etiqueta="Opacidad" valor={e.opacidad} min={0.2} max={1} paso={0.05} formato={(v) => `${Math.round(v * 100)} %`} alCambiar={(v) => setEstilo({ opacidad: v }, true)} />
+      </SeccionPunto>
+
+      <SeccionPunto titulo="Animación" icono={<Sparkles size={15} />} abierto={abiertos.animacion} alAlternar={() => alAlternar('animacion')} resumen={ETIQUETA_ANIMACION[e.animacion]}>
+        <div className="grid grid-cols-3 gap-1.5">
+          {ANIMACIONES.map((a) => (
+            <button
+              type="button"
+              key={a}
+              onClick={() => setEstilo({ animacion: a })}
+              className={`muestra-anim flex items-center gap-2 rounded-xl px-2 py-2 text-[11.5px] transition ${e.animacion === a ? 'activa bg-riel text-white' : 'bg-white/70 text-tinta-suave hover:bg-white'}`}
+            >
+              <span className="pz pz-icono pointer-events-none" style={{ '--c': e.color, '--t': tintaSobre(e.color), '--v': e.velocidad, fontSize: 5 } as React.CSSProperties}>
+                <span className={`pz-cuerpo${a !== 'ninguna' ? ` anim-${a}` : ''}`}>
+                  <i className="pz-ico" dangerouslySetInnerHTML={{ __html: svgIcono(icono) }} />
+                </span>
+              </span>
+              {ETIQUETA_ANIMACION[a]}
+            </button>
+          ))}
+        </div>
+        {e.animacion !== 'ninguna' && (
+          <Deslizador etiqueta="Velocidad" valor={e.velocidad} min={0.5} max={2} paso={0.05} formato={(v) => (v === 1 ? 'Normal' : veces(v))} alCambiar={(v) => setEstilo({ velocidad: v }, true)} />
+        )}
+      </SeccionPunto>
+
+      <SeccionPunto
+        titulo="Posición"
+        icono={<Move size={15} />}
+        abierto={abiertos.posicion}
+        alAlternar={() => alAlternar('posicion')}
+        resumen={
+          <span className="font-mono">
+            {Math.round(pos.yaw)}° · {Math.round(pos.pitch)}°
+          </span>
+        }
+      >
+        <div className="grid grid-cols-2 gap-2">
+          <CampoGrados etiqueta="Horizontal (yaw)" valor={pos.yaw} min={-180} max={180} alCambiar={(v) => alMover({ yaw: normalizar(v), pitch: pos.pitch })} />
+          <CampoGrados etiqueta="Vertical (pitch)" valor={pos.pitch} min={-90} max={90} alCambiar={(v) => alMover({ yaw: pos.yaw, pitch: v })} />
+        </div>
+        <div className="grid grid-cols-3 gap-1.5">
+          <button type="button" onClick={alCentrar} className="boton-suave !h-auto flex-col !gap-1 !px-1 !py-2 !text-[11.5px]" title="Lleva el punto al centro de la vista">
+            <LocateFixed size={14} /> Al centro
+          </button>
+          <button type="button" onClick={alMirar} className="boton-suave !h-auto flex-col !gap-1 !px-1 !py-2 !text-[11.5px]" title="Gira la vista hasta el punto">
+            <Eye size={14} /> Mirarlo
+          </button>
+          <button type="button" onClick={alReubicar} className="boton-suave !h-auto flex-col !gap-1 !px-1 !py-2 !text-[11.5px]" title="Clic en la foto para ponerlo ahí">
+            <Crosshair size={14} /> Con clic
+          </button>
+        </div>
+        <p className="text-[11px] text-tinta-tenue">También puedes arrastrarlo sobre la foto. Con las guías ves el horizonte y el centro de la vista.</p>
+      </SeccionPunto>
+
+      <SeccionPunto
+        titulo="Visibilidad"
+        icono={<GraduationCap size={15} />}
+        abierto={abiertos.visibilidad}
+        alAlternar={() => alAlternar('visibilidad')}
+        resumen={
+          <span className="truncate">
+            {f.audiencia === 'institucional' ? 'Cuenta institucional' : 'Todos'}
+            {conVigencia && (f.vigente_desde || f.vigente_hasta) ? ' · con fechas' : ''}
+          </span>
+        }
+      >
+        {conVigencia && (
+          <div className="grid grid-cols-2 gap-2">
+            <Campo etiqueta="Visible desde">
+              <input type="datetime-local" value={f.vigente_desde} onChange={(ev) => set('vigente_desde', ev.target.value, false)} className="campo !px-2 !text-[13px]" />
+            </Campo>
+            <Campo etiqueta="Hasta">
+              <input type="datetime-local" value={f.vigente_hasta} onChange={(ev) => set('vigente_hasta', ev.target.value, false)} className="campo !px-2 !text-[13px]" />
+            </Campo>
+          </div>
+        )}
+        <Campo etiqueta="Quién lo ve en la app">
+          <select value={f.audiencia} onChange={(ev) => set('audiencia', ev.target.value as Audiencia, false)} className="campo">
+            <option value="todos">Todos</option>
+            <option value="institucional">Solo con cuenta institucional</option>
+          </select>
+          {f.audiencia === 'institucional' && (
+            <p className="mt-1.5 text-[12px] leading-snug text-tinta-tenue">
+              Lo ven quienes entran con su correo @unipaz.edu.co. No es secreto: viaja en el paquete de la app, así que no pongas información confidencial.
+            </p>
+          )}
+        </Campo>
+      </SeccionPunto>
+
+      <div className="flex gap-2 pt-1">
         <button type="submit" disabled={subiendo !== null || sinDestino || !sucio} className="boton-primario flex-1 !h-10">
           {id ? (sucio ? 'Guardar' : 'Guardado') : 'Crear punto'}
         </button>
-        <button type="button" onClick={alReubicar} className="boton-suave !h-10 !px-3" title="Mover: clic en la nueva posición (también puedes arrastrarlo)">
-          <Move size={15} />
-        </button>
-        {alEliminar && (
-          <button type="button" onClick={alEliminar} className="boton-peligro !h-10 !px-3" title="Eliminar (Supr)">
-            <Trash2 size={15} />
-          </button>
-        )}
         {sucio && id ? (
           <button type="button" onClick={alDescartar} className="boton-suave !h-10 !px-3" title="Volver a lo guardado">
             Descartar
@@ -1384,6 +1935,29 @@ function FormPunto({
           <button type="button" onClick={id ? alCerrar : alDescartar} className="boton-suave !h-10 !px-3">
             {id ? 'Cerrar' : 'Cancelar'}
           </button>
+        )}
+      </div>
+      <div className="flex items-center gap-0.5 border-t border-black/5 pt-2">
+        <Herramienta titulo={alDuplicar ? 'Duplicar (Ctrl + D)' : 'Crea el punto para poder duplicarlo'} onClick={alDuplicar}>
+          <CopyPlus size={16} />
+        </Herramienta>
+        <Herramienta titulo="Copiar estilo" onClick={alCopiarEstilo}>
+          <Copy size={16} />
+        </Herramienta>
+        <Herramienta titulo={alPegarEstilo ? 'Pegar estilo' : 'Copia el estilo de un punto para pegarlo aquí'} onClick={alPegarEstilo}>
+          <ClipboardPaste size={16} />
+        </Herramienta>
+        <Herramienta
+          titulo={otrosDelTipo ? `Aplicar este estilo a ${otrosDelTipo === 1 ? 'el otro punto' : `los otros ${otrosDelTipo} puntos`} de tipo «${ETIQUETA_PUNTO[f.tipo]}»` : `No hay otros puntos de tipo «${ETIQUETA_PUNTO[f.tipo]}» en esta foto`}
+          onClick={otrosDelTipo ? alAplicarATodos : undefined}
+        >
+          <Paintbrush size={16} />
+        </Herramienta>
+        <span className="flex-1" />
+        {alEliminar && (
+          <Herramienta titulo="Eliminar (Supr)" onClick={alEliminar} peligro>
+            <Trash2 size={16} />
+          </Herramienta>
         )}
       </div>
     </form>

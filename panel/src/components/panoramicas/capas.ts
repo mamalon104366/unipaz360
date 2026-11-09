@@ -9,17 +9,15 @@
  *   Regla de tamaño compartida con Flutter: ancho angular (rad) ≈ ancho / 1000.
  */
 import type { Estilo, Punto } from '@/lib/tipos';
-import { estiloPorDefecto } from '@/lib/tipos';
+import { FORMAS_ROTULO, estiloPorDefecto } from '@/lib/tipos';
+import { limpiarEstilo, radioCapa } from '@/lib/estiloPunto';
 import { svgPunto } from './iconosPunto';
 
 const rad = (g: number) => (g * Math.PI) / 180;
 const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-export const estiloDe = (p: Pick<Punto, 'tipo'> & { estilo?: Partial<Estilo> | null }): Estilo => {
-  const base = estiloPorDefecto(p.tipo);
-  const e = p.estilo ?? {};
-  return { ...base, ...e, rotacion: { ...base.rotacion, ...(e.rotacion ?? {}) } } as Estilo;
-};
+/** El estilo guardado de un punto, completo y dentro de sus rangos (lo mismo que hace el servidor). */
+export const estiloDe = (p: Pick<Punto, 'tipo'> & { estilo?: unknown }): Estilo => limpiarEstilo(p.tipo, p.estilo);
 
 /** Luminancia relativa (WCAG, la misma que `Color.computeLuminance()` de Flutter). */
 function luminancia(hex: string) {
@@ -69,10 +67,13 @@ export function marcadorDe(
   const anim = estilo.animacion !== 'ninguna' ? ` anim-${estilo.animacion}` : '';
   const sel = seleccionado ? ' es-sel' : '';
   const captura = editable ? ' psv--capture-event es-editable' : '';
+  const fondo = estilo.fondo ? ` pz-f-${estilo.fondo}` : '';
   const color = /^#[0-9a-f]{6}$/i.test(estilo.color) ? estilo.color : estiloPorDefecto(p.tipo).color;
   const tinta = tintaSobre(color);
   const fuente = p.medio_url || p.url || '';
-  const conTitulo = ['icono', 'circulo', 'pin', 'flecha', 'capa3d'].includes(estilo.forma);
+  // Con el rótulo puesto, el título ya se lee: no hace falta la burbuja al pasar el mouse.
+  const rotulo = estilo.rotulo && FORMAS_ROTULO.includes(estilo.forma);
+  const conTitulo = ['icono', 'circulo', 'pin', 'flecha', 'capa3d'].includes(estilo.forma) && !rotulo;
   const base = {
     id,
     position: { yaw: rad(vista.yaw), pitch: rad(vista.pitch) },
@@ -82,7 +83,7 @@ export function marcadorDe(
   if (estilo.forma === 'flecha' || estilo.forma === 'capa3d') {
     const tamano = { width: Math.max(20, estilo.ancho), height: Math.max(20, estilo.alto) };
     const rotacion = { yaw: `${estilo.rotacion.yaw}deg`, pitch: `${estilo.rotacion.pitch}deg`, roll: `${estilo.rotacion.roll}deg` };
-    const clave = `${id}|${estilo.forma}|${p.tipo}|${fuente}|${titulo}|${p.texto ?? ''}`;
+    const clave = `${id}|${estilo.forma}|${p.tipo}|${fuente}|${titulo}|${p.texto ?? ''}|${estilo.icono}`;
     const el = capa(cache, clave, () => {
       const d = document.createElement('div');
       if (estilo.forma === 'flecha') {
@@ -102,31 +103,39 @@ export function marcadorDe(
         i.draggable = false;
         d.appendChild(i);
       } else {
-        d.innerHTML = `<div class="psv-tarjeta-contenido"><i class="pz-ico">${svgPunto(p.tipo as Punto['tipo'])}</i><b>${titulo}</b>${p.texto ? `<p>${esc(p.texto)}</p>` : ''}</div>`;
+        d.innerHTML = `<div class="psv-tarjeta-contenido"><i class="pz-ico">${svgPunto(p.tipo as Punto['tipo'], estilo.icono)}</i><b>${titulo}</b>${p.texto ? `<p>${esc(p.texto)}</p>` : ''}</div>`;
       }
       return d;
     });
-    el.className = `psv-capa psv-capa--${estilo.forma}${anim}${sel}${captura}`;
+    const capa3d = estilo.forma === 'capa3d';
+    el.className = `psv-capa psv-capa--${estilo.forma}${capa3d ? fondo : ''}${anim}${sel}${captura}`;
     el.dataset.punto = punto;
     el.style.width = `${tamano.width}px`;
     el.style.height = `${tamano.height}px`;
     el.style.setProperty('--c', color);
     el.style.setProperty('--t', tinta);
+    // El elemento se reutiliza entre cambios: lo que no aplica se borra.
+    el.style.opacity = estilo.opacidad < 1 ? String(estilo.opacidad) : '';
+    if (estilo.velocidad !== 1) el.style.setProperty('--v', String(estilo.velocidad));
+    else el.style.removeProperty('--v');
+    el.style.borderRadius = capa3d ? `${radioCapa(estilo, tamano.width, tamano.height)}px` : '';
+    el.style.border = capa3d && estilo.marco > 0 ? `${estilo.marco}px solid var(--c)` : '';
     return { ...base, elementLayer: el, size: tamano, rotation: rotacion };
   }
 
-  const icono = `<i class="pz-ico">${svgPunto(p.tipo as Punto['tipo'])}</i>`;
+  const icono = `<i class="pz-ico">${svgPunto(p.tipo as Punto['tipo'], estilo.icono)}</i>`;
+  const textoRotulo = rotulo ? `<span class="pz-rotulo">${titulo}</span>` : '';
   let cuerpo: string;
   let anchor = 'center center';
   switch (estilo.forma) {
     case 'icono':
-      cuerpo = icono;
+      cuerpo = icono + textoRotulo;
       break;
     case 'circulo':
-      cuerpo = '<span class="pz-nucleo"></span>';
+      cuerpo = `<span class="pz-nucleo"></span>${textoRotulo}`;
       break;
     case 'pin':
-      cuerpo = `<span class="pz-gota">${icono}</span>`;
+      cuerpo = `<span class="pz-gota">${icono}</span>${textoRotulo}`;
       anchor = 'bottom center';
       break;
     case 'burbuja':
@@ -142,9 +151,12 @@ export function marcadorDe(
       cuerpo = `${icono}<span class="pz-texto">${titulo}</span>`;
   }
   const tamano = Math.round(13 * Math.min(2.5, Math.max(0.5, estilo.escala || 1)) * 10) / 10;
+  const estilos = [`--c:${color}`, `--t:${tinta}`, `font-size:${tamano}px`];
+  if (estilo.opacidad < 1) estilos.push(`opacity:${estilo.opacidad}`);
+  if (estilo.velocidad !== 1) estilos.push(`--v:${estilo.velocidad}`);
   return {
     ...base,
-    html: `<div class="pz pz-${estilo.forma}${sel}${captura}" data-punto="${esc(punto)}" style="--c:${color};--t:${tinta};font-size:${tamano}px"><div class="pz-cuerpo${anim}">${cuerpo}</div></div>`,
+    html: `<div class="pz pz-${estilo.forma}${fondo}${sel}${captura}" data-punto="${esc(punto)}" style="${estilos.join(';')}"><div class="pz-cuerpo${anim}">${cuerpo}</div></div>`,
     anchor,
   };
 }

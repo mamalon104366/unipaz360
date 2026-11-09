@@ -8,6 +8,9 @@ import 'dart:ui' as ui;
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../core/modelo/iconos_punto.generado.dart';
+import '../visor360/iconos_lucide.generado.dart';
+
 /// `#rrggbb` → color. Si no es válido, [porDefecto].
 Color colorHex(String? hex, {Color porDefecto = const Color(0xFF1C1C1F)}) {
   if (hex == null || hex.length != 7 || !hex.startsWith('#')) return porDefecto;
@@ -137,13 +140,8 @@ IconData iconoSeccion(String icono) => switch (icono) {
   _ => LucideIcons.info,
 };
 
-/// Íconos de los puntos del recorrido (`iconosPunto.ts`).
-IconData iconoPunto(String tipo) => switch (tipo) {
-  'anuncio' => LucideIcons.megaphone,
-  'imagen' => LucideIcons.image,
-  'video' => LucideIcons.video,
-  'enlace' => LucideIcons.navigation,
-  'espacio' => LucideIcons.building2,
-  'accesibilidad' => LucideIcons.accessibility,
-  _ => LucideIcons.info,
-};
+/// Ícono de un punto del recorrido (`iconoDe` de `iconosPunto.ts`): el elegido en su estilo
+/// o, si no hay, el de su tipo.
+IconData iconoPunto(String tipo, [String icono = '']) =>
+    iconosLucide[icono.isNotEmpty ? icono : iconoTipo[tipo]] ??
+    LucideIcons.info;

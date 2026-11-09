@@ -1,0 +1,524 @@
+[
+ {
+  "tipo": "informacion",
+  "estilo": null,
+  "esperado": {
+   "forma": "etiqueta",
+   "ancho": 0,
+   "alto": 0,
+   "rotacion": {
+    "yaw": 0,
+    "pitch": 0,
+    "roll": 0
+   },
+   "animacion": "ninguna",
+   "color": "#2563eb",
+   "escala": 1,
+   "icono": "",
+   "fondo": "",
+   "rotulo": false,
+   "opacidad": 1,
+   "velocidad": 1,
+   "esquinas": 14,
+   "marco": 0
+  }
+ },
+ {
+  "tipo": "informacion",
+  "estilo": "no soy un objeto",
+  "esperado": {
+   "forma": "etiqueta",
+   "ancho": 0,
+   "alto": 0,
+   "rotacion": {
+    "yaw": 0,
+    "pitch": 0,
+    "roll": 0
+   },
+   "animacion": "ninguna",
+   "color": "#2563eb",
+   "escala": 1,
+   "icono": "",
+   "fondo": "",
+   "rotulo": false,
+   "opacidad": 1,
+   "velocidad": 1,
+   "esquinas": 14,
+   "marco": 0
+  }
+ },
+ {
+  "tipo": "informacion",
+  "estilo": {},
+  "esperado": {
+   "forma": "etiqueta",
+   "ancho": 0,
+   "alto": 0,
+   "rotacion": {
+    "yaw": 0,
+    "pitch": 0,
+    "roll": 0
+   },
+   "animacion": "ninguna",
+   "color": "#2563eb",
+   "escala": 1,
+   "icono": "",
+   "fondo": "",
+   "rotulo": false,
+   "opacidad": 1,
+   "velocidad": 1,
+   "esquinas": 14,
+   "marco": 0
+  }
+ },
+ {
+  "tipo": "enlace",
+  "estilo": {},
+  "esperado": {
+   "forma": "flecha",
+   "ancho": 160,
+   "alto": 160,
+   "rotacion": {
+    "yaw": 0,
+    "pitch": 55,
+    "roll": 0
+   },
+   "animacion": "pulso",
+   "color": "#ffffff",
+   "escala": 1,
+   "icono": "",
+   "fondo": "",
+   "rotulo": false,
+   "opacidad": 1,
+   "velocidad": 1,
+   "esquinas": 14,
+   "marco": 0
+  }
+ },
+ {
+  "tipo": "video",
+  "estilo": {},
+  "esperado": {
+   "forma": "capa3d",
+   "ancho": 480,
+   "alto": 270,
+   "rotacion": {
+    "yaw": 0,
+    "pitch": 0,
+    "roll": 0
+   },
+   "animacion": "ninguna",
+   "color": "#dc2626",
+   "escala": 1,
+   "icono": "",
+   "fondo": "",
+   "rotulo": false,
+   "opacidad": 1,
+   "velocidad": 1,
+   "esquinas": 14,
+   "marco": 0
+  }
+ },
+ {
+  "tipo": "imagen",
+  "estilo": {
+   "forma": "capa3d"
+  },
+  "esperado": {
+   "forma": "capa3d",
+   "ancho": 320,
+   "alto": 320,
+   "rotacion": {
+    "yaw": 0,
+    "pitch": 0,
+    "roll": 0
+   },
+   "animacion": "ninguna",
+   "color": "#7c3aed",
+   "escala": 1,
+   "icono": "",
+   "fondo": "",
+   "rotulo": false,
+   "opacidad": 1,
+   "velocidad": 1,
+   "esquinas": 14,
+   "marco": 0
+  }
+ },
+ {
+  "tipo": "enlace",
+  "estilo": {
+   "forma": "triangulo",
+   "animacion": "bailar"
+  },
+  "esperado": {
+   "forma": "flecha",
+   "ancho": 160,
+   "alto": 160,
+   "rotacion": {
+    "yaw": 0,
+    "pitch": 55,
+    "roll": 0
+   },
+   "animacion": "ninguna",
+   "color": "#ffffff",
+   "escala": 1,
+   "icono": "",
+   "fondo": "",
+   "rotulo": false,
+   "opacidad": 1,
+   "velocidad": 1,
+   "esquinas": 14,
+   "marco": 0
+  }
+ },
+ {
+  "tipo": "anuncio",
+  "estilo": {
+   "forma": "pin",
+   "animacion": "rebote",
+   "color": "#ABCDEF",
+   "escala": 9
+  },
+  "esperado": {
+   "forma": "pin",
+   "ancho": 0,
+   "alto": 0,
+   "rotacion": {
+    "yaw": 0,
+    "pitch": 0,
+    "roll": 0
+   },
+   "animacion": "rebote",
+   "color": "#abcdef",
+   "escala": 2.5,
+   "icono": "",
+   "fondo": "",
+   "rotulo": false,
+   "opacidad": 1,
+   "velocidad": 1,
+   "esquinas": 14,
+   "marco": 0
+  }
+ },
+ {
+  "tipo": "espacio",
+  "estilo": {
+   "color": "verde",
+   "escala": 0.1,
+   "ancho": -5,
+   "alto": 99999
+  },
+  "esperado": {
+   "forma": "etiqueta",
+   "ancho": 0,
+   "alto": 4000,
+   "rotacion": {
+    "yaw": 0,
+    "pitch": 0,
+    "roll": 0
+   },
+   "animacion": "ninguna",
+   "color": "#0d9488",
+   "escala": 0.5,
+   "icono": "",
+   "fondo": "",
+   "rotulo": false,
+   "opacidad": 1,
+   "velocidad": 1,
+   "esquinas": 14,
+   "marco": 0
+  }
+ },
+ {
+  "tipo": "enlace",
+  "estilo": {
+   "rotacion": {
+    "yaw": 400,
+    "roll": -999
+   }
+  },
+  "esperado": {
+   "forma": "flecha",
+   "ancho": 160,
+   "alto": 160,
+   "rotacion": {
+    "yaw": 180,
+    "pitch": 55,
+    "roll": -180
+   },
+   "animacion": "pulso",
+   "color": "#ffffff",
+   "escala": 1,
+   "icono": "",
+   "fondo": "",
+   "rotulo": false,
+   "opacidad": 1,
+   "velocidad": 1,
+   "esquinas": 14,
+   "marco": 0
+  }
+ },
+ {
+  "tipo": "enlace",
+  "estilo": {
+   "rotacion": "girada"
+  },
+  "esperado": {
+   "forma": "flecha",
+   "ancho": 160,
+   "alto": 160,
+   "rotacion": {
+    "yaw": 0,
+    "pitch": 55,
+    "roll": 0
+   },
+   "animacion": "pulso",
+   "color": "#ffffff",
+   "escala": 1,
+   "icono": "",
+   "fondo": "",
+   "rotulo": false,
+   "opacidad": 1,
+   "velocidad": 1,
+   "esquinas": 14,
+   "marco": 0
+  }
+ },
+ {
+  "tipo": "accesibilidad",
+  "estilo": {
+   "escala": "2",
+   "ancho": "300",
+   "opacidad": "0.5"
+  },
+  "esperado": {
+   "forma": "etiqueta",
+   "ancho": 0,
+   "alto": 0,
+   "rotacion": {
+    "yaw": 0,
+    "pitch": 0,
+    "roll": 0
+   },
+   "animacion": "ninguna",
+   "color": "#16a34a",
+   "escala": 1,
+   "icono": "",
+   "fondo": "",
+   "rotulo": false,
+   "opacidad": 1,
+   "velocidad": 1,
+   "esquinas": 14,
+   "marco": 0
+  }
+ },
+ {
+  "tipo": "informacion",
+  "estilo": {
+   "icono": "biblioteca",
+   "fondo": "claro",
+   "rotulo": true,
+   "opacidad": 0.6,
+   "velocidad": 1.5
+  },
+  "esperado": {
+   "forma": "etiqueta",
+   "ancho": 0,
+   "alto": 0,
+   "rotacion": {
+    "yaw": 0,
+    "pitch": 0,
+    "roll": 0
+   },
+   "animacion": "ninguna",
+   "color": "#2563eb",
+   "escala": 1,
+   "icono": "biblioteca",
+   "fondo": "claro",
+   "rotulo": true,
+   "opacidad": 0.6,
+   "velocidad": 1.5,
+   "esquinas": 14,
+   "marco": 0
+  }
+ },
+ {
+  "tipo": "informacion",
+  "estilo": {
+   "icono": "cohete",
+   "fondo": "neon",
+   "rotulo": "si",
+   "opacidad": 0,
+   "velocidad": 9
+  },
+  "esperado": {
+   "forma": "etiqueta",
+   "ancho": 0,
+   "alto": 0,
+   "rotacion": {
+    "yaw": 0,
+    "pitch": 0,
+    "roll": 0
+   },
+   "animacion": "ninguna",
+   "color": "#2563eb",
+   "escala": 1,
+   "icono": "",
+   "fondo": "",
+   "rotulo": false,
+   "opacidad": 0.2,
+   "velocidad": 2,
+   "esquinas": 14,
+   "marco": 0
+  }
+ },
+ {
+  "tipo": "imagen",
+  "estilo": {
+   "forma": "capa3d",
+   "esquinas": 999999,
+   "marco": 80,
+   "fondo": "color"
+  },
+  "esperado": {
+   "forma": "capa3d",
+   "ancho": 320,
+   "alto": 320,
+   "rotacion": {
+    "yaw": 0,
+    "pitch": 0,
+    "roll": 0
+   },
+   "animacion": "ninguna",
+   "color": "#7c3aed",
+   "escala": 1,
+   "icono": "",
+   "fondo": "color",
+   "rotulo": false,
+   "opacidad": 1,
+   "velocidad": 1,
+   "esquinas": 2000,
+   "marco": 60
+  }
+ },
+ {
+  "tipo": "video",
+  "estilo": {
+   "esquinas": -3,
+   "marco": -1,
+   "opacidad": 1.4,
+   "velocidad": 0.1
+  },
+  "esperado": {
+   "forma": "capa3d",
+   "ancho": 480,
+   "alto": 270,
+   "rotacion": {
+    "yaw": 0,
+    "pitch": 0,
+    "roll": 0
+   },
+   "animacion": "ninguna",
+   "color": "#dc2626",
+   "escala": 1,
+   "icono": "",
+   "fondo": "",
+   "rotulo": false,
+   "opacidad": 1,
+   "velocidad": 0.5,
+   "esquinas": 0,
+   "marco": 0
+  }
+ },
+ {
+  "tipo": "espacio",
+  "estilo": {
+   "icono": "",
+   "fondo": "",
+   "rotulo": false,
+   "opacidad": 0.2,
+   "velocidad": 0.5,
+   "esquinas": 0,
+   "marco": 0
+  },
+  "esperado": {
+   "forma": "etiqueta",
+   "ancho": 0,
+   "alto": 0,
+   "rotacion": {
+    "yaw": 0,
+    "pitch": 0,
+    "roll": 0
+   },
+   "animacion": "ninguna",
+   "color": "#0d9488",
+   "escala": 1,
+   "icono": "",
+   "fondo": "",
+   "rotulo": false,
+   "opacidad": 0.2,
+   "velocidad": 0.5,
+   "esquinas": 0,
+   "marco": 0
+  }
+ },
+ {
+  "tipo": "anuncio",
+  "estilo": {
+   "forma": "burbuja",
+   "fondo": "oscuro",
+   "icono": "calendario",
+   "animacion": "latido",
+   "velocidad": 2
+  },
+  "esperado": {
+   "forma": "burbuja",
+   "ancho": 0,
+   "alto": 0,
+   "rotacion": {
+    "yaw": 0,
+    "pitch": 0,
+    "roll": 0
+   },
+   "animacion": "latido",
+   "color": "#f59e0b",
+   "escala": 1,
+   "icono": "calendario",
+   "fondo": "oscuro",
+   "rotulo": false,
+   "opacidad": 1,
+   "velocidad": 2,
+   "esquinas": 14,
+   "marco": 0
+  }
+ },
+ {
+  "tipo": "informacion",
+  "estilo": {
+   "audiencia": "institucional",
+   "extra": 1,
+   "forma": "icono"
+  },
+  "esperado": {
+   "forma": "icono",
+   "ancho": 0,
+   "alto": 0,
+   "rotacion": {
+    "yaw": 0,
+    "pitch": 0,
+    "roll": 0
+   },
+   "animacion": "ninguna",
+   "color": "#2563eb",
+   "escala": 1,
+   "icono": "",
+   "fondo": "",
+   "rotulo": false,
+   "opacidad": 1,
+   "velocidad": 1,
+   "esquinas": 14,
+   "marco": 0
+  }
+ }
+]

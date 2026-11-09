@@ -6,6 +6,10 @@ library;
 import 'dart:convert';
 import 'dart:math' as math;
 
+import 'iconos_punto.generado.dart';
+
+export 'iconos_punto.generado.dart';
+
 const List<String> tiposPunto = <String>[
   'informacion',
   'anuncio',
@@ -39,6 +43,15 @@ const List<String> animacionesPunto = <String>[
   'balanceo',
   'parpadeo',
 ];
+
+/// Fondo de la etiqueta, la tarjeta, los rótulos y la capa con texto (`FONDOS` del panel).
+const List<String> fondosPunto = <String>['oscuro', 'claro', 'color'];
+
+/// Formas que pueden llevar el título siempre visible debajo (`FORMAS_ROTULO`).
+const List<String> formasRotulo = <String>['icono', 'circulo', 'pin'];
+
+/// Redondeo de la capa dentro de la imagen cuando no se cambia, en px de la capa.
+const double esquinasPorDefecto = 14;
 
 const Map<String, String> etiquetaPunto = <String, String>{
   'informacion': 'Información',
@@ -121,6 +134,13 @@ class EstiloPunto {
     required this.animacion,
     required this.color,
     this.escala = 1,
+    this.icono = '',
+    this.fondo = '',
+    this.rotulo = false,
+    this.opacidad = 1,
+    this.velocidad = 1,
+    this.esquinas = esquinasPorDefecto,
+    this.marco = 0,
   });
 
   final String forma;
@@ -138,10 +158,42 @@ class EstiloPunto {
   /// Color de acento `#rrggbb`.
   final String color;
 
-  /// Tamaño de las formas 2D (1 = normal; se limita a 0.5–2.5 al dibujar).
+  /// Tamaño de las formas 2D (1 = normal, de 0.5 a 2.5).
   final double escala;
 
+  /// Ícono (`iconosPunto`); `''` = el del tipo.
+  final String icono;
+
+  /// `oscuro`, `claro` o `color`; `''` = el de la forma (ver [fondoEfectivo]).
+  final String fondo;
+
+  /// Título siempre visible debajo del ícono, el anillo o el pin.
+  final bool rotulo;
+
+  /// De 0.2 a 1.
+  final double opacidad;
+
+  /// Velocidad de la animación: de 0.5 (la mitad) a 2 (el doble).
+  final double velocidad;
+
+  /// Capa dentro de la imagen: radio de las esquinas y grosor del marco (del color de
+  /// acento), en px de la capa.
+  final double esquinas;
+  final double marco;
+
   bool get es3d => formas3d.contains(forma);
+
+  /// El fondo que se dibuja: el elegido o el de la forma (la tarjeta va en claro).
+  String get fondoEfectivo =>
+      fondo.isNotEmpty ? fondo : (forma == 'burbuja' ? 'claro' : 'oscuro');
+
+  /// Si lleva el título debajo (solo el ícono, el anillo y el pin).
+  bool get conRotulo => rotulo && formasRotulo.contains(forma);
+
+  /// Radio real de las esquinas de una capa: nunca más que la mitad del lado corto
+  /// (`radioCapa` del panel).
+  double radioCapa(double ancho, double alto) =>
+      math.min(esquinas, math.min(ancho, alto) / 2);
 
   /// Inclinación que deja la flecha "acostada" en el piso (`inclinacionSuelo` del panel).
   static double inclinacionSuelo(double pitch) =>
@@ -187,40 +239,68 @@ class EstiloPunto {
     }
   }
 
-  /// `estiloDe` del panel: lo guardado encima de lo de por defecto del tipo.
+  /// `limpiarEstilo` del panel (`panel/src/lib/estiloPunto.ts`): lo guardado encima de lo de
+  /// por defecto del tipo, con cada campo dentro de su rango. Solo cuentan los números de
+  /// verdad (un texto como "2" no) y lo que está en su lista.
   factory EstiloPunto.de(String tipo, String? json) {
     final base = EstiloPunto.porDefecto(tipo);
     final e = _mapaJson(json);
     final rot = e['rotacion'] is Map
         ? (e['rotacion']! as Map).map((k, v) => MapEntry('$k', v))
         : const <String, Object?>{};
+    double numero(Object? v, double min, double max, double porDefecto) =>
+        v is num && v.isFinite ? v.toDouble().clamp(min, max) : porDefecto;
+    String deLista(Object? v, List<String> lista, String porDefecto) =>
+        v is String && lista.contains(v) ? v : porDefecto;
     final color = e['color'];
     return EstiloPunto(
-      forma: e['forma'] is String ? e['forma']! as String : base.forma,
-      ancho: e['ancho'] is num ? (e['ancho']! as num).toDouble() : base.ancho,
-      alto: e['alto'] is num ? (e['alto']! as num).toDouble() : base.alto,
-      rotYaw: rot['yaw'] is num ? (rot['yaw']! as num).toDouble() : base.rotYaw,
-      rotPitch: rot['pitch'] is num
-          ? (rot['pitch']! as num).toDouble()
-          : base.rotPitch,
-      rotRoll: rot['roll'] is num
-          ? (rot['roll']! as num).toDouble()
-          : base.rotRoll,
-      animacion:
-          e['animacion'] is String && animacionesPunto.contains(e['animacion'])
-          ? e['animacion']! as String
+      forma: deLista(e['forma'], formasPunto, base.forma),
+      ancho: numero(e['ancho'], 0, 4000, base.ancho),
+      alto: numero(e['alto'], 0, 4000, base.alto),
+      rotYaw: numero(rot['yaw'], -180, 180, base.rotYaw),
+      rotPitch: numero(rot['pitch'], -180, 180, base.rotPitch),
+      rotRoll: numero(rot['roll'], -180, 180, base.rotRoll),
+      // Sin animación guardada, la del tipo; con una que no existe, ninguna.
+      animacion: e.containsKey('animacion')
+          ? deLista(e['animacion'], animacionesPunto, 'ninguna')
           : base.animacion,
-      // Un color inválido vuelve al del tipo (como `marcadorDe`).
       color:
           color is String &&
               RegExp(r'^#[0-9a-f]{6}$', caseSensitive: false).hasMatch(color)
-          ? color
+          ? color.toLowerCase()
           : base.color,
-      escala: e['escala'] is num
-          ? (e['escala']! as num).toDouble()
-          : base.escala,
+      escala: numero(e['escala'], 0.5, 2.5, 1),
+      icono: deLista(e['icono'], iconosPunto, ''),
+      fondo: deLista(e['fondo'], fondosPunto, ''),
+      rotulo: e['rotulo'] == true,
+      opacidad: numero(e['opacidad'], 0.2, 1, 1),
+      velocidad: numero(e['velocidad'], 0.5, 2, 1),
+      esquinas: numero(e['esquinas'], 0, 2000, base.esquinas),
+      marco: numero(e['marco'], 0, 60, 0),
     );
   }
+
+  /// El estilo como lo guarda el panel (para comparar con `limpiarEstilo` en las pruebas).
+  Map<String, Object?> toJson() => <String, Object?>{
+    'forma': forma,
+    'ancho': ancho,
+    'alto': alto,
+    'rotacion': <String, Object?>{
+      'yaw': rotYaw,
+      'pitch': rotPitch,
+      'roll': rotRoll,
+    },
+    'animacion': animacion,
+    'color': color,
+    'escala': escala,
+    'icono': icono,
+    'fondo': fondo,
+    'rotulo': rotulo,
+    'opacidad': opacidad,
+    'velocidad': velocidad,
+    'esquinas': esquinas,
+    'marco': marco,
+  };
 }
 
 class PuntoPanoramica {

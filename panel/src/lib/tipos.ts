@@ -1,5 +1,6 @@
 /** Modelo de la plataforma tal como lo maneja el panel (espejo de `db/`). */
 import type { Audiencia } from './audiencia';
+import type { IconoPunto } from './iconosPunto.generado';
 
 // ------------------------------------------------------------------ grafo
 export const TIPOS_VERTICE = ['acceso', 'puerta', 'cruce', 'escalera', 'rampa', 'ascensor', 'referencia'] as const;
@@ -287,6 +288,20 @@ export const COLOR_PUNTO: Record<TipoPunto, string> = {
   accesibilidad: '#16a34a',
 };
 
+/**
+ * Fondo de la etiqueta, la tarjeta, los rótulos y la capa con texto. Sin elegir (`''`), cada forma
+ * usa el suyo: la tarjeta va en claro y lo demás en oscuro.
+ */
+export const FONDOS = ['oscuro', 'claro', 'color'] as const;
+export type Fondo = (typeof FONDOS)[number];
+export const ETIQUETA_FONDO: Record<Fondo, string> = { oscuro: 'Oscuro', claro: 'Claro', color: 'Del color' };
+/** El fondo que usa cada forma cuando no se elige otro. */
+export const fondoDe = (e: Pick<Estilo, 'forma' | 'fondo'>): Fondo => e.fondo || (e.forma === 'burbuja' ? 'claro' : 'oscuro');
+/** Formas que pueden llevar el título siempre visible debajo (las demás ya lo muestran o no lo tienen). */
+export const FORMAS_ROTULO: readonly Forma[] = ['icono', 'circulo', 'pin'];
+/** Redondeo de la capa dentro de la imagen cuando no se cambia, en px de la capa. */
+export const ESQUINAS_POR_DEFECTO = 14;
+
 export interface Estilo {
   forma: Forma;
   /** Tamaño en "píxeles de esfera": ancho angular (rad) ≈ ancho / 1000. Solo formas 3D. */
@@ -299,6 +314,19 @@ export interface Estilo {
   color: string;
   /** Tamaño de las formas 2D (1 = normal, de 0.5 a 2.5). */
   escala: number;
+  /** Ícono (`ICONOS_PUNTO`); `''` = el del tipo. */
+  icono: IconoPunto | '';
+  /** `''` = el de la forma (ver `fondoDe`). */
+  fondo: Fondo | '';
+  /** Título siempre visible debajo del ícono, el anillo o el pin. */
+  rotulo: boolean;
+  /** De 0.2 a 1. */
+  opacidad: number;
+  /** Velocidad de la animación: de 0.5 (la mitad) a 2 (el doble). */
+  velocidad: number;
+  /** Capa dentro de la imagen: radio de las esquinas y grosor del marco (del color de acento), en px de la capa. */
+  esquinas: number;
+  marco: number;
 }
 
 /**
@@ -308,7 +336,19 @@ export interface Estilo {
 export const inclinacionSuelo = (pitch: number) => (pitch < 0 ? Math.round(Math.min(85, Math.max(45, -pitch + 35))) : 0);
 
 export function estiloPorDefecto(tipo: TipoPunto, pitch = -20): Estilo {
-  const base = { rotacion: { yaw: 0, pitch: 0, roll: 0 }, animacion: 'ninguna' as Animacion, color: COLOR_PUNTO[tipo], escala: 1 };
+  const base = {
+    rotacion: { yaw: 0, pitch: 0, roll: 0 },
+    animacion: 'ninguna' as Animacion,
+    color: COLOR_PUNTO[tipo],
+    escala: 1,
+    icono: '' as const,
+    fondo: '' as const,
+    rotulo: false,
+    opacidad: 1,
+    velocidad: 1,
+    esquinas: ESQUINAS_POR_DEFECTO,
+    marco: 0,
+  };
   if (tipo === 'enlace') return { ...base, forma: 'flecha', ancho: 160, alto: 160, rotacion: { yaw: 0, pitch: inclinacionSuelo(pitch), roll: 0 }, animacion: 'pulso' };
   if (tipo === 'video') return { ...base, forma: 'capa3d', ancho: 480, alto: 270 };
   if (tipo === 'imagen') return { ...base, forma: 'capa3d', ancho: 320, alto: 320 };

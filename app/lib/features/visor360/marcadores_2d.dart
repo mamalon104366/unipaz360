@@ -14,6 +14,8 @@ import '../cliente/estilo_cliente.dart';
 import 'animacion_punto.dart';
 
 const Color _pizarra = Color(0xD118181B); // rgb(24 24 27 / 0.82)
+const Color _blancoClaro = Color(0xF0FFFFFF); // rgb(255 255 255 / 0.94)
+const Color _tintaOscura = Color(0xFF1C1C1F);
 
 /// Tamaño de letra base de un punto 2D.
 double emDe(EstiloPunto e) =>
@@ -22,24 +24,88 @@ double emDe(EstiloPunto e) =>
 /// Ancla del punto: el centro, o el borde de abajo para el pin y la tarjeta.
 bool anclaAbajo(String forma) => forma == 'pin' || forma == 'burbuja';
 
+/// Sobre su mismo color, el ícono va en un círculo un poco más claro
+/// (rgb(255 255 255 / 0.22) encima del acento).
+Color aclarado(Color color) => Color.alphaBlend(const Color(0x38FFFFFF), color);
+
+/// Colores de un fondo (`.pz-f-*` de `globals.css`): relleno, texto y texto secundario.
+class ColoresFondo {
+  const ColoresFondo(this.relleno, this.texto, this.textoSuave);
+
+  final Color relleno;
+  final Color texto;
+  final Color textoSuave;
+
+  /// Etiqueta y rótulos: oscuro (la píldora de siempre), claro o del color de acento.
+  factory ColoresFondo.etiqueta(String fondo, Color color) => switch (fondo) {
+    'claro' => const ColoresFondo(_blancoClaro, _tintaOscura, _tintaOscura),
+    'color' => ColoresFondo(color, tintaSobre(color), tintaSobre(color)),
+    _ => const ColoresFondo(_pizarra, Colors.white, Colors.white),
+  };
+
+  /// Tarjeta: clara (la de siempre), oscura o del color de acento.
+  factory ColoresFondo.tarjeta(String fondo, Color color) => switch (fondo) {
+    'oscuro' => const ColoresFondo(
+      Color(0xEB18181B), // rgb(24 24 27 / 0.92)
+      Colors.white,
+      Color(0xB8FFFFFF), // rgb(255 255 255 / 0.72)
+    ),
+    'color' => ColoresFondo(
+      color,
+      tintaSobre(color),
+      tintaSobre(color).withValues(alpha: 0.8),
+    ),
+    _ => const ColoresFondo(
+      Color(0xF7FFFFFF), // rgb(255 255 255 / 0.97)
+      _tintaOscura,
+      Color(0xFF55555C),
+    ),
+  };
+}
+
+/// El nombre siempre visible debajo de la forma (.pz-rotulo).
+Widget rotuloPunto(String titulo, double em, ColoresFondo f) => Container(
+  padding: EdgeInsets.symmetric(
+    horizontal: 0.75 * 0.9 * em,
+    vertical: 0.32 * 0.9 * em,
+  ),
+  decoration: BoxDecoration(
+    color: f.relleno,
+    borderRadius: const BorderRadius.all(Radius.circular(999)),
+  ),
+  child: Text(
+    titulo,
+    softWrap: false,
+    style: estiloTexto(tamano: 0.9 * em, peso: 500, color: f.texto, alto: 1),
+  ),
+);
+
 /// Ícono redondo del color de acento (.pz-ico).
 class _Ico extends StatelessWidget {
   const _Ico({
     required this.tipo,
+    required this.icono,
     required this.color,
     required this.em,
     this.diametro = 1.85,
-    this.icono = 1.15,
+    this.tamano = 1.15,
     this.fondo = true,
+    this.aclarar = false,
     this.sombras,
   });
 
   final String tipo;
+
+  /// El ícono elegido en el estilo (`''` = el del tipo).
+  final String icono;
   final Color color;
   final double em;
   final double diametro;
-  final double icono;
+  final double tamano;
   final bool fondo;
+
+  /// Va sobre un fondo de su mismo color: el círculo se aclara un poco.
+  final bool aclarar;
   final List<BoxShadow>? sombras;
 
   @override
@@ -48,11 +114,15 @@ class _Ico extends StatelessWidget {
     height: diametro * em,
     alignment: Alignment.center,
     decoration: BoxDecoration(
-      color: fondo ? color : null,
+      color: fondo ? (aclarar ? aclarado(color) : color) : null,
       shape: BoxShape.circle,
       boxShadow: sombras,
     ),
-    child: Icon(iconoPunto(tipo), size: icono * em, color: tintaSobre(color)),
+    child: Icon(
+      iconoPunto(tipo, icono),
+      size: tamano * em,
+      color: tintaSobre(color),
+    ),
   );
 }
 
@@ -83,10 +153,14 @@ class MarcadorPunto2D extends StatelessWidget {
         ? e.forma
         : 'etiqueta';
     final titulo = punto.tituloVisible;
-    final conTooltip = forma == 'icono' || forma == 'circulo' || forma == 'pin';
+    // Con el rótulo puesto, el título ya se lee: no hace falta el globo al pasar el mouse.
+    final conTooltip =
+        (forma == 'icono' || forma == 'circulo' || forma == 'pin') &&
+        !e.conRotulo;
 
     Widget marcador = Animador(
       nombre: e.animacion,
+      velocidad: e.velocidad,
       constructor: (context, paso) => _conAnimacion(
         forma: forma,
         animacion: e.animacion,
@@ -119,6 +193,10 @@ class MarcadorPunto2D extends StatelessWidget {
           marcador,
         ],
       );
+    }
+    // La opacidad va en la raíz, como en `.pz` (también apaga la sombra del pin).
+    if (e.opacidad < 1) {
+      marcador = Opacity(opacity: e.opacidad, child: marcador);
     }
     marcador = MouseRegion(
       cursor: SystemMouseCursors.click,
@@ -181,108 +259,144 @@ class MarcadorPunto2D extends StatelessWidget {
             alignment: Alignment.center,
             child: w,
           );
-    const tinta = Colors.white;
+    final e = punto.estilo;
+    final icono = e.icono;
+    final fondo = e.fondoEfectivo;
+    // El rótulo va 0.8 em debajo de la forma (`top: calc(100% + 0.8em)`), sin moverla.
+    Widget conRotulo(Widget forma, double arriba) => !e.conRotulo
+        ? forma
+        : Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.topCenter,
+            children: <Widget>[
+              forma,
+              Positioned(
+                top: arriba * em,
+                child: rotuloPunto(
+                  titulo,
+                  em,
+                  ColoresFondo.etiqueta(fondo, color),
+                ),
+              ),
+            ],
+          );
     switch (forma) {
       case 'icono':
-        return girar(
-          _Ico(
-            tipo: punto.tipo,
-            color: color,
-            em: em,
-            diametro: 2.6,
-            icono: 1.35,
-            // En CSS la primera sombra va encima; en Flutter, la última.
-            sombras: <BoxShadow>[
-              sombraCss(
-                y: 0.7 * em,
-                blur: 1.4 * em,
-                spread: -0.5 * em,
-                color: const Color(0xBF000000),
-              ),
-              sombraCss(spread: 0.2 * em, color: const Color(0xEBFFFFFF)),
-            ],
+        return conRotulo(
+          girar(
+            _Ico(
+              tipo: punto.tipo,
+              icono: icono,
+              color: color,
+              em: em,
+              diametro: 2.6,
+              tamano: 1.35,
+              // En CSS la primera sombra va encima; en Flutter, la última.
+              sombras: <BoxShadow>[
+                sombraCss(
+                  y: 0.7 * em,
+                  blur: 1.4 * em,
+                  spread: -0.5 * em,
+                  color: const Color(0xBF000000),
+                ),
+                sombraCss(spread: 0.2 * em, color: const Color(0xEBFFFFFF)),
+              ],
+            ),
           ),
+          2.6 + 0.8,
         );
       case 'circulo':
-        return Container(
-          width: 3.3 * em,
-          height: 3.3 * em,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: const Color(0x29FFFFFF),
-            border: Border.all(color: Colors.white, width: 0.24 * em),
-            boxShadow: <BoxShadow>[
-              sombraCss(
-                y: 0.5 * em,
-                blur: 1.4 * em,
-                spread: -0.4 * em,
-                color: const Color(0xBF000000),
-              ),
-            ],
-          ),
-          child: girar(
-            Container(
-              width: 1.25 * em,
-              height: 1.25 * em,
-              decoration: BoxDecoration(
-                color: color,
-                shape: BoxShape.circle,
-                boxShadow: <BoxShadow>[
-                  sombraCss(spread: 0.18 * em, color: const Color(0xD9FFFFFF)),
-                ],
+        return conRotulo(
+          Container(
+            width: 3.3 * em,
+            height: 3.3 * em,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: const Color(0x29FFFFFF),
+              border: Border.all(color: Colors.white, width: 0.24 * em),
+              boxShadow: <BoxShadow>[
+                sombraCss(
+                  y: 0.5 * em,
+                  blur: 1.4 * em,
+                  spread: -0.4 * em,
+                  color: const Color(0xBF000000),
+                ),
+              ],
+            ),
+            child: girar(
+              Container(
+                width: 1.25 * em,
+                height: 1.25 * em,
+                decoration: BoxDecoration(
+                  color: color,
+                  shape: BoxShape.circle,
+                  boxShadow: <BoxShadow>[
+                    sombraCss(
+                      spread: 0.18 * em,
+                      color: const Color(0xD9FFFFFF),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
+          // En CSS el 100 % es la caja sin el borde del aro (0.24 em).
+          3.3 - 0.24 + 0.8,
         );
       case 'pin':
-        return Padding(
-          padding: EdgeInsets.fromLTRB(
-            0.35 * em,
-            0.35 * em,
-            0.35 * em,
-            0.75 * em,
-          ),
-          child: Transform.rotate(
-            angle: -math.pi / 4,
-            child: Container(
-              width: 2.8 * em,
-              height: 2.8 * em,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: color,
-                border: Border.all(
-                  color: const Color(0xEBFFFFFF),
-                  width: 0.17 * em,
-                ),
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(1.4 * em),
-                  topRight: Radius.circular(1.4 * em),
-                  bottomRight: Radius.circular(1.4 * em),
-                ),
-                boxShadow: <BoxShadow>[
-                  sombraCss(
-                    x: -0.3 * em,
-                    y: 0.4 * em,
-                    blur: 1 * em,
-                    spread: -0.3 * em,
-                    color: const Color(0xBF000000),
-                  ),
-                ],
-              ),
-              child: Transform.rotate(
-                angle: math.pi / 4,
-                child: _Ico(
-                  tipo: punto.tipo,
+        return conRotulo(
+          Padding(
+            padding: EdgeInsets.fromLTRB(
+              0.35 * em,
+              0.35 * em,
+              0.35 * em,
+              0.75 * em,
+            ),
+            child: Transform.rotate(
+              angle: -math.pi / 4,
+              child: Container(
+                width: 2.8 * em,
+                height: 2.8 * em,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
                   color: color,
-                  em: em,
-                  fondo: false,
+                  border: Border.all(
+                    color: const Color(0xEBFFFFFF),
+                    width: 0.17 * em,
+                  ),
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(1.4 * em),
+                    topRight: Radius.circular(1.4 * em),
+                    bottomRight: Radius.circular(1.4 * em),
+                  ),
+                  boxShadow: <BoxShadow>[
+                    sombraCss(
+                      x: -0.3 * em,
+                      y: 0.4 * em,
+                      blur: 1 * em,
+                      spread: -0.3 * em,
+                      color: const Color(0xBF000000),
+                    ),
+                  ],
+                ),
+                child: Transform.rotate(
+                  angle: math.pi / 4,
+                  child: _Ico(
+                    tipo: punto.tipo,
+                    icono: icono,
+                    color: color,
+                    em: em,
+                    fondo: false,
+                  ),
                 ),
               ),
             ),
           ),
+          0.35 + 2.8 + 0.75 + 0.8,
         );
       case 'burbuja':
+        final f = ColoresFondo.tarjeta(fondo, color);
         return Padding(
           padding: EdgeInsets.only(bottom: 0.7 * em),
           child: Stack(
@@ -296,7 +410,7 @@ class MarcadorPunto2D extends StatelessWidget {
                   vertical: 0.8 * em,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xF7FFFFFF),
+                  color: f.relleno,
                   borderRadius: BorderRadius.circular(1 * em),
                   boxShadow: <BoxShadow>[
                     sombraCss(
@@ -310,7 +424,15 @@ class MarcadorPunto2D extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    girar(_Ico(tipo: punto.tipo, color: color, em: em)),
+                    girar(
+                      _Ico(
+                        tipo: punto.tipo,
+                        icono: icono,
+                        color: color,
+                        em: em,
+                        aclarar: fondo == 'color',
+                      ),
+                    ),
                     SizedBox(width: 0.7 * em),
                     Expanded(
                       child: Column(
@@ -322,7 +444,7 @@ class MarcadorPunto2D extends StatelessWidget {
                             style: estiloTexto(
                               tamano: 1.05 * em,
                               peso: 600,
-                              color: const Color(0xFF1C1C1F),
+                              color: f.texto,
                               alto: 1.3,
                             ),
                           ),
@@ -335,7 +457,7 @@ class MarcadorPunto2D extends StatelessWidget {
                                 overflow: TextOverflow.ellipsis,
                                 style: estiloTexto(
                                   tamano: 0.9 * em,
-                                  color: const Color(0xFF55555C),
+                                  color: f.textoSuave,
                                   alto: 1.3,
                                 ),
                               ),
@@ -346,7 +468,7 @@ class MarcadorPunto2D extends StatelessWidget {
                   ],
                 ),
               ),
-              // El piquito que toca el punto.
+              // El piquito que toca el punto (del mismo color que la tarjeta).
               Positioned(
                 bottom: -0.45 * em,
                 child: Transform.rotate(
@@ -355,7 +477,7 @@ class MarcadorPunto2D extends StatelessWidget {
                     width: em,
                     height: em,
                     decoration: BoxDecoration(
-                      color: const Color(0xF7FFFFFF),
+                      color: f.relleno,
                       borderRadius: BorderRadius.circular(0.15 * em),
                     ),
                   ),
@@ -399,6 +521,7 @@ class MarcadorPunto2D extends StatelessWidget {
                     child: miniatura == null
                         ? _Ico(
                             tipo: punto.tipo,
+                            icono: icono,
                             color: color,
                             em: em,
                             diametro: 2.4,
@@ -409,31 +532,18 @@ class MarcadorPunto2D extends StatelessWidget {
               ),
               Positioned(
                 top: 4.6 * em + 0.8 * em,
-                child: Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: 0.75 * 0.9 * em,
-                    vertical: 0.32 * 0.9 * em,
-                  ),
-                  decoration: const BoxDecoration(
-                    color: _pizarra,
-                    borderRadius: BorderRadius.all(Radius.circular(999)),
-                  ),
-                  child: Text(
-                    titulo,
-                    softWrap: false,
-                    style: estiloTexto(
-                      tamano: 0.9 * em,
-                      peso: 500,
-                      color: tinta,
-                      alto: 1,
-                    ),
-                  ),
+                child: rotuloPunto(
+                  titulo,
+                  em,
+                  ColoresFondo.etiqueta(fondo, color),
                 ),
               ),
             ],
           ),
         );
       default: // etiqueta
+        final f = ColoresFondo.etiqueta(fondo, color);
+        final claro = fondo == 'claro';
         // La sombra va por fuera del recorte del desenfoque.
         return DecoratedBox(
           decoration: BoxDecoration(
@@ -443,7 +553,9 @@ class MarcadorPunto2D extends StatelessWidget {
                 y: 0.8 * em,
                 blur: 1.8 * em,
                 spread: -0.8 * em,
-                color: const Color(0xBF000000),
+                color: claro
+                    ? const Color(0x99000000)
+                    : const Color(0xBF000000),
               ),
             ],
           ),
@@ -459,14 +571,26 @@ class MarcadorPunto2D extends StatelessWidget {
                   0.42 * em,
                 ),
                 decoration: BoxDecoration(
-                  color: _pizarra,
+                  color: f.relleno,
                   borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: const Color(0x29FFFFFF)),
+                  border: Border.all(
+                    color: claro
+                        ? const Color(0x14000000)
+                        : const Color(0x29FFFFFF),
+                  ),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
-                    girar(_Ico(tipo: punto.tipo, color: color, em: em)),
+                    girar(
+                      _Ico(
+                        tipo: punto.tipo,
+                        icono: icono,
+                        color: color,
+                        em: em,
+                        aclarar: fondo == 'color',
+                      ),
+                    ),
                     SizedBox(width: 0.6 * em),
                     Text(
                       titulo,
@@ -474,7 +598,7 @@ class MarcadorPunto2D extends StatelessWidget {
                       style: estiloTexto(
                         tamano: em,
                         peso: 500,
-                        color: tinta,
+                        color: f.texto,
                         alto: 1,
                       ),
                     ),

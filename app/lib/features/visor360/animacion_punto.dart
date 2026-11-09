@@ -21,6 +21,11 @@ Duration duracionAnimacion(String nombre) => Duration(
   },
 );
 
+/// La duración dividida por la velocidad del punto (`calc(… / var(--v))` del CSS).
+Duration conVelocidad(Duration base, double velocidad) => Duration(
+  microseconds: (base.inMicroseconds / velocidad.clamp(0.5, 2)).round(),
+);
+
 /// Interpola fotogramas clave `(momento, valor)` con una curva por tramo, como CSS.
 double fotogramas(double t, List<(double, double)> claves, Curve curva) {
   for (var i = 0; i < claves.length - 1; i++) {
@@ -132,10 +137,14 @@ class Animador extends StatefulWidget {
     required this.nombre,
     required this.constructor,
     this.duracion,
+    this.velocidad = 1,
   });
 
   final String nombre;
   final Duration? duracion;
+
+  /// De 0.5 a 2: la duración se divide por este número.
+  final double velocidad;
   final Widget Function(BuildContext context, PasoAnimacion paso) constructor;
 
   @override
@@ -146,7 +155,12 @@ class _AnimadorState extends State<Animador>
     with SingleTickerProviderStateMixin {
   late final AnimationController _c = AnimationController(
     vsync: this,
-    duration: widget.duracion ?? duracionAnimacion(widget.nombre),
+    duration: _duracion,
+  );
+
+  Duration get _duracion => conVelocidad(
+    widget.duracion ?? duracionAnimacion(widget.nombre),
+    widget.velocidad,
   );
 
   bool get _anima => widget.nombre != 'ninguna';
@@ -165,8 +179,10 @@ class _AnimadorState extends State<Animador>
   @override
   void didUpdateWidget(Animador viejo) {
     super.didUpdateWidget(viejo);
-    if (viejo.nombre != widget.nombre) {
-      _c.duration = widget.duracion ?? duracionAnimacion(widget.nombre);
+    if (viejo.nombre != widget.nombre ||
+        viejo.duracion != widget.duracion ||
+        viejo.velocidad != widget.velocidad) {
+      _c.duration = _duracion;
       final quieto = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
       if (_anima && !quieto) {
         _c.repeat();

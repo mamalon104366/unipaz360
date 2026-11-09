@@ -20,6 +20,7 @@ import '../../core/modelo/recorrido.dart';
 import '../cliente/estilo_cliente.dart';
 import 'animacion_punto.dart';
 import 'geometria.dart';
+import 'marcadores_2d.dart' show aclarado;
 
 /// Matriz que lleva el rectángulo `(0,0)–(ancho,alto)` a las esquinas [e] (arriba a la
 /// izquierda, arriba a la derecha, abajo a la derecha, abajo a la izquierda).
@@ -170,16 +171,24 @@ class CapaPunto3D extends StatelessWidget {
     );
     final flecha = e.forma == 'flecha';
     // La capa 3D gira en 4 s (los puntos 2D, en 3 s).
-    final capa = Animador(
+    Widget capa = Animador(
       nombre: e.animacion,
       duracion: e.animacion == 'girar' ? const Duration(seconds: 4) : null,
+      velocidad: e.velocidad,
       constructor: (context, paso) {
         Widget c = flecha
             ? CustomPaint(
                 size: Size(ancho, alto),
                 painter: _Flecha(color, brillo: paso.onda),
               )
-            : _Caja(brillo: paso.onda, color: color, child: contenido);
+            : _Caja(
+                brillo: paso.onda,
+                color: color,
+                relleno: _fondoCapa(e.fondoEfectivo, color),
+                radio: e.radioCapa(ancho, alto),
+                marco: e.marco,
+                child: contenido,
+              );
         final local = Matrix4.identity()
           ..translateByDouble(0, paso.dy * 16, 0, 1)
           ..scaleByDouble(paso.escala, paso.escala, 1, 1)
@@ -196,6 +205,7 @@ class CapaPunto3D extends StatelessWidget {
         return c;
       },
     );
+    if (e.opacidad < 1) capa = Opacity(opacity: e.opacidad, child: capa);
     return Positioned(
       left: 0,
       top: 0,
@@ -221,12 +231,32 @@ class CapaPunto3D extends StatelessWidget {
   }
 }
 
-/// La caja de la capa dentro de la imagen (.psv-capa--capa3d).
+/// Fondo de la capa dentro de la imagen (`.psv-capa--capa3d` y `.pz-f-*`): se ve en la tarjeta
+/// con texto y detrás de una imagen con transparencia.
+Color _fondoCapa(String fondo, Color color) => switch (fondo) {
+  'claro' => const Color(0xF0FFFFFF), // rgb(255 255 255 / 0.94)
+  'color' => color,
+  _ => const Color(0xE01C1C1F), // rgb(28 28 31 / 0.88)
+};
+
+/// La caja de la capa dentro de la imagen (.psv-capa--capa3d): esquinas redondeadas y un
+/// marco opcional del color de acento. Como en CSS (`overflow: hidden` con borde), el
+/// contenido se recorta con el radio de adentro: el de afuera menos el marco.
 class _Caja extends StatelessWidget {
-  const _Caja({required this.child, required this.color, this.brillo = 0});
+  const _Caja({
+    required this.child,
+    required this.color,
+    required this.relleno,
+    this.radio = esquinasPorDefecto,
+    this.marco = 0,
+    this.brillo = 0,
+  });
 
   final Widget? child;
   final Color color;
+  final Color relleno;
+  final double radio;
+  final double marco;
 
   /// Fase del brillo (0 a 1): un resplandor del color de acento que va y viene.
   final double brillo;
@@ -235,10 +265,10 @@ class _Caja extends StatelessWidget {
   Widget build(BuildContext context) {
     final resplandor = brillo == 0 ? 0.0 : math.sin(brillo * math.pi) * 14;
     return Container(
-      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: const Color(0xE01C1C1F),
-        borderRadius: BorderRadius.circular(14),
+        color: relleno,
+        borderRadius: BorderRadius.circular(radio),
+        border: marco > 0 ? Border.all(color: color, width: marco) : null,
         boxShadow: <BoxShadow>[
           sombraCss(
             y: 20,
@@ -249,12 +279,15 @@ class _Caja extends StatelessWidget {
           if (resplandor > 0) sombraCss(blur: resplandor, color: color),
         ],
       ),
-      child: child,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(math.max(0, radio - marco)),
+        child: SizedBox.expand(child: child),
+      ),
     );
   }
 }
 
-/// La tarjeta de una capa sin imagen (.psv-tarjeta-contenido).
+/// La tarjeta de una capa sin imagen (.psv-tarjeta-contenido), con los colores de su fondo.
 class TarjetaCapa extends StatelessWidget {
   const TarjetaCapa({super.key, required this.punto});
 
@@ -262,10 +295,17 @@ class TarjetaCapa extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final e = punto.estilo;
     final color = colorHex(
-      punto.estilo.color,
+      e.color,
       porDefecto: colorHex(colorPunto[punto.tipo]),
     );
+    final fondo = e.fondoEfectivo;
+    final (titulo, texto) = switch (fondo) {
+      'claro' => (const Color(0xFF1C1C1F), const Color(0xFF55555C)),
+      'color' => (tintaSobre(color), tintaSobre(color).withValues(alpha: 0.8)),
+      _ => (Colors.white, const Color(0xBFFFFFFF)),
+    };
     return Padding(
       padding: const EdgeInsets.all(18),
       child: Column(
@@ -275,27 +315,26 @@ class TarjetaCapa extends StatelessWidget {
             width: 34,
             height: 34,
             margin: const EdgeInsets.only(bottom: 10),
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+            decoration: BoxDecoration(
+              color: fondo == 'color' ? aclarado(color) : color,
+              shape: BoxShape.circle,
+            ),
             child: Icon(
-              iconoPunto(punto.tipo),
+              iconoPunto(punto.tipo, e.icono),
               size: 20,
               color: tintaSobre(color),
             ),
           ),
           Text(
             punto.tituloVisible,
-            style: estiloTexto(tamano: 18, peso: 600, alto: 1.4),
+            style: estiloTexto(tamano: 18, peso: 600, color: titulo, alto: 1.4),
           ),
           if ((punto.texto ?? '').isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 6),
               child: Text(
                 punto.texto!,
-                style: estiloTexto(
-                  tamano: 14,
-                  color: const Color(0xBFFFFFFF),
-                  alto: 1.4,
-                ),
+                style: estiloTexto(tamano: 14, color: texto, alto: 1.4),
               ),
             ),
         ],

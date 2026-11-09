@@ -356,6 +356,45 @@ body {
   white-space: nowrap;
   transform: translateX(-50%);
 }
+/* Fondo elegido (sin elegir, la tarjeta va en claro y lo demás en oscuro). Igual en Flutter. */
+.pz-etiqueta.pz-f-claro .pz-cuerpo {
+  background: rgb(255 255 255 / 0.94);
+  color: #1c1c1f;
+  box-shadow: 0 0.8em 1.8em -0.8em rgb(0 0 0 / 0.6), inset 0 0 0 1px rgb(0 0 0 / 0.08);
+}
+.pz-etiqueta.pz-f-color .pz-cuerpo {
+  background: var(--c);
+  color: var(--t);
+}
+.pz-burbuja.pz-f-oscuro .pz-tarjeta {
+  background: rgb(24 24 27 / 0.92);
+  color: #fff;
+}
+.pz-burbuja.pz-f-oscuro .pz-tarjeta small {
+  color: rgb(255 255 255 / 0.72);
+}
+.pz-burbuja.pz-f-color .pz-tarjeta {
+  background: var(--c);
+  color: var(--t);
+}
+.pz-burbuja.pz-f-color .pz-tarjeta small {
+  color: inherit;
+  opacity: 0.8;
+}
+.pz-f-claro .pz-rotulo {
+  background: rgb(255 255 255 / 0.94);
+  color: #1c1c1f;
+}
+.pz-f-color .pz-rotulo {
+  background: var(--c);
+  color: var(--t);
+}
+/* Sobre su mismo color, el ícono va en un círculo un poco más claro. */
+.pz-etiqueta.pz-f-color .pz-ico,
+.pz-burbuja.pz-f-color .pz-ico,
+.psv-capa--capa3d.pz-f-color .pz-ico {
+  background: rgb(255 255 255 / 0.22);
+}
 /* Seleccionado en el editor */
 .pz.es-sel .pz-cuerpo::before {
   content: '';
@@ -426,6 +465,25 @@ body {
   margin-top: 6px;
   color: rgb(255 255 255 / 0.75);
 }
+.psv-capa--capa3d.pz-f-claro {
+  background: rgb(255 255 255 / 0.94);
+}
+.psv-capa--capa3d.pz-f-claro .psv-tarjeta-contenido {
+  color: #1c1c1f;
+}
+.psv-capa--capa3d.pz-f-claro .psv-tarjeta-contenido p {
+  color: #55555c;
+}
+.psv-capa--capa3d.pz-f-color {
+  background: var(--c);
+}
+.psv-capa--capa3d.pz-f-color .psv-tarjeta-contenido {
+  color: var(--t);
+}
+.psv-capa--capa3d.pz-f-color .psv-tarjeta-contenido p {
+  color: inherit;
+  opacity: 0.8;
+}
 
 /* ---------------------------------------------------------------- animaciones (mismas en Flutter: docs/datos/puntos-360.md) */
 @keyframes pz-pulso {
@@ -466,12 +524,13 @@ body {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.35; }
 }
-.anim-pulso { animation: pz-pulso 1.6s ease-in-out infinite; }
-.anim-latido { animation: pz-latido 1.3s ease-in-out infinite; }
-.anim-flotar { animation: pz-flotar 2.4s ease-in-out infinite; }
-.anim-rebote { animation: pz-rebote 1.6s ease-out infinite; }
-.anim-balanceo { animation: pz-balanceo 2s ease-in-out infinite; transform-origin: 50% 100%; }
-.anim-parpadeo { animation: pz-parpadeo 1.4s ease-in-out infinite; }
+/* La duración se divide por la velocidad del punto (--v, de 0.5 a 2). */
+.anim-pulso { animation: pz-pulso calc(1.6s / var(--v, 1)) ease-in-out infinite; }
+.anim-latido { animation: pz-latido calc(1.3s / var(--v, 1)) ease-in-out infinite; }
+.anim-flotar { animation: pz-flotar calc(2.4s / var(--v, 1)) ease-in-out infinite; }
+.anim-rebote { animation: pz-rebote calc(1.6s / var(--v, 1)) ease-out infinite; }
+.anim-balanceo { animation: pz-balanceo calc(2s / var(--v, 1)) ease-in-out infinite; transform-origin: 50% 100%; }
+.anim-parpadeo { animation: pz-parpadeo calc(1.4s / var(--v, 1)) ease-in-out infinite; }
 /* Onda: un aro del color de acento que crece y se desvanece. */
 .pz-cuerpo.anim-brillo::after {
   content: '';
@@ -480,7 +539,7 @@ body {
   border: 0.18em solid var(--c);
   border-radius: inherit;
   pointer-events: none;
-  animation: pz-onda 1.8s ease-out infinite;
+  animation: pz-onda calc(1.8s / var(--v, 1)) ease-out infinite;
 }
 .pz-pin .pz-cuerpo.anim-brillo::after {
   inset: auto auto -0.25em 50%;
@@ -493,14 +552,14 @@ body {
   bottom: 0.7em;
   border-radius: 1em;
 }
-.psv-capa.anim-brillo { animation: pz-brillo 1.8s ease-in-out infinite; }
+.psv-capa.anim-brillo { animation: pz-brillo calc(1.8s / var(--v, 1)) ease-in-out infinite; }
 /* Girar: el ícono (o el pin completo, o la capa 3D) da vueltas sobre su eje vertical. */
 .anim-girar .pz-ico,
 .anim-girar .pz-nucleo,
-.anim-girar .pz-foto { animation: pz-girar 3s linear infinite; }
-.pz-pin .pz-cuerpo.anim-girar { animation: pz-girar 3s linear infinite; }
+.anim-girar .pz-foto { animation: pz-girar calc(3s / var(--v, 1)) linear infinite; }
+.pz-pin .pz-cuerpo.anim-girar { animation: pz-girar calc(3s / var(--v, 1)) linear infinite; }
 .pz-pin .anim-girar .pz-ico { animation: none; }
-.psv-capa.anim-girar { animation: pz-girar 4s linear infinite; }
+.psv-capa.anim-girar { animation: pz-girar calc(4s / var(--v, 1)) linear infinite; }
 @media (prefers-reduced-motion: reduce) {
   .pz-cuerpo,
   .pz-cuerpo *,
@@ -517,6 +576,28 @@ body {
 .muestra-anim.activa *,
 .muestra-anim.activa *::after {
   animation-play-state: running !important;
+}
+/* Guías del editor 360° (horizonte y cuadrícula): en la capa de la foto, debajo de los puntos. */
+.guias-360 {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+.guias-360 path {
+  fill: none;
+}
+.guias-360-rejilla {
+  stroke: rgb(255 255 255 / 0.3);
+  stroke-width: 1;
+}
+.guias-360-horizonte {
+  stroke: rgb(255 255 255 / 0.9);
+  stroke-width: 1.5;
+  stroke-dasharray: 7 6;
+  filter: drop-shadow(0 0 2px rgb(0 0 0 / 0.7));
 }
 /* Nodo donde está el visitante en el minimapa. */
 .minimapa-actual::after {

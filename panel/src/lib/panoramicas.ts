@@ -8,10 +8,7 @@ import { cambianPixeles, leerDimensiones, validarEquirrectangular, versionEdicio
 import { normalizarGrados, rumbo } from './geo';
 import {
   AJUSTES_POR_DEFECTO,
-  ANIMACIONES,
-  FORMAS,
   TIPOS_PUNTO,
-  estiloPorDefecto,
   type Estilo,
   type Ajustes,
   type Enlace,
@@ -22,6 +19,7 @@ import {
   type VersionMedio,
 } from './tipos';
 import { audienciaValida } from './audiencia';
+import { limpiarEstilo } from './estiloPunto';
 
 const SELECT = `
   SELECT p.id, p.vertice_id, p.titulo, p.rumbo_inicial, p.ajustes, p.medio_id, p.actualizado_en,
@@ -295,20 +293,6 @@ async function paraGuardar(c: Consultor, d: { audiencia: string; estilo: Estilo 
 export async function listarPuntos(panoramicaId: string): Promise<Punto[]> {
   const r = await pool.query<Punto>(`${SELECT_PUNTO} WHERE h.panoramica_id = $1 ORDER BY h.id`, [panoramicaId]);
   return r.rows;
-}
-
-function limpiarEstilo(tipo: TipoPunto, e: Partial<Estilo> | undefined): Estilo {
-  const base = estiloPorDefecto(tipo);
-  const x = { ...base, ...(e ?? {}), rotacion: { ...base.rotacion, ...(e?.rotacion ?? {}) } };
-  return {
-    forma: FORMAS.includes(x.forma) ? x.forma : base.forma,
-    ancho: clamp(x.ancho, 0, 4000, base.ancho),
-    alto: clamp(x.alto, 0, 4000, base.alto),
-    rotacion: { yaw: clamp(x.rotacion.yaw, -180, 180), pitch: clamp(x.rotacion.pitch, -180, 180), roll: clamp(x.rotacion.roll, -180, 180) },
-    animacion: ANIMACIONES.includes(x.animacion) ? x.animacion : 'ninguna',
-    color: typeof x.color === 'string' && /^#[0-9a-f]{6}$/i.test(x.color) ? x.color.toLowerCase() : base.color,
-    escala: clamp(x.escala, 0.5, 2.5, 1),
-  };
 }
 
 /** El destino de un «Ir a» tiene que existir y no puede ser la misma panorámica. */
