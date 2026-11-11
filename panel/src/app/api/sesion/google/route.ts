@@ -1,12 +1,13 @@
 import { cookies } from 'next/headers';
 import { COOKIE_OAUTH, origenPublico, urlAutorizacion } from '@/lib/google';
+import { rutaInterna } from '@/lib/rutas';
 
 /** Inicia el ingreso con Google. */
 export async function GET(request: Request) {
-  const volver = new URL(request.url).searchParams.get('volver') ?? '/';
+  const volver = rutaInterna(new URL(request.url).searchParams.get('volver'));
   try {
     const { url, estado, nonce } = urlAutorizacion(origenPublico(request));
-    (await cookies()).set(COOKIE_OAUTH, JSON.stringify({ estado, nonce, volver: volver.startsWith('/') && !volver.startsWith('//') ? volver : '/' }), {
+    (await cookies()).set(COOKIE_OAUTH, JSON.stringify({ estado, nonce, volver }), {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',

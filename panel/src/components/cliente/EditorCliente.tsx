@@ -51,7 +51,7 @@ import { useAvisos } from '@/components/ui/useAvisos';
 import { useGuardiaCambios } from '@/components/ui/useGuardiaCambios';
 import { subirMedio } from '@/components/ui/subida';
 import { urlMedio } from '@/components/panoramicas/medio';
-import { estiloDe, marcadorDe, type CacheCapas } from '@/components/panoramicas/capas';
+import { estiloDe, flechaVecina, marcadorDe, type CacheCapas } from '@/components/panoramicas/capas';
 import { aVista } from '@/components/panoramicas/correccion';
 import {
   ANCHO_MINIMO_BARRA,
@@ -305,16 +305,7 @@ export function EditorCliente({
               miniatura: p.tipo === 'enlace' ? (miniaturas.get(p.destino_panoramica_id ?? '') ?? null) : null,
             }),
           ),
-        ...actual.enlaces.map((e) => {
-          const pos = vista(e.yaw, e.pitch);
-          return {
-            id: `e:${e.destino_panoramica_id}`,
-            position: { yaw: rad(pos.yaw), pitch: rad(pos.pitch) },
-            html: `<div class="psv-flecha"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg><span>${e.titulo.replace(/</g, '&lt;')}</span></div>`,
-            anchor: 'center center',
-            tooltip: `Ir a ${e.titulo}`,
-          };
-        }),
+        ...actual.enlaces.map((e) => flechaVecina(e.destino_panoramica_id, e.titulo, vista(e.yaw, e.pitch), true)),
       ]);
     };
     if (cargada.current !== actual.id) {

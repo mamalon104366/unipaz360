@@ -74,7 +74,7 @@ import {
 import type { Audiencia } from '@/lib/audiencia';
 import { aparienciaDe, conApariencia, conForma, formasDe, limpiarEstilo, type Apariencia } from '@/lib/estiloPunto';
 import { ETIQUETA_ICONO, ICONOS_PUNTO, type IconoPunto } from '@/lib/iconosPunto.generado';
-import { estiloDe, marcadorDe, tintaSobre, type CacheCapas } from './capas';
+import { estiloDe, flechaVecina, marcadorDe, tintaSobre, type CacheCapas } from './capas';
 import { aFoto, aVista, type Posicion } from './correccion';
 import { grados, normalizar, rad, urlMedio } from './medio';
 import { iconoDe, iconoPunto, svgIcono } from './iconosPunto';
@@ -522,16 +522,7 @@ export function EditorPanoramica({
         ),
       );
     }
-    for (const e of enlacesVivos) {
-      const v = vista({ yaw: e.yaw, pitch: e.pitch });
-      lista.push({
-        id: `e:${e.destino_panoramica_id}`,
-        position: { yaw: rad(v.yaw), pitch: rad(v.pitch) },
-        html: `<div class="psv-flecha"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg><span>${e.titulo.replace(/</g, '&lt;')}</span></div>`,
-        anchor: 'center center',
-        tooltip: previa ? `Ir a ${e.titulo}` : undefined,
-      });
-    }
+    for (const e of enlacesVivos) lista.push(flechaVecina(e.destino_panoramica_id, e.titulo, vista({ yaw: e.yaw, pitch: e.pitch }), previa));
     if (!previa) {
       const n = vista({ yaw: ajustes.norte, pitch: 0 });
       lista.push({ id: 'n:norte', position: { yaw: rad(n.yaw), pitch: rad(n.pitch) }, html: '<div class="psv-norte">N</div>', anchor: 'center center' });

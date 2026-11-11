@@ -74,6 +74,15 @@ export async function descargar(clave: string): Promise<Buffer> {
   return Buffer.from(await r.arrayBuffer());
 }
 
+/** ¿Ya hay un archivo con esa clave? */
+export async function existe(clave: string) {
+  const { aws, base } = config();
+  const r = await aws.fetch(`${base}/${ruta(clave)}`, { method: 'HEAD' });
+  if (r.status === 404) return false;
+  if (!r.ok) throw new ErrorDatos(`No se pudo consultar el almacenamiento (${r.status}).`, 502);
+  return true;
+}
+
 /** Respuesta en flujo (para mostrar medios en el panel sin depender del CORS del bucket). */
 export async function leerFlujo(clave: string, rango?: string | null) {
   const { aws, base } = config();

@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { connection } from 'next/server';
 import { FormIngreso } from '@/components/ingreso/FormIngreso';
+import { rutaInterna } from '@/lib/rutas';
 import { usuarioActual } from '@/lib/sesion';
 
 export const metadata: Metadata = { title: 'Iniciar sesión' };
@@ -25,7 +26,7 @@ export default function Ingreso({ searchParams }: PageProps<'/ingreso'>) {
 async function Contenido({ searchParams }: Pick<PageProps<'/ingreso'>, 'searchParams'>) {
   await connection();
   const [{ volver, error }, u] = await Promise.all([searchParams, usuarioActual().catch(() => null)]);
-  const destino = typeof volver === 'string' && volver.startsWith('/') && !volver.startsWith('//') ? volver : '/';
+  const destino = rutaInterna(volver);
   if (u) redirect(destino);
   return <FormIngreso volver={destino} error={typeof error === 'string' ? error : null} />;
 }

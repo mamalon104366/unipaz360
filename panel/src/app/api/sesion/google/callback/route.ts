@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { COOKIE_OAUTH, origenPublico, perfilDesdeCodigo } from '@/lib/google';
 import { ingresarConGoogle } from '@/lib/usuarios';
 import { ErrorDatos } from '@/lib/errores';
+import { rutaInterna } from '@/lib/rutas';
 
 /** Google regresa aquí con el código; se valida y se abre la sesión. */
 export async function GET(request: Request) {
@@ -17,7 +18,8 @@ export async function GET(request: Request) {
     if (!estado || estado !== p.get('state') || !p.get('code')) return ir('/ingreso?error=estado');
     const perfil = await perfilDesdeCodigo(p.get('code')!, origen, nonce);
     await ingresarConGoogle(perfil);
-    return ir(volver || '/');
+    // La ruta se vuelve a revisar al usarla: la cookie viaja por el navegador.
+    return ir(rutaInterna(volver));
   } catch (e) {
     const codigo = e instanceof ErrorDatos && e.status === 403 ? 'no-autorizado' : e instanceof ErrorDatos && e.status === 422 ? 'dominio' : 'google';
     if (!(e instanceof ErrorDatos)) console.error('[panel] callback google:', e);

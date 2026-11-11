@@ -20,6 +20,7 @@ import {
 } from './tipos';
 import { audienciaValida } from './audiencia';
 import { limpiarEstilo } from './estiloPunto';
+import { enlaceWeb } from './rutas';
 
 const SELECT = `
   SELECT p.id, p.vertice_id, p.titulo, p.rumbo_inicial, p.ajustes, p.medio_id, p.actualizado_en,
@@ -313,8 +314,9 @@ function limpiarPunto(d: Partial<Punto>) {
     if (Number.isNaN(f.getTime())) throw new ErrorDatos('Fecha no válida.');
     return f.toISOString();
   };
-  const url = String(d.url ?? '').trim() || null;
-  if (url && !/^https?:\/\//i.test(url)) throw new ErrorDatos('El enlace debe empezar por http:// o https://');
+  const escrito = String(d.url ?? '').trim();
+  const url = escrito ? enlaceWeb(escrito) : null;
+  if (escrito && !url) throw new ErrorDatos('El enlace no es válido: debe empezar por http:// o https:// y no llevar espacios ni comillas.');
   const p = {
     tipo: d.tipo as TipoPunto,
     yaw: normalizarGrados(clamp(d.yaw, -360, 360)),

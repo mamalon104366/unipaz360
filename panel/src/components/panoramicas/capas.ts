@@ -14,7 +14,13 @@ import { limpiarEstilo, radioCapa } from '@/lib/estiloPunto';
 import { svgPunto } from './iconosPunto';
 
 const rad = (g: number) => (g * Math.PI) / 180;
-const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+/**
+ * Una dirección para poner dentro de `url('…')` en un atributo `style`. Lo que podría cerrar la
+ * cadena o el paréntesis (comillas, paréntesis, barra invertida, espacios) va codificado: así
+ * un enlace raro no puede meter más CSS en el punto.
+ */
+export const urlCss = (u: string) => esc(u.replace(/[\\'"()\s]/g, (c) => `%${c.charCodeAt(0).toString(16).padStart(2, '0')}`));
 
 /** El estilo guardado de un punto, completo y dentro de sus rangos (lo mismo que hace el servidor). */
 export const estiloDe = (p: Pick<Punto, 'tipo'> & { estilo?: unknown }): Estilo => limpiarEstilo(p.tipo, p.estilo);
@@ -43,6 +49,21 @@ export const esImagen = (url: string) => /\.(jpe?g|png|webp|gif|avif)(\?|$)/i.te
 const esVideo = (url: string) => /\.(mp4|webm)(\?|$)/i.test(url);
 
 type PuntoVisor = Partial<Punto> & Pick<Punto, 'tipo' | 'yaw' | 'pitch'>;
+
+/**
+ * La flecha automática hacia una foto vecina (la misma en el editor 360° y en la vista Cliente).
+ * El visor pinta el marcador y su globo como HTML, así que el título va siempre escapado.
+ */
+export function flechaVecina(destino: string, titulo: string, vista: { yaw: number; pitch: number }, conGlobo: boolean) {
+  const t = esc(titulo);
+  return {
+    id: `e:${destino}`,
+    position: { yaw: rad(vista.yaw), pitch: rad(vista.pitch) },
+    html: `<div class="psv-flecha"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg><span>${t}</span></div>`,
+    anchor: 'center center',
+    tooltip: conGlobo ? `Ir a ${t}` : undefined,
+  };
+}
 
 export function marcadorDe(
   p: PuntoVisor,
@@ -144,7 +165,7 @@ export function marcadorDe(
       break;
     case 'miniatura': {
       const foto = miniatura || (p.tipo === 'imagen' && fuente && esImagen(fuente) ? fuente : '');
-      cuerpo = `<span class="pz-foto"${foto ? ` style="background-image:url('${esc(foto)}')"` : ''}>${foto ? '' : icono}</span><span class="pz-rotulo">${titulo}</span>`;
+      cuerpo = `<span class="pz-foto"${foto ? ` style="background-image:url('${urlCss(foto)}')"` : ''}>${foto ? '' : icono}</span><span class="pz-rotulo">${titulo}</span>`;
       break;
     }
     default:
