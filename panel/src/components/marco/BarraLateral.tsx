@@ -12,6 +12,7 @@ import {
   History,
   Image,
   Map as MapIcon,
+  MessageCircle,
   Palette,
   PanelLeft,
   Play,
@@ -33,7 +34,7 @@ import { CAPAS, type Capa } from '@/lib/configApp';
 import { LOGOS } from '@/lib/marca.generado';
 import { areaDe } from './areas';
 
-const ICONO_CAPA: Record<Capa, LucideIcon> = { marca: Palette, barra: PanelLeft, minimapa: MapIcon, inicio: Play };
+const ICONO_CAPA: Record<Capa, LucideIcon> = { marca: Palette, barra: PanelLeft, minimapa: MapIcon, inicio: Play, asistente: MessageCircle };
 
 interface Item {
   href: string;

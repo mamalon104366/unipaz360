@@ -159,7 +159,14 @@ class _VistaClienteState extends State<VistaCliente> {
   bool get _hayMapa => c.minimapa.visible && c.minimapa.nodos.isNotEmpty;
 
   void _abrirChat() => setState(() {
-    _conversacion ??= ConversacionAsistente(widget.paquete.datos.guia);
+    _conversacion ??= ConversacionAsistente(
+      widget.paquete.datos.guia,
+      nombre: c.asistente.nombre,
+      saludo: c.asistente.saludo,
+      respuestas: <(String, String)>[
+        for (final r in c.asistente.respuestas) (r.pregunta, r.respuesta),
+      ],
+    );
     _eligiendoOrigen = false;
     _ficha = null;
     _chat = true;
@@ -313,7 +320,10 @@ class _VistaClienteState extends State<VistaCliente> {
           final actual = _actual;
           final datos = widget.paquete.datos;
           final asistente =
-              abierta == null && _estadoMapa != 'maximizado' && !_chat;
+              c.asistente.visible &&
+              abierta == null &&
+              _estadoMapa != 'maximizado' &&
+              !_chat;
           final nodos = <String, NodoInfo>{
             for (final v in datos.vertices)
               v.id: NodoInfo(

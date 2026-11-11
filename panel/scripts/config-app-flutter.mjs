@@ -31,6 +31,31 @@ const el = (extra) => ({ id: 'a', tipo: 'texto', x: 10, y: 10, ancho: 100, alto:
 const casos = [
   null,
   {},
+  // El asistente: nombre largo, sinónimos de una palabra sin repetir y respuestas completas.
+  {
+    asistente: {
+      visible: false,
+      nombre: '  Guía del campus de UNIPAZ con un nombre larguísimo  ',
+      saludo: '  ¡Hola! Pregúntame por un lugar.  ',
+      sinonimos: [
+        { palabra: ' biblio ', significa: 'biblioteca' },
+        { palabra: 'biblio', significa: 'otra' },
+        { palabra: 'dos palabras', significa: 'aula' },
+        { palabra: 'cafe', significa: '' },
+        { palabra: 7, significa: 'x' },
+        'no soy un objeto',
+        { palabra: 'lab', significa: 'laboratorio' },
+      ],
+      respuestas: [
+        { pregunta: ' horario biblioteca ', respuesta: ' Abre de 7 a. m. a 6 p. m. ' },
+        { pregunta: '', respuesta: 'sin pregunta' },
+        { pregunta: 'matrícula', respuesta: 'x'.repeat(500) },
+        null,
+      ],
+    },
+  },
+  { asistente: 'no', inicio: null },
+  { asistente: { visible: 'si', nombre: '', saludo: 5, sinonimos: 'x', respuestas: {} } },
   { marca: { nombre: '   ', subtitulo: 'x'.repeat(120), colorPrimario: '#ABCDEF', colorAcento: 'verde' }, interfaz: { escala: 3 } },
   // El encabezado ya no existe: se ignora. mostrarLogo solo acepta booleanos.
   // Quién ve cada elemento: solo 'institucional' cambia algo; lo demás es para todos.

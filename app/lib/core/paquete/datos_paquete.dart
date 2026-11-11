@@ -9,6 +9,7 @@ import 'package:sqlite3/common.dart';
 import '../../features/asistente/asistente.dart';
 import '../../features/rutas/rutas.dart';
 import '../modelo/config_app.dart';
+import '../../features/asistente/texto.dart' show normalizar;
 import '../modelo/normalizar_config.dart';
 import '../modelo/recorrido.dart';
 
@@ -193,6 +194,11 @@ class DatosPaquete {
             nivel: e.nivel,
           ),
     ],
+    // Los sinónimos que el equipo escribió en la plataforma («biblio» = «biblioteca»).
+    sinonimos: <String, String>{
+      for (final x in config.asistente.sinonimos)
+        normalizar(x.palabra): normalizar(x.significa),
+    },
   );
 
   /// Lee todo el paquete. [porDefecto] es la configuración por defecto del panel: se usa si

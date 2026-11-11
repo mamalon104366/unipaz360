@@ -82,6 +82,13 @@
   "textoBoton": "Inicio",
   "bienvenida": "Bienvenido al campus de UNIPAZ"
  },
+ "asistente": {
+  "visible": true,
+  "nombre": "Paz",
+  "saludo": "",
+  "sinonimos": [],
+  "respuestas": []
+ },
  "paginas": {
   "nosotros": {
    "pestanas": [

@@ -23,10 +23,39 @@ enum _Espera { nada, origen, elegirDestino, elegirOrigen, confirmarEscaleras }
 
 /// El asistente. Guarda el hilo de la conversación (qué preguntó y a dónde se va).
 class Asistente {
-  Asistente(this.fuente, {this.nombre = 'Paz'});
+  Asistente(
+    this.fuente, {
+    this.nombre = 'Paz',
+    this.saludoPropio = '',
+    this.respuestasFrecuentes = const <(String, String)>[],
+  });
 
   final FuenteGuia fuente;
   final String nombre;
+
+  /// El saludo escrito en la plataforma; vacío = el de siempre.
+  final String saludoPropio;
+
+  /// Respuestas escritas en la plataforma: (palabras clave de la pregunta, respuesta).
+  final List<(String, String)> respuestasFrecuentes;
+
+  /// La respuesta frecuente cuyas palabras clave están todas en lo que escribió la persona.
+  /// Gana la más específica (la de más palabras). Nunca se inventa: si ninguna coincide, nada.
+  String? _frecuente(String texto) {
+    final dichas = fuente.claves(texto).toSet();
+    if (dichas.isEmpty) return null;
+    String? mejor;
+    var cuantas = 0;
+    for (final (pregunta, respuesta) in respuestasFrecuentes) {
+      final claves = fuente.claves(pregunta).toSet();
+      if (claves.isEmpty || claves.length <= cuantas) continue;
+      if (claves.every(dichas.contains)) {
+        mejor = respuesta;
+        cuantas = claves.length;
+      }
+    }
+    return mejor;
+  }
 
   _Espera _espera = _Espera.nada;
   Lugar? _destino;
@@ -43,7 +72,9 @@ class Asistente {
 
   /// El mensaje con que abre la conversación.
   Respuesta saludo() => Respuesta(
-    '¡Hola! Soy $nombre. Te ayudo a llegar a cualquier lugar del campus, incluso sin internet. ¿A dónde quieres ir?',
+    saludoPropio.trim().isNotEmpty
+        ? saludoPropio.trim()
+        : '¡Hola! Soy $nombre. Te ayudo a llegar a cualquier lugar del campus, incluso sin internet. ¿A dónde quieres ir?',
     opciones: _ejemplos(),
   );
 
@@ -69,6 +100,10 @@ class Asistente {
 
     final pendiente = _responderPendiente(t, a, contexto);
     if (pendiente != null) return pendiente;
+
+    // Lo que el equipo dejó escrito en la plataforma va antes que lo demás.
+    final frecuente = _frecuente(t);
+    if (frecuente != null) return Respuesta(frecuente, opciones: _ejemplos());
 
     switch (a.intencion) {
       case Intencion.saludo:

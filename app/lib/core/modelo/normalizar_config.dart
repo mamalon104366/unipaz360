@@ -68,6 +68,51 @@ int _redondear(double n) => (n + 0.5).floor();
 
 bool _bool(Object? v, bool def) => v is bool ? v : def;
 
+/// Texto libre recortado; lo que no es texto queda vacío (`libre` del panel).
+String _libre(Object? v, int max) => v is String ? _cortar(v.trim(), max) : '';
+
+final RegExp _espacio = RegExp(r'\s');
+
+/// `normalizarAsistente` del panel.
+AsistenteApp _asistente(Object? crudo, AsistenteApp d) {
+  final x = crudo is Map ? _mapa(crudo) : const <String, Object?>{};
+  final sinonimos = <SinonimoAsistente>[];
+  for (final s in x['sinonimos'] is List ? x['sinonimos']! as List : const []) {
+    if (sinonimos.length >= maxSinonimos) break;
+    final m = _mapa(s);
+    final palabra = _libre(m['palabra'], 30);
+    final significa = _libre(m['significa'], 30);
+    // Una sola palabra en cada lado, y sin repetir la palabra.
+    if (palabra.isEmpty ||
+        significa.isEmpty ||
+        _espacio.hasMatch(palabra) ||
+        _espacio.hasMatch(significa) ||
+        sinonimos.any((o) => o.palabra == palabra)) {
+      continue;
+    }
+    sinonimos.add(SinonimoAsistente(palabra: palabra, significa: significa));
+  }
+  final respuestas = <RespuestaAsistente>[];
+  for (final r
+      in x['respuestas'] is List ? x['respuestas']! as List : const []) {
+    if (respuestas.length >= maxRespuestas) break;
+    final m = _mapa(r);
+    final pregunta = _libre(m['pregunta'], 120);
+    final respuesta = _libre(m['respuesta'], 400);
+    if (pregunta.isEmpty || respuesta.isEmpty) continue;
+    respuestas.add(
+      RespuestaAsistente(pregunta: pregunta, respuesta: respuesta),
+    );
+  }
+  return AsistenteApp(
+    visible: _bool(x['visible'], d.visible),
+    nombre: _texto(x['nombre'], d.nombre, 24),
+    saludo: _libre(x['saludo'], 200),
+    sinonimos: List<SinonimoAsistente>.unmodifiable(sinonimos),
+    respuestas: List<RespuestaAsistente>.unmodifiable(respuestas),
+  );
+}
+
 /// Lo que JavaScript considera verdadero en un `if (v)`.
 bool _verdadero(Object? v) =>
     !(v == null || v == false || v == 0 || v == '' || (v is double && v.isNaN));
@@ -597,6 +642,7 @@ ConfigApp normalizarConfig(
       textoBoton: _texto(inicio['textoBoton'], d.inicio.textoBoton, 24),
       bienvenida: _texto(inicio['bienvenida'], d.inicio.bienvenida, 120),
     ),
+    asistente: _asistente(x['asistente'], d.asistente),
     paginas: Map<String, PaginaApp>.unmodifiable(paginas),
   );
 }

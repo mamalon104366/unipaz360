@@ -27,6 +27,7 @@ import {
   Orbit,
   Pencil,
   Play,
+  MessageCircle,
   Plus,
   Redo2,
   RotateCcw,
@@ -69,11 +70,13 @@ import {
   type PestanaPagina,
   type SeccionApp,
   type TipoElemento,
+  MAX_RESPUESTAS,
+  MAX_SINONIMOS,
 } from '@/lib/configApp';
 import { LOGOS } from '@/lib/marca.generado';
 import { paginaInicial } from '@/lib/paginasIniciales';
 import { ETIQUETA_PUNTO, type Ajustes, type Enlace, type Punto } from '@/lib/tipos';
-import { BotonIcono, Color, Interruptor, Opciones, Rango, Seccion, Texto } from './controles';
+import { AreaTexto, BotonIcono, Color, Interruptor, Opciones, Rango, Seccion, Texto } from './controles';
 import { useHistorial } from './historial';
 import { LienzoPagina } from './LienzoPagina';
 import { PropiedadesPagina } from './PropiedadesPagina';
@@ -775,6 +778,18 @@ export function EditorCliente({
                 </button>
               )}
 
+              {/* Asistente: en la app abre el chat; aquí abre su capa */}
+              {cuenta && c.asistente.visible && (
+                <button
+                  onClick={() => elegirCapa('asistente')}
+                  title={`${c.asistente.nombre}: el asistente que guía hasta un lugar (en la app abre el chat)`}
+                  className={`pointer-events-auto absolute z-30 grid place-items-center rounded-full text-white shadow-lg ${marco('asistente')}`}
+                  style={{ width: ladoBoton, height: ladoBoton, top: m12, background: 'var(--primario)', [derecha ? 'left' : 'right']: m12 + (buscador ? 2 : 1) * (ladoBoton + 8 * u) }}
+                >
+                  <MessageCircle size={18 * e * u} />
+                </button>
+              )}
+
               {/* Minimapa */}
               {c.minimapa.visible && !seccionAbierta && (
                 <MinimapaVista
@@ -1217,6 +1232,75 @@ export function EditorCliente({
                   </>
                 )}
                 <Rango etiqueta="Opacidad" valor={c.minimapa.opacidad} min={0.3} max={1} paso={0.05} formato={(v) => `${Math.round(v * 100)} %`} alCambiar={(v) => setC({ ...c, minimapa: { ...c.minimapa, opacidad: v } }, 'mapa-op')} />
+              </Seccion>
+            </>
+          )}
+          {!seccionAbierta && capa === 'asistente' && (
+            <>
+              <Interruptor etiqueta="Mostrar el asistente" ayuda="Un botón redondo abre el chat que guía hasta un lugar, sin internet." valor={c.asistente.visible} alCambiar={(v) => setC({ ...c, asistente: { ...c.asistente, visible: v } })} />
+              <Texto etiqueta="Nombre" valor={c.asistente.nombre} alCambiar={(v) => setC({ ...c, asistente: { ...c.asistente, nombre: v } }, 'asis-nombre')} />
+              <AreaTexto etiqueta="Saludo (vacío: el de siempre)" valor={c.asistente.saludo} filas={3} alCambiar={(v) => setC({ ...c, asistente: { ...c.asistente, saludo: v } }, 'asis-saludo')} />
+              <Seccion
+                titulo={`Sinónimos (${c.asistente.sinonimos.length})`}
+                accion={
+                  c.asistente.sinonimos.length < MAX_SINONIMOS ? (
+                    <BotonIcono titulo="Agregar sinónimo" icono={<Plus size={15} />} onClick={() => setC({ ...c, asistente: { ...c.asistente, sinonimos: [...c.asistente.sinonimos, { palabra: '', significa: '' }] } })} />
+                  ) : undefined
+                }
+              >
+                <p className="text-[12px] leading-snug text-tinta-tenue">Cómo le dice la gente a un lugar: «biblio» significa «biblioteca». Una palabra en cada casilla.</p>
+                {c.asistente.sinonimos.map((s, i) => (
+                  <div key={i} className="flex items-center gap-1.5">
+                    <input
+                      value={s.palabra}
+                      placeholder="biblio"
+                      maxLength={30}
+                      onChange={(ev) => setC({ ...c, asistente: { ...c.asistente, sinonimos: c.asistente.sinonimos.map((o, k) => (k === i ? { ...o, palabra: ev.target.value.replace(/\s/g, '') } : o)) } }, `asis-sp-${i}`)}
+                      className="campo !h-9 min-w-0 flex-1 !px-2.5 !text-[13px]"
+                    />
+                    <span className="text-[12px] text-tinta-tenue">=</span>
+                    <input
+                      value={s.significa}
+                      placeholder="biblioteca"
+                      maxLength={30}
+                      onChange={(ev) => setC({ ...c, asistente: { ...c.asistente, sinonimos: c.asistente.sinonimos.map((o, k) => (k === i ? { ...o, significa: ev.target.value.replace(/\s/g, '') } : o)) } }, `asis-ss-${i}`)}
+                      className="campo !h-9 min-w-0 flex-1 !px-2.5 !text-[13px]"
+                    />
+                    <BotonIcono titulo="Quitar" icono={<Trash2 size={14} />} onClick={() => setC({ ...c, asistente: { ...c.asistente, sinonimos: c.asistente.sinonimos.filter((_, k) => k !== i) } })} />
+                  </div>
+                ))}
+              </Seccion>
+              <Seccion
+                titulo={`Respuestas frecuentes (${c.asistente.respuestas.length})`}
+                accion={
+                  c.asistente.respuestas.length < MAX_RESPUESTAS ? (
+                    <BotonIcono titulo="Agregar respuesta" icono={<Plus size={15} />} onClick={() => setC({ ...c, asistente: { ...c.asistente, respuestas: [...c.asistente.respuestas, { pregunta: '', respuesta: '' }] } })} />
+                  ) : undefined
+                }
+              >
+                <p className="text-[12px] leading-snug text-tinta-tenue">Si la pregunta de la persona trae las palabras clave, el asistente contesta este texto. Ejemplo: «horario biblioteca» → «Abre de lunes a viernes, de 7 a. m. a 6 p. m.».</p>
+                {c.asistente.respuestas.map((r, i) => (
+                  <div key={i} className="space-y-1.5 rounded-xl bg-black/[0.03] p-2">
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        value={r.pregunta}
+                        placeholder="Palabras clave de la pregunta"
+                        maxLength={120}
+                        onChange={(ev) => setC({ ...c, asistente: { ...c.asistente, respuestas: c.asistente.respuestas.map((o, k) => (k === i ? { ...o, pregunta: ev.target.value } : o)) } }, `asis-rp-${i}`)}
+                        className="campo !h-9 min-w-0 flex-1 !px-2.5 !text-[13px]"
+                      />
+                      <BotonIcono titulo="Quitar" icono={<Trash2 size={14} />} onClick={() => setC({ ...c, asistente: { ...c.asistente, respuestas: c.asistente.respuestas.filter((_, k) => k !== i) } })} />
+                    </div>
+                    <textarea
+                      value={r.respuesta}
+                      placeholder="Lo que contesta el asistente"
+                      rows={2}
+                      maxLength={400}
+                      onChange={(ev) => setC({ ...c, asistente: { ...c.asistente, respuestas: c.asistente.respuestas.map((o, k) => (k === i ? { ...o, respuesta: ev.target.value } : o)) } }, `asis-rr-${i}`)}
+                      className="campo resize-none !px-2.5 !py-2 !text-[13px]"
+                    />
+                  </div>
+                ))}
               </Seccion>
             </>
           )}

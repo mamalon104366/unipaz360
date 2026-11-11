@@ -510,6 +510,62 @@ class InicioApp {
   };
 }
 
+/// «biblio» significa «biblioteca» (una palabra cada uno).
+class SinonimoAsistente {
+  const SinonimoAsistente({required this.palabra, required this.significa});
+
+  final String palabra;
+  final String significa;
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'palabra': palabra,
+    'significa': significa,
+  };
+}
+
+/// Si la pregunta trae las palabras de [pregunta], el asistente contesta [respuesta].
+class RespuestaAsistente {
+  const RespuestaAsistente({required this.pregunta, required this.respuesta});
+
+  final String pregunta;
+  final String respuesta;
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'pregunta': pregunta,
+    'respuesta': respuesta,
+  };
+}
+
+/// El asistente que guía hasta un lugar (`asistente` en la configuración del Cliente).
+class AsistenteApp {
+  const AsistenteApp({
+    required this.visible,
+    required this.nombre,
+    required this.saludo,
+    required this.sinonimos,
+    required this.respuestas,
+  });
+
+  final bool visible;
+  final String nombre;
+
+  /// Vacío = el saludo de siempre.
+  final String saludo;
+  final List<SinonimoAsistente> sinonimos;
+  final List<RespuestaAsistente> respuestas;
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'visible': visible,
+    'nombre': nombre,
+    'saludo': saludo,
+    'sinonimos': <Object?>[for (final s in sinonimos) s.toJson()],
+    'respuestas': <Object?>[for (final r in respuestas) r.toJson()],
+  };
+}
+
+const int maxSinonimos = 60;
+const int maxRespuestas = 30;
+
 class ConfigApp {
   const ConfigApp({
     required this.marca,
@@ -517,6 +573,7 @@ class ConfigApp {
     required this.barraLateral,
     required this.minimapa,
     required this.inicio,
+    required this.asistente,
     required this.paginas,
   });
 
@@ -527,6 +584,7 @@ class ConfigApp {
   final BarraLateralApp barraLateral;
   final MinimapaApp minimapa;
   final InicioApp inicio;
+  final AsistenteApp asistente;
 
   /// Contenido de cada sección de tipo `pagina`, por id de sección.
   final Map<String, PaginaApp> paginas;
@@ -544,6 +602,7 @@ class ConfigApp {
     'barraLateral': barraLateral.toJson(),
     'minimapa': minimapa.toJson(),
     'inicio': inicio.toJson(),
+    'asistente': asistente.toJson(),
     'paginas': <String, Object?>{
       for (final e in paginas.entries) e.key: e.value.toJson(),
     },
@@ -589,6 +648,13 @@ class ConfigApp {
       pantalla: 'tour',
       textoBoton: 'Inicio',
       bienvenida: 'Bienvenido al campus de UNIPAZ',
+    ),
+    asistente: AsistenteApp(
+      visible: true,
+      nombre: 'Paz',
+      saludo: '',
+      sinonimos: <SinonimoAsistente>[],
+      respuestas: <RespuestaAsistente>[],
     ),
     paginas: <String, PaginaApp>{},
   );

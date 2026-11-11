@@ -30,7 +30,17 @@ class MensajeChat {
 
 /// La conversación en curso. Vive fuera del panel para que cerrarlo no la borre.
 class ConversacionAsistente {
-  ConversacionAsistente(FuenteGuia fuente) : asistente = Asistente(fuente) {
+  ConversacionAsistente(
+    FuenteGuia fuente, {
+    String nombre = 'Paz',
+    String saludo = '',
+    List<(String, String)> respuestas = const <(String, String)>[],
+  }) : asistente = Asistente(
+         fuente,
+         nombre: nombre,
+         saludoPropio: saludo,
+         respuestasFrecuentes: respuestas,
+       ) {
     // Sin lugares en el paquete no hay a dónde guiar: se dice de entrada, sin inventar.
     mensajes.add(
       MensajeChat.asistente(

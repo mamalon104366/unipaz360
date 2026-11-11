@@ -198,3 +198,20 @@ recorrido en `app/lib/features/visor360/`.
   (busca entre los espacios y los nodos con nombre del paquete y arma la ruta con el motor de rutas).
 - **Botón de inicio**: vuelve a la primera panorámica (o al encuadre inicial si ya está en ella).
 - **Atrás (Android)**: cierra primero la ficha, la página o el mapa maximizado.
+
+## Asistente (`asistente`)
+
+El chat que guía hasta un lugar, sin internet. Capa «Asistente» del apartado Cliente.
+
+| Campo | Qué es |
+| ----- | ------ |
+| `visible` | Si se muestra el botón redondo del asistente (junto a buscar y cuenta). Por defecto, sí. |
+| `nombre` | Cómo se llama (hasta 24 letras). Por defecto «Paz». |
+| `saludo` | El primer mensaje (hasta 200 letras). Vacío: el saludo de siempre, con el nombre. |
+| `sinonimos` | Hasta 60 pares `{ palabra, significa }`, una palabra en cada lado y sin repetir `palabra`: «biblio» significa «biblioteca». Se suman a los que la app ya trae. |
+| `respuestas` | Hasta 30 pares `{ pregunta, respuesta }`. Si lo que escribe la persona trae todas las palabras clave de `pregunta`, el asistente contesta `respuesta`; entre varias gana la de más palabras. |
+
+La app compara sin tildes ni mayúsculas. Lo que no está escrito no se inventa: responde que no
+entendió y ofrece lo que sí sabe hacer. Código: `panel/src/lib/configApp.ts`
+(`normalizarAsistente`), `app/lib/core/modelo/normalizar_config.dart` y
+`app/lib/features/asistente/`.

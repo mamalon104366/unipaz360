@@ -118,6 +118,17 @@ export interface NodoMinimapa {
   y: number;
 }
 
+export interface SinonimoAsistente {
+  palabra: string;
+  significa: string;
+}
+export interface RespuestaAsistente {
+  pregunta: string;
+  respuesta: string;
+}
+export const MAX_SINONIMOS = 60;
+export const MAX_RESPUESTAS = 30;
+
 export interface ConfigApp {
   /** El nombre y el subtítulo van al pie de la barra; los colores, a botones y resaltados. */
   marca: { nombre: string; subtitulo: string; colorPrimario: string; colorAcento: string };
@@ -159,6 +170,13 @@ export interface ConfigApp {
     nodos: NodoMinimapa[];
   };
   inicio: { pantalla: 'tour' | 'mapa'; textoBoton: string; bienvenida: string };
+  /**
+   * El asistente que guía hasta un lugar (funciona sin internet).
+   * - `saludo`: vacío = el saludo de siempre.
+   * - `sinonimos`: «biblio» significa «biblioteca» (una palabra cada uno).
+   * - `respuestas`: si la pregunta de la persona trae las palabras de `pregunta`, contesta `respuesta`.
+   */
+  asistente: { visible: boolean; nombre: string; saludo: string; sinonimos: SinonimoAsistente[]; respuestas: RespuestaAsistente[] };
   /** Contenido de cada sección de tipo "pagina", por id de sección. */
   paginas: Record<string, Pagina>;
 }
@@ -200,6 +218,7 @@ export const CONFIG_POR_DEFECTO: ConfigApp = {
     nodos: [],
   },
   inicio: { pantalla: 'tour', textoBoton: 'Inicio', bienvenida: 'Bienvenido al campus de UNIPAZ' },
+  asistente: { visible: true, nombre: 'Paz', saludo: '', sinonimos: [], respuestas: [] },
   paginas: Object.fromEntries(SECCIONES_POR_DEFECTO.filter((s) => s.tipo === 'pagina').map((s) => [s.id, paginaInicial(s.id, s.titulo)])),
 };
 
@@ -208,6 +227,7 @@ export const CAPAS = [
   { id: 'barra', nombre: 'Barra lateral y logo' },
   { id: 'minimapa', nombre: 'Minimapa' },
   { id: 'inicio', nombre: 'Pantalla de inicio' },
+  { id: 'asistente', nombre: 'Asistente' },
 ] as const;
 export type Capa = (typeof CAPAS)[number]['id'];
 
@@ -331,6 +351,32 @@ function normalizarPagina(p: Partial<Pagina> | null | undefined, porDefecto: () 
 }
 
 /** Normaliza lo que llega del editor (nunca se guarda algo que la app no entienda). */
+/** Texto libre recortado; lo que no es texto queda vacío. */
+const libre = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
+
+function normalizarAsistente(v: unknown): ConfigApp['asistente'] {
+  const d = CONFIG_POR_DEFECTO.asistente;
+  const x = (v && typeof v === 'object' && !Array.isArray(v) ? v : {}) as Record<string, unknown>;
+  const sinonimos: SinonimoAsistente[] = [];
+  for (const s of Array.isArray(x.sinonimos) ? x.sinonimos : []) {
+    if (sinonimos.length >= MAX_SINONIMOS) break;
+    const palabra = libre(s?.palabra, 30);
+    const significa = libre(s?.significa, 30);
+    // Una sola palabra en cada lado, y sin repetir la palabra.
+    if (!palabra || !significa || /\s/.test(palabra) || /\s/.test(significa) || sinonimos.some((o) => o.palabra === palabra)) continue;
+    sinonimos.push({ palabra, significa });
+  }
+  const respuestas: RespuestaAsistente[] = [];
+  for (const r of Array.isArray(x.respuestas) ? x.respuestas : []) {
+    if (respuestas.length >= MAX_RESPUESTAS) break;
+    const pregunta = libre(r?.pregunta, 120);
+    const respuesta = libre(r?.respuesta, 400);
+    if (!pregunta || !respuesta) continue;
+    respuestas.push({ pregunta, respuesta });
+  }
+  return { visible: bool(x.visible, d.visible), nombre: texto(x.nombre, d.nombre, 24), saludo: libre(x.saludo, 200), sinonimos, respuestas };
+}
+
 export function normalizarConfig(c: Partial<ConfigApp> | null | undefined): ConfigApp {
   const d = CONFIG_POR_DEFECTO;
   const x = (c ?? {}) as Partial<ConfigApp> & { minimapa?: Partial<ConfigApp['minimapa']> & { plegable?: boolean; iniciaPlegado?: boolean } };
@@ -402,6 +448,7 @@ export function normalizarConfig(c: Partial<ConfigApp> | null | undefined): Conf
       textoBoton: texto(x.inicio?.textoBoton, d.inicio.textoBoton, 24),
       bienvenida: texto(x.inicio?.bienvenida, d.inicio.bienvenida, 120),
     },
+    asistente: normalizarAsistente((x as { asistente?: unknown }).asistente),
     paginas,
   };
 }
