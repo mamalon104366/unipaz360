@@ -47,21 +47,18 @@ class Lugar2D {
       );
 
   /// Igual que [ubicar], pero se mueve suave cuando cambia (la barra al plegarse).
-  Widget ubicarAnimado({
-    required Widget child,
-    double? ancho,
-    double? alto,
-  }) => AnimatedPositioned(
-    duration: duracionBarra,
-    curve: Curves.easeOutCubic,
-    left: izquierda,
-    top: arriba,
-    right: derecha,
-    bottom: abajo,
-    width: ancho,
-    height: alto,
-    child: child,
-  );
+  Widget ubicarAnimado({required Widget child, double? ancho, double? alto}) =>
+      AnimatedPositioned(
+        duration: duracionBarra,
+        curve: Curves.easeOutCubic,
+        left: izquierda,
+        top: arriba,
+        right: derecha,
+        bottom: abajo,
+        width: ancho,
+        height: alto,
+        child: child,
+      );
 }
 
 class MedidasCliente {
@@ -209,4 +206,23 @@ class MedidasCliente {
   Lugar2D get panelPagina => derecha
       ? Lugar2D(arriba: 0, abajo: 0, izquierda: 0, derecha: anchoLateral)
       : Lugar2D(arriba: 0, abajo: 0, izquierda: anchoLateral, derecha: 0);
+
+  /// El botón del asistente: en la misma fila de buscar y cuenta, después de los que haya.
+  Lugar2D botonChat({required int antes}) {
+    final x = margen + antes * (ladoBuscar * escala + 8);
+    return derecha
+        ? Lugar2D(arriba: margen, izquierda: x)
+        : Lugar2D(arriba: margen, derecha: x);
+  }
+
+  /// Ancho del panel del chat: 380 dp, o lo que quede libre al lado de la barra.
+  double get anchoChat => math.max(
+    0,
+    math.min(380 * escala, pantalla.width - ocupado - 2 * margen),
+  );
+
+  /// El panel del chat: de arriba abajo, del lado contrario a la barra.
+  Lugar2D get panelChat => derecha
+      ? const Lugar2D(arriba: margen, abajo: margen, izquierda: margen)
+      : const Lugar2D(arriba: margen, abajo: margen, derecha: margen);
 }

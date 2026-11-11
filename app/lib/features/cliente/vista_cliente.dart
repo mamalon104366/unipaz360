@@ -13,6 +13,9 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/modelo/config_app.dart';
 import '../../core/modelo/recorrido.dart';
 import '../../core/paquete/paquete_local.dart';
+import '../asistente/asistente.dart' show Lugar;
+import '../asistente/ui/chat_asistente.dart';
+import '../rutas/rutas.dart' show Ruta;
 import '../visor360/visor_360.dart';
 import 'marco_cliente.dart';
 import 'medidas_cliente.dart';
@@ -57,6 +60,16 @@ class _VistaClienteState extends State<VistaCliente> {
   bool _hayRed = false;
   StreamSubscription<InternetStatus>? _red;
 
+  // El asistente: la conversación se conserva aunque se cierre el panel.
+  bool _chat = false;
+  ConversacionAsistente? _conversacion;
+
+  /// Nodos de la última ruta que se pidió ver en el mapa.
+  List<String> _rutaMapa = const <String>[];
+
+  /// El asistente espera que se toque en el mapa el punto de partida.
+  bool _eligiendoOrigen = false;
+
   @override
   void initState() {
     super.initState();
@@ -92,6 +105,7 @@ class _VistaClienteState extends State<VistaCliente> {
 
   void _abrirSeccion(SeccionApp s) => setState(() {
     _ficha = null;
+    _chat = false;
     if (s.tipo == 'recorrido') {
       _seccion = null;
     } else {
@@ -142,6 +156,100 @@ class _VistaClienteState extends State<VistaCliente> {
     });
   }
 
+  bool get _hayMapa => c.minimapa.visible && c.minimapa.nodos.isNotEmpty;
+
+  void _abrirChat() => setState(() {
+    _conversacion ??= ConversacionAsistente(widget.paquete.datos.guia);
+    _eligiendoOrigen = false;
+    _ficha = null;
+    _chat = true;
+  });
+
+  /// «Ver en el mapa»: la ruta se dibuja en el mapa maximizado.
+  void _verRutaEnMapa(Ruta ruta) => setState(() {
+    if (!_hayMapa) {
+      _conversacion?.avisar(
+        'Esta versión no tiene el mapa activo. Sigue los pasos de arriba.',
+      );
+      return;
+    }
+    _rutaMapa = ruta.nodos;
+    _estadoMapa = 'maximizado';
+    _chat = false;
+  });
+
+  /// «Seguir en 360°»: abre la primera foto del camino.
+  void _seguirEn360(Ruta ruta) {
+    final datos = widget.paquete.datos;
+    for (final id in ruta.nodos) {
+      final p = datos.panoramicaPorVertice[id];
+      if (p != null) {
+        setState(() {
+          _rutaMapa = ruta.nodos;
+          _ficha = null;
+          _panoramica = p.id;
+          _chat = false;
+        });
+        return;
+      }
+    }
+    setState(
+      () => _conversacion?.avisar(
+        'Todavía no hay fotos 360° en ese camino. Sigue los pasos o mira la ruta en el mapa.',
+      ),
+    );
+  }
+
+  /// «Ver dónde queda»: su foto 360° si la tiene; si no, el mapa.
+  void _verLugar(Lugar lugar) {
+    final p = widget.paquete.datos.panoramicaPorVertice[lugar.nodoId];
+    setState(() {
+      if (p != null) {
+        _ficha = null;
+        _panoramica = p.id;
+        _chat = false;
+      } else if (_hayMapa) {
+        _rutaMapa = const <String>[];
+        _estadoMapa = 'maximizado';
+        _chat = false;
+      } else {
+        _conversacion?.avisar('Ese lugar todavía no tiene foto 360°.');
+      }
+    });
+  }
+
+  void _elegirOrigenEnMapa() => setState(() {
+    if (!_hayMapa) {
+      _conversacion?.avisar(
+        'Esta versión no tiene el mapa activo. Escribe desde dónde sales.',
+      );
+      return;
+    }
+    _eligiendoOrigen = true;
+    _estadoMapa = 'maximizado';
+    _chat = false;
+  });
+
+  /// Tocar un nodo del mapa: ir a su foto o, si el asistente lo pidió, salir desde ahí.
+  void _tocarNodo(String verticeId) {
+    final conversacion = _conversacion;
+    if (!_eligiendoOrigen || conversacion == null) {
+      _irAVertice(verticeId);
+      return;
+    }
+    var nombre = verticeId;
+    for (final v in widget.paquete.datos.vertices) {
+      if (v.id == verticeId) nombre = v.nombre;
+    }
+    setState(() {
+      _eligiendoOrigen = false;
+      final r = conversacion.origenElegido(verticeId, nombre);
+      _rutaMapa = r.ruta?.nodos ?? const <String>[];
+      _estadoMapa = 'normal';
+      _chat = true;
+    });
+  }
+
   /// La sección «Buscador de rutas» que abre el botón redondo de buscar (si hay una visible).
   SeccionApp? get _seccionRutas {
     for (final s in c.barraLateral.secciones) {
@@ -156,18 +264,24 @@ class _VistaClienteState extends State<VistaCliente> {
     // El diseño es un lienzo fijo: el tamaño del texto lo da `interfaz.escala`.
     // «Atrás» (Android) cierra primero la ficha, la página o el mapa maximizado.
     final algoAbierto =
-        _ficha != null || _abierta != null || _estadoMapa == 'maximizado';
+        _chat ||
+        _ficha != null ||
+        _abierta != null ||
+        _estadoMapa == 'maximizado';
     return PopScope(
       canPop: !algoAbierto,
       onPopInvokedWithResult: (seFue, _) {
         if (seFue) return;
         setState(() {
-          if (_ficha != null) {
+          if (_chat) {
+            _chat = false;
+          } else if (_ficha != null) {
             _ficha = null;
           } else if (_abierta != null) {
             _seccion = null;
           } else {
             _estadoMapa = 'normal';
+            _eligiendoOrigen = false;
           }
         });
       },
@@ -198,6 +312,8 @@ class _VistaClienteState extends State<VistaCliente> {
               _estadoMapa != 'maximizado';
           final actual = _actual;
           final datos = widget.paquete.datos;
+          final asistente =
+              abierta == null && _estadoMapa != 'maximizado' && !_chat;
           final nodos = <String, NodoInfo>{
             for (final v in datos.vertices)
               v.id: NodoInfo(
@@ -234,19 +350,25 @@ class _VistaClienteState extends State<VistaCliente> {
               if (c.minimapa.visible && abierta == null)
                 (_estadoMapa == 'maximizado'
                         ? m.areaLibre
-                        : m.minimapa(conBuscador: buscador || cuenta))
+                        : m.minimapa(
+                            conBuscador: buscador || cuenta || asistente,
+                          ))
                     .ubicar(
-                  child: MinimapaCliente(
-                    config: c,
-                    imagen: widget.paquete.imagen(c.minimapa.imagen),
-                    nodos: nodos,
-                    actual: actual?.verticeId,
-                    estado: _estadoMapa,
-                    anchoPantalla: pantalla.width,
-                    alCambiarEstado: (e) => setState(() => _estadoMapa = e),
-                    alIr: _irAVertice,
-                  ),
-                ),
+                      child: MinimapaCliente(
+                        config: c,
+                        imagen: widget.paquete.imagen(c.minimapa.imagen),
+                        nodos: nodos,
+                        actual: actual?.verticeId,
+                        estado: _estadoMapa,
+                        anchoPantalla: pantalla.width,
+                        ruta: _rutaMapa,
+                        alCambiarEstado: (e) => setState(() {
+                          _estadoMapa = e;
+                          if (e != 'maximizado') _eligiendoOrigen = false;
+                        }),
+                        alIr: _tocarNodo,
+                      ),
+                    ),
               if (abierta == null && _estadoMapa != 'maximizado')
                 Positioned(
                   bottom: 14,
@@ -304,14 +426,65 @@ class _VistaClienteState extends State<VistaCliente> {
                         alTocar: widget.alAbrirCuenta!,
                       ),
                     ),
+              if (asistente)
+                m
+                    .botonChat(antes: (buscador ? 1 : 0) + (cuenta ? 1 : 0))
+                    .ubicar(
+                      child: BotonChat(config: c, alTocar: _abrirChat),
+                    ),
+              if (_eligiendoOrigen && _estadoMapa == 'maximizado')
+                Positioned(
+                  top: 20,
+                  left: 0,
+                  right: 0,
+                  child: IgnorePointer(
+                    child: Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xE61C1C1F),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          'Toca en el mapa el punto desde donde sales',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 13 * c.escala,
+                            decoration: TextDecoration.none,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               if (c.barraLateral.mostrarLogo && !m.riel && m.anchoLogo > 0)
-                m.logo.ubicar(child: LogoBarra(config: c, medidas: m)),
+                m.logo.ubicar(
+                  child: LogoBarra(config: c, medidas: m),
+                ),
               if (c.barraLateral.plegable && !(m.movil && abierta != null))
                 m.botonPlegar.ubicarAnimado(
                   child: BotonPlegar(
                     medidas: m,
                     alTocar: () =>
                         setState(() => _barraPlegada = !_barraPlegada),
+                  ),
+                ),
+              if (_chat && _conversacion != null && abierta == null)
+                m.panelChat.ubicar(
+                  ancho: m.anchoChat,
+                  child: ChatAsistente(
+                    config: c,
+                    conversacion: _conversacion!,
+                    nodoActual: actual?.verticeId,
+                    alCerrar: () => setState(() => _chat = false),
+                    alVerMapa: _verRutaEnMapa,
+                    alSeguir360: _seguirEn360,
+                    alVerLugar: _verLugar,
+                    alElegirEnMapa: _elegirOrigenEnMapa,
                   ),
                 ),
               if (_ficha != null && abierta == null)

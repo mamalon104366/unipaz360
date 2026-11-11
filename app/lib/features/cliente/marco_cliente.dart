@@ -307,11 +307,7 @@ class LogoBarra extends StatelessWidget {
 
 /// El botón redondo blanco del borde de la barra: la pliega o la abre.
 class BotonPlegar extends StatelessWidget {
-  const BotonPlegar({
-    super.key,
-    required this.medidas,
-    required this.alTocar,
-  });
+  const BotonPlegar({super.key, required this.medidas, required this.alTocar});
 
   final MedidasCliente medidas;
   final VoidCallback alTocar;
@@ -358,11 +354,7 @@ class BotonPlegar extends StatelessWidget {
 
 /// El botón redondo de buscar, arriba del lado contrario a la barra: abre «Cómo llegar».
 class BotonBuscar extends StatelessWidget {
-  const BotonBuscar({
-    super.key,
-    required this.config,
-    required this.alTocar,
-  });
+  const BotonBuscar({super.key, required this.config, required this.alTocar});
 
   final ConfigApp config;
   final VoidCallback alTocar;
@@ -495,4 +487,54 @@ class BotonInicio extends StatelessWidget {
       ),
     ),
   );
+}
+
+/// El botón redondo del asistente, junto a los de buscar y cuenta: abre el chat que guía
+/// hasta un lugar. Va con el color primario para que se distinga.
+class BotonChat extends StatelessWidget {
+  const BotonChat({super.key, required this.config, required this.alTocar});
+
+  final ConfigApp config;
+  final VoidCallback alTocar;
+
+  @override
+  Widget build(BuildContext context) {
+    final e = config.escala;
+    final color = colorHex(config.marca.colorPrimario);
+    return Tooltip(
+      message: 'Asistente: te guío a un lugar',
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: Semantics(
+          button: true,
+          label: 'Abrir el asistente',
+          excludeSemantics: true,
+          child: GestureDetector(
+            onTap: alTocar,
+            child: Container(
+              width: ladoBuscar * e,
+              height: ladoBuscar * e,
+              decoration: BoxDecoration(
+                color: color,
+                shape: BoxShape.circle,
+                border: Border.all(color: const Color(0x59FFFFFF)),
+                boxShadow: const <BoxShadow>[
+                  BoxShadow(
+                    color: Color(0x59000000),
+                    blurRadius: 10,
+                    offset: Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Icon(
+                LucideIcons.messageCircle,
+                size: 18 * e,
+                color: tintaSobre(color),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

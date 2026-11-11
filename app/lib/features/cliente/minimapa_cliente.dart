@@ -75,6 +75,7 @@ class MinimapaCliente extends StatefulWidget {
     required this.estado,
     required this.alCambiarEstado,
     required this.alIr,
+    this.ruta = const <String>[],
     required this.anchoPantalla,
   });
 
@@ -87,6 +88,9 @@ class MinimapaCliente extends StatefulWidget {
   final String estado;
   final ValueChanged<String> alCambiarEstado;
   final ValueChanged<String> alIr;
+
+  /// Nodos de la ruta que mostró el asistente, en orden (vacía si no hay).
+  final List<String> ruta;
   final double anchoPantalla;
 
   @override
@@ -166,6 +170,7 @@ class _MinimapaClienteState extends State<MinimapaCliente> {
           proporcion: proporcion,
           nodos: widget.nodos,
           actual: widget.actual,
+          ruta: widget.ruta,
           primario: primario,
           acento: acento,
           alCambiarEstado: widget.alCambiarEstado,
@@ -238,6 +243,7 @@ class _MinimapaClienteState extends State<MinimapaCliente> {
                               alto: altoLamina,
                               nodos: widget.nodos,
                               actual: widget.actual,
+                              ruta: widget.ruta,
                               nombres: m.mostrarNombres,
                               escalaVista: m.zoom,
                               primario: primario,
@@ -387,6 +393,7 @@ class _Lamina extends StatelessWidget {
     required this.primario,
     required this.acento,
     required this.alIr,
+    this.ruta = const <String>[],
     this.opacidad = 1,
     this.redondeo = 0,
   });
@@ -402,6 +409,9 @@ class _Lamina extends StatelessWidget {
   final Color primario;
   final Color acento;
   final ValueChanged<String> alIr;
+
+  /// Nodos de la ruta que mostró el asistente, en orden (vacía si no hay).
+  final List<String> ruta;
   final double opacidad;
   final double redondeo;
 
@@ -426,6 +436,24 @@ class _Lamina extends StatelessWidget {
                     image: imagen!,
                     fit: BoxFit.fill,
                     gaplessPlayback: true,
+                  ),
+                ),
+              ),
+            ),
+          // La ruta del asistente, debajo de los nodos.
+          if (ruta.length > 1)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: CustomPaint(
+                  painter: _TrazoRuta(
+                    puntos: <Offset>[
+                      for (final id in ruta)
+                        for (final n in m.nodos)
+                          if (n.verticeId == id)
+                            Offset(n.x * ancho, n.y * alto),
+                    ],
+                    color: acento,
+                    grosor: 4 / escalaVista,
                   ),
                 ),
               ),
@@ -598,6 +626,7 @@ class _MapaMaximizado extends StatefulWidget {
     required this.acento,
     required this.alCambiarEstado,
     required this.alIr,
+    this.ruta = const <String>[],
   });
 
   final MinimapaApp m;
@@ -609,6 +638,9 @@ class _MapaMaximizado extends StatefulWidget {
   final Color acento;
   final ValueChanged<String> alCambiarEstado;
   final ValueChanged<String> alIr;
+
+  /// Nodos de la ruta que mostró el asistente, en orden (vacía si no hay).
+  final List<String> ruta;
 
   @override
   State<_MapaMaximizado> createState() => _MapaMaximizadoState();
@@ -780,6 +812,7 @@ class _MapaMaximizadoState extends State<_MapaMaximizado> {
                                       alto: alto,
                                       nodos: widget.nodos,
                                       actual: widget.actual,
+                                      ruta: widget.ruta,
                                       nombres: true,
                                       escalaVista: _z,
                                       primario: widget.primario,
@@ -859,5 +892,50 @@ class _Leyenda extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+/// La línea de la ruta sobre el mapa: borde blanco y encima el color de acento.
+class _TrazoRuta extends CustomPainter {
+  const _TrazoRuta({
+    required this.puntos,
+    required this.color,
+    required this.grosor,
+  });
+
+  final List<Offset> puntos;
+  final Color color;
+  final double grosor;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (puntos.length < 2) return;
+    final camino = Path()..moveTo(puntos.first.dx, puntos.first.dy);
+    for (final p in puntos.skip(1)) {
+      camino.lineTo(p.dx, p.dy);
+    }
+    Paint trazo(Color c, double ancho) => Paint()
+      ..color = c
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = ancho
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    canvas
+      ..drawPath(camino, trazo(Colors.white, grosor * 1.8))
+      ..drawPath(camino, trazo(color, grosor));
+  }
+
+  @override
+  bool shouldRepaint(_TrazoRuta viejo) =>
+      viejo.color != color ||
+      viejo.grosor != grosor ||
+      viejo.puntos.length != puntos.length ||
+      !_iguales(viejo.puntos, puntos);
+
+  static bool _iguales(List<Offset> a, List<Offset> b) {
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
   }
 }
