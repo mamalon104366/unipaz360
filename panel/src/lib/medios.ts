@@ -90,14 +90,17 @@ export async function registrarMedio(u: Usuario, datos: { clave?: unknown; tipo?
   } else if (tipo === 'foto') {
     // La foto se vuelve a codificar: lo que llega a la app es siempre un JPEG hecho aquí.
     const img = sharp(original).rotate().resize({ width: 1600, height: 1600, fit: 'inside', withoutEnlargement: true });
-    const salida = await img
-      .jpeg({ quality: 84, mozjpeg: true })
-      .toBuffer({ resolveWithObject: true })
+    // Con fondo transparente se guarda en PNG: el JPEG lo pintaría de negro.
+    const meta = await sharp(original)
+      .metadata()
       .catch(() => null);
+    const transparente = meta?.hasAlpha === true;
+    const salida = await (transparente ? img.png({ compressionLevel: 9 }) : img.jpeg({ quality: 84, mozjpeg: true })).toBuffer({ resolveWithObject: true }).catch(() => null);
     if (!salida) throw new ErrorDatos('El archivo no es una imagen válida (JPG, PNG o WebP).');
     const { data, info } = salida;
-    const s = await subirInmutable('fotos', data, 'image/jpeg', 'jpg');
-    fila = { archivo: s.clave, url: s.url, mime: 'image/jpeg', bytes: s.bytes, sha256: s.sha256, ancho: info.width, alto: info.height };
+    const [mime, ext] = transparente ? ['image/png', 'png'] : ['image/jpeg', 'jpg'];
+    const s = await subirInmutable('fotos', data, mime, ext);
+    fila = { archivo: s.clave, url: s.url, mime, bytes: s.bytes, sha256: s.sha256, ancho: info.width, alto: info.height };
   } else {
     if (!/\.(mp4|webm)$/.test(clave) || !pareceVideo(original)) throw new ErrorDatos('El archivo no es un video MP4 o WebM válido.');
     fila = {

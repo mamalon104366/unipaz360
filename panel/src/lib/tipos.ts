@@ -375,6 +375,12 @@ export interface Punto {
   audiencia: Audiencia;
 }
 
+/**
+ * Flechas automáticas entre fotos vecinas. Apagadas: el equipo decide a dónde lleva cada foto
+ * poniendo sus propios puntos «Ir a». El código se conserva por si se vuelven a pedir.
+ */
+export const FLECHAS_AUTOMATICAS = false;
+
 /** Flecha automática hacia una panorámica vecina (según los tramos del mapa). */
 export interface Enlace {
   destino_panoramica_id: string;

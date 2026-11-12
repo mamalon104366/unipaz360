@@ -8,6 +8,7 @@ import { cambianPixeles, leerDimensiones, validarEquirrectangular, versionEdicio
 import { normalizarGrados, rumbo } from './geo';
 import {
   AJUSTES_POR_DEFECTO,
+  FLECHAS_AUTOMATICAS,
   TIPOS_PUNTO,
   type Estilo,
   type Ajustes,
@@ -235,6 +236,7 @@ export async function eliminarPanoramica(u: Usuario, id: string) {
  * más el norte calibrado de la foto.
  */
 export async function enlacesDe(p: Panoramica): Promise<Enlace[]> {
+  if (!FLECHAS_AUTOMATICAS) return [];
   const r = await pool.query<{ destino_panoramica_id: string; destino_vertice_id: string; titulo: string | null; descripcion: string | null; alat: number; alon: number; blat: number; blon: number; yaw: number | null; pitch: number | null }>(
     `SELECT q.id AS destino_panoramica_id, b.id AS destino_vertice_id, q.titulo, b.descripcion,
             a.lat AS alat, a.lon AS alon, b.lat AS blat, b.lon AS blon, e.yaw, e.pitch

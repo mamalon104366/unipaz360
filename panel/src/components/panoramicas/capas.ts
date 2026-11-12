@@ -47,6 +47,8 @@ function capa(cache: CacheCapas, clave: string, crear: () => HTMLElement) {
 
 export const esImagen = (url: string) => /\.(jpe?g|png|webp|gif|avif)(\?|$)/i.test(url) || url.includes('/api/medios/archivo');
 const esVideo = (url: string) => /\.(mp4|webm)(\?|$)/i.test(url);
+/** Imágenes que pueden traer fondo transparente: se muestran enteras y sin caja detrás. */
+export const puedeSerTransparente = (url: string) => /\.(png|webp|gif)(\?|$)/i.test(url);
 
 type PuntoVisor = Partial<Punto> & Pick<Punto, 'tipo' | 'yaw' | 'pitch'>;
 
@@ -129,7 +131,8 @@ export function marcadorDe(
       return d;
     });
     const capa3d = estilo.forma === 'capa3d';
-    el.className = `psv-capa psv-capa--${estilo.forma}${capa3d ? fondo : ''}${anim}${sel}${captura}`;
+    const transparente = capa3d && p.tipo === 'imagen' && puedeSerTransparente(fuente) ? ' psv-capa--transparente' : '';
+    el.className = `psv-capa psv-capa--${estilo.forma}${capa3d ? fondo : ''}${transparente}${anim}${sel}${captura}`;
     el.dataset.punto = punto;
     el.style.width = `${tamano.width}px`;
     el.style.height = `${tamano.height}px`;

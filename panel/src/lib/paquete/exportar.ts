@@ -1,6 +1,6 @@
 import 'server-only';
 import { pool, CAMPUS_ID } from '../db';
-import { AJUSTES_POR_DEFECTO, type Ajustes, type TipoPunto } from '../tipos';
+import { AJUSTES_POR_DEFECTO, FLECHAS_AUTOMATICAS, type Ajustes, type TipoPunto } from '../tipos';
 import { normalizarGrados, rumbo } from '../geo';
 import { leerConfigApp } from '../cliente';
 import type { ConfigApp } from '../configApp';
@@ -142,7 +142,7 @@ export async function exportarDatos(): Promise<DatosPaquete> {
   );
   const manual = new Map(manuales.rows.map((e) => [`${e.origen_id}|${e.destino_id}`, e]));
   const enlaces: DatosPaquete['enlaces'] = [];
-  for (const t of tramos) {
+  for (const t of FLECHAS_AUTOMATICAS ? tramos : []) {
     for (const [a, b] of [
       [t.origen_id, t.destino_id],
       [t.destino_id, t.origen_id],

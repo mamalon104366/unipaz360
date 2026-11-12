@@ -282,6 +282,7 @@ class _Visor360State extends State<Visor360>
             contenido: punto.estilo.forma == 'capa3d'
                 ? _contenidoCapa(punto)
                 : null,
+            transparente: _transparente(punto),
             alTocar: tocar,
           ),
         );
@@ -344,6 +345,18 @@ class _Visor360State extends State<Visor360>
         : null;
   }
 
+  /// Imagen que puede traer fondo transparente (`puedeSerTransparente` del panel).
+  bool _transparente(PuntoPanoramica p) {
+    final fuente = widget.paquete.fuentePunto(p);
+    return p.estilo.forma == 'capa3d' &&
+        p.tipo == 'imagen' &&
+        fuente != null &&
+        RegExp(
+          r'\.(png|webp|gif)(\?|$)',
+          caseSensitive: false,
+        ).hasMatch(fuente);
+  }
+
   Widget _contenidoCapa(PuntoPanoramica p) {
     final fuente = widget.paquete.fuentePunto(p);
     if (fuente != null && p.tipo == 'video' && _esVideo(fuente)) {
@@ -355,7 +368,7 @@ class _Visor360State extends State<Visor360>
       if (img != null) {
         return Image(
           image: img,
-          fit: BoxFit.cover,
+          fit: _transparente(p) ? BoxFit.contain : BoxFit.cover,
           width: double.infinity,
           height: double.infinity,
         );

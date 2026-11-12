@@ -55,6 +55,7 @@ import {
   ETIQUETA_FONDO,
   ETIQUETA_FORMA,
   ETIQUETA_PUNTO,
+  FLECHAS_AUTOMATICAS,
   FONDOS,
   FORMAS_3D,
   FORMAS_ROTULO,
@@ -674,7 +675,7 @@ export function EditorPanoramica({
     } else if (m === 'norte') {
       setAjustes((x) => ({ ...x, norte: Math.round(foto.yaw * 10) / 10 }));
       setModo('navegar');
-      avisar('Norte marcado. Las flechas automáticas ya apuntan según el mapa (guarda para aplicar).', 'ok');
+      avisar('Norte marcado (guarda para aplicar).', 'ok');
     } else if (m === 'reubicar' && ed) {
       void moverPunto(ed.id ?? 'nuevo', foto);
       setModo('navegar');
@@ -956,11 +957,11 @@ export function EditorPanoramica({
 
         <div className="pointer-events-none absolute bottom-5 left-1/2 z-10 max-w-[90%] -translate-x-1/2">
           <div className="vidrio rounded-full px-5 py-2.5 text-center text-[13px] text-tinta-suave">
-            {previa && 'Así lo verá el visitante: versión publicable, anuncios vigentes y flechas para pasar de una foto a otra.'}
+            {previa && 'Así lo verá el visitante: versión publicable, anuncios vigentes y los «Ir a» que pusiste para pasar de una foto a otra.'}
             {!previa && modo === 'navegar' && 'Arrastra la foto para mirar. Arrastra un punto para moverlo; tócalo para editarlo.'}
             {!previa && modo === 'punto' && 'Clic donde quieras poner el punto.'}
             {!previa && modo === 'difuminar' && `Clic sobre rostros o placas para difuminarlos (radio ${radio}°). Clic en una zona roja para quitarla.`}
-            {!previa && modo === 'norte' && 'Clic en la dirección que mira al norte geográfico: así se orientan las flechas.'}
+            {!previa && modo === 'norte' && 'Clic en la dirección que mira al norte geográfico.'}
             {!previa && modo === 'reubicar' && 'Clic en la nueva posición del punto (Esc para cancelar).'}
           </div>
         </div>
@@ -1110,6 +1111,7 @@ export function EditorPanoramica({
                 </ul>
               </div>
 
+              {FLECHAS_AUTOMATICAS && (
               <div className="hundido rounded-2xl p-3.5">
                 <div className="flex items-center gap-2 text-[13px] font-medium">
                   <Navigation size={14} /> Flechas automáticas ({enlacesVivos.length})
@@ -1124,6 +1126,7 @@ export function EditorPanoramica({
                   </Link>
                 ))}
               </div>
+              )}
             </div>
           )}
 
@@ -1591,7 +1594,7 @@ function FormPunto({
             <div className="text-[13px] font-medium text-tinta-suave">Lleva a</div>
             {sinDestino ? (
               <div className="rounded-2xl border border-alerta/30 bg-alerta-suave p-3 text-[13px] leading-snug text-alerta">
-                Para usar «Ir a» necesitas otra foto 360°. Sube la foto de otro nodo en el mapa; si los dos nodos están unidos por un tramo, la flecha aparece sola.
+                Para usar «Ir a» necesitas otra foto 360°. Sube la foto de otro nodo en el mapa y vuelve aquí para elegirla.
                 <Link href="/mapa" className="boton-suave mt-2.5 w-full !h-9 !text-[13px]">
                   <Footprints size={14} /> Ir al mapa
                 </Link>

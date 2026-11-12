@@ -440,6 +440,20 @@ body {
   object-fit: cover;
   background: #000;
 }
+/* Imagen con fondo transparente (PNG, WebP o GIF): sin caja ni sombra, y entera. */
+.psv-capa--capa3d.psv-capa--transparente {
+  background: transparent;
+  box-shadow: none;
+}
+.psv-capa--transparente img {
+  object-fit: contain;
+  background: transparent;
+}
+/* Al editar, el clic es para mover o elegir la capa, no para darle «play» al video. */
+.psv-capa.es-editable img,
+.psv-capa.es-editable video {
+  pointer-events: none;
+}
 .psv-tarjeta-contenido {
   height: 100%;
   padding: 18px;

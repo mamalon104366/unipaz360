@@ -1,16 +1,16 @@
 {
-  "version": "semilla-2026.11.11-2311",
+  "version": "semilla-2026.11.12-0423",
   "campus": "Centro de Investigaciones Santa Lucía",
   "campus_id": "santa-lucia",
-  "generado": "2026-11-11T23:11:28.600Z",
+  "generado": "2026-11-12T04:23:14.777Z",
   "esquema_version": "3",
-  "contenido_sha256": "e3cff2be2e8c7313eac16df092f6eb57474ff0abe933ce8b59e78d2db528adef",
+  "contenido_sha256": "986e291b73feeab34bcbfd9f8c3ea04dbb33ac75325d79e6b2eb1fbda897a35e",
   "notas": "Semilla de la app (sin publicar)",
   "archivos": [
     {
       "ruta": "datos.sqlite",
       "bytes": 278528,
-      "sha256": "dad67640f6e29e7dcee94245b7717a1f1839561d5d051d0e5b6c342569901ec7",
+      "sha256": "075e4150d197ae78a3ac83d0620fb0b623e6d0bf144d774e4966a92c1b33e8a5",
       "mime": "application/octet-stream"
     },
     {

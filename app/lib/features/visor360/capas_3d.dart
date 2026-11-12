@@ -133,6 +133,7 @@ class CapaPunto3D extends StatelessWidget {
     required this.yaw,
     required this.pitch,
     required this.contenido,
+    this.transparente = false,
     this.alTocar,
   });
 
@@ -145,6 +146,9 @@ class CapaPunto3D extends StatelessWidget {
 
   /// Lo que va dentro de la capa (imagen, video o tarjeta); la flecha se dibuja sola.
   final Widget? contenido;
+
+  /// Imagen con fondo transparente: sin caja ni sombra detrás (`.psv-capa--transparente`).
+  final bool transparente;
   final VoidCallback? alTocar;
 
   @override
@@ -184,7 +188,10 @@ class CapaPunto3D extends StatelessWidget {
             : _Caja(
                 brillo: paso.onda,
                 color: color,
-                relleno: _fondoCapa(e.fondoEfectivo, color),
+                relleno: transparente
+                    ? const Color(0x00000000)
+                    : _fondoCapa(e.fondoEfectivo, color),
+                sombra: !transparente,
                 radio: e.radioCapa(ancho, alto),
                 marco: e.marco,
                 child: contenido,
@@ -250,6 +257,7 @@ class _Caja extends StatelessWidget {
     this.radio = esquinasPorDefecto,
     this.marco = 0,
     this.brillo = 0,
+    this.sombra = true,
   });
 
   final Widget? child;
@@ -257,6 +265,7 @@ class _Caja extends StatelessWidget {
   final Color relleno;
   final double radio;
   final double marco;
+  final bool sombra;
 
   /// Fase del brillo (0 a 1): un resplandor del color de acento que va y viene.
   final double brillo;
@@ -270,12 +279,13 @@ class _Caja extends StatelessWidget {
         borderRadius: BorderRadius.circular(radio),
         border: marco > 0 ? Border.all(color: color, width: marco) : null,
         boxShadow: <BoxShadow>[
-          sombraCss(
-            y: 20,
-            blur: 40,
-            spread: -16,
-            color: const Color(0xCC000000),
-          ),
+          if (sombra)
+            sombraCss(
+              y: 20,
+              blur: 40,
+              spread: -16,
+              color: const Color(0xCC000000),
+            ),
           if (resplandor > 0) sombraCss(blur: resplandor, color: color),
         ],
       ),
