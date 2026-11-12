@@ -9,8 +9,11 @@ import '../../core/paquete/actualizador.dart';
 import '../../core/paquete/almacen.dart';
 import '../../core/paquete/datos_paquete.dart';
 import '../../core/paquete/paquete_local.dart';
+import '../../domain/preferencias.dart';
+import '../../ui/preferencias/preferencias_viewmodel.dart';
 import '../../ui/sesion/dialogo_cuenta.dart';
 import '../../ui/sesion/sesion_viewmodel.dart';
+import 'ajustes_cliente.dart';
 import 'aviso_actualizacion.dart';
 import 'estilo_cliente.dart';
 import 'vista_cliente.dart';
@@ -131,6 +134,12 @@ class _PantallaClienteState extends State<PantallaCliente> {
           } on ProviderNotFoundException {
             sesion = null;
           }
+          PreferenciasViewModel? gustos;
+          try {
+            gustos = context.watch<PreferenciasViewModel>();
+          } on ProviderNotFoundException {
+            gustos = null;
+          }
           final paquete = s.data!;
           final nueva = _nueva;
           return Stack(
@@ -145,6 +154,14 @@ class _PantallaClienteState extends State<PantallaCliente> {
                   alAbrirCuenta: sesion == null
                       ? null
                       : () => mostrarDialogoCuenta(context),
+                  preferencias: gustos?.valor ?? const Preferencias(),
+                  alCambiarPreferencias: gustos?.cambiar,
+                  alAbrirAjustes: gustos == null
+                      ? null
+                      : () => mostrarAjustesCliente(
+                          context,
+                          plataforma: paquete.config,
+                        ),
                 ),
               ),
               if (nueva != null)

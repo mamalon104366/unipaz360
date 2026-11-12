@@ -404,6 +404,49 @@ class BotonCuenta extends StatelessWidget {
   }
 }
 
+/// El botón redondo del engranaje, junto al de cuenta: abre «Tu experiencia», donde cada
+/// persona ajusta la app a su gusto.
+class BotonAjustes extends StatelessWidget {
+  const BotonAjustes({super.key, required this.config, required this.alTocar});
+
+  final ConfigApp config;
+  final VoidCallback alTocar;
+
+  @override
+  Widget build(BuildContext context) {
+    final e = config.escala;
+    final sup = Superficie.de(config.barraLateral.estilo);
+    return Tooltip(
+      message: 'Tu experiencia',
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: Semantics(
+          button: true,
+          label: 'Tu experiencia: ajusta la app a tu gusto',
+          excludeSemantics: true,
+          child: GestureDetector(
+            onTap: alTocar,
+            child: SizedBox(
+              width: ladoBuscar * e,
+              height: ladoBuscar * e,
+              child: sup.caja(
+                radio: ladoBuscar * e / 2,
+                child: Center(
+                  child: Icon(
+                    LucideIcons.slidersHorizontal,
+                    size: 18 * e,
+                    color: sup.tinta,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// El botón redondo de inicio, abajo junto al minimapa: vuelve a la primera foto del recorrido.
 /// Es igual al minimapa minimizado (mismo tamaño y color) para que se lean como pareja.
 class BotonInicio extends StatelessWidget {

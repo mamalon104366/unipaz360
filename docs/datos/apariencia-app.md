@@ -23,7 +23,7 @@ se multiplica por `interfaz.escala` (0.7 a 1.5).
 | Pie de la barra | `marca.nombre` en mayúsculas (0.7 em, peso 700) y `marca.subtitulo` (0.62 em, hasta 2 líneas; en celular, 1). |
 | Botón de plegar | Redondo y blanco, de 34 dp, a media altura y montado sobre el borde de la barra. Con la barra oculta, a 12 dp del borde de la pantalla. Solo si `barraLateral.plegable`. |
 | Riel de íconos | 56 dp de ancho, con el símbolo arriba. Se usa con una página abierta: en celular siempre (así la página tiene más espacio) y en escritorio si se pliega la barra. |
-| Botones de arriba | Redondos, de 40 dp, a 12 dp de la esquina superior del lado contrario a la barra y con 8 dp entre ellos: en la esquina el de cuenta y, a su lado, el del asistente. Se ocultan con una página abierta o el mapa maximizado. |
+| Botones de arriba | Redondos, de 40 dp, a 12 dp de la esquina superior del lado contrario a la barra y con 8 dp entre ellos: en la esquina el de cuenta, luego el de «Tu experiencia» (controles deslizantes) y, hacia el centro, el del asistente. Se ocultan con una página abierta o el mapa maximizado. |
 | Minimapa normal | Ancho `minimapa.tamano` % de la pantalla (nunca menos de 112 dp, para que quepan su rótulo y sus botones), proporción 4:3, en la esquina `minimapa.posicion`. Arriba a la derecha baja para no tapar los botones de arriba. |
 | Minimapa minimizado | Botón redondo de 46 dp con el ícono de mapa. |
 | Minimapa maximizado | Ocupa el área libre (al lado de la barra) con 12 dp de margen; muestra la foto completa y los nombres. |
@@ -166,13 +166,72 @@ Código: `panel/src/lib/usuariosApp.ts`, `app/lib/data/cuenta_servicio.dart` y
 `app/lib/ui/sesion/`. La dirección de la plataforma se puede cambiar al compilar la app con
 `--dart-define=PANEL_URL=https://…`.
 
-### El saludo en un celular en vertical
+### La bienvenida
 
-Al abrir la app en un celular en vertical (lado corto menor de 600 dp y más alto que ancho) se
-muestra `inicio.bienvenida` con la invitación a girarlo. «Girar la pantalla» pone la app en
-horizontal aunque el celular tenga el giro automático apagado (Android y iPhone; en la web solo se
-invita); «Seguir en vertical» lo cierra, y al girar el celular se va solo. En vertical la barra
-(si es plegable) y el minimapa (si se puede minimizar) empiezan recogidos.
+Al abrir, la app muestra una bienvenida animada (`bienvenida_cliente.dart`): el logo entra
+dentro de una órbita con un punto que la recorre, `inicio.bienvenida` sube y la foto queda
+detrás, desenfocada.
+
+- **Celular de pie** (lado corto menor de 600 dp y más alto que ancho): se queda hasta que la
+  persona elige. «Girar la pantalla» deja la app en horizontal aunque el giro automático esté
+  apagado, y así se recuerda (Android y iPhone; en la web solo se invita). «Seguir en vertical»
+  entra en el modo vertical. Si la persona gira el celular, deja de pedirlo.
+- **Lo demás** (horizontal, tableta, escritorio): se va sola a los 3,2 s, o al tocar.
+
+La app **no fuerza la orientación**: la decide la persona. En el celular ocupa toda la pantalla
+(la barra de estado y los botones del sistema se recogen y vuelven al deslizar desde el borde).
+
+### Modo vertical (celular de pie)
+
+En un celular de pie no hay barra lateral (`vertical_cliente.dart`):
+
+| Pieza | Cómo es |
+| ----- | ------- |
+| Logo | Arriba a la izquierda, en blanco y con sombra, de 150 dp. |
+| Botones redondos | En columna, arriba a la derecha: asistente, cuenta y «Tu experiencia». |
+| Barra de abajo | Flotante y centrada, de 58 dp de alto, a 14 dp del borde, con la superficie de `barraLateral.estilo`: **Menú**, **Inicio** y **Mapa**. El que está abierto se pinta del color principal y muestra su nombre. |
+| Menú | Una hoja que sube desde abajo con el nombre de la app y las secciones visibles. Tocar afuera la cierra. |
+| Página | Ocupa toda la pantalla. |
+| Mapa | Solo abierto (a lo ancho, entre el logo y la barra de abajo) o guardado en la barra. |
+| Chat | Ocupa la pantalla con 12 dp de margen. |
+
+Una tableta de pie usa el diseño de siempre. La vista previa de la plataforma muestra el
+horizontal; el modo vertical se arma solo con la misma configuración.
+
+### Tu experiencia (preferencias de cada persona)
+
+El botón de los controles deslizantes abre «Tu experiencia» (`ajustes_cliente.dart`). Lo que
+ahí se elige vale solo para esa persona y se guarda en su dispositivo (`localStorage` en la
+web, preferencias nativas en Android y Windows; clave `unipaz360.preferencias`). No viaja a la
+plataforma. Mientras no cambie algo, vale lo que dice la configuración publicada.
+
+| Preferencia | Qué cambia |
+| ----------- | ---------- |
+| Aspecto | `vidrio`, `oscuro` o `claro`: reemplaza `barraLateral.estilo`. |
+| Animación de bienvenida | Verla o no al abrir. |
+| Minimapa a la vista | Abrir con el minimapa normal o recogido en su botón. |
+| Menú lateral a la vista | Abrir con la barra lateral desplegada o plegada. |
+| Atenuar los botones | Reemplaza `interfaz.atenuar` y `interfaz.atenuarOpacidad` (los segundos los pone la plataforma). |
+| Pantalla | Automática, horizontal o vertical (solo en celulares y tabletas). |
+
+«Volver a como viene la app» borra todo lo guardado. Código: `domain/preferencias.dart`,
+`data/preferencias_repositorio.dart` y `ui/preferencias/`.
+
+### La web siempre muestra lo último publicado
+
+Android y Windows arrancan con la semilla y ofrecen las versiones nuevas (`actualizador.dart`).
+La **web** está siempre en internet, así que cada vez que se abre lee el puntero
+`version.json` de la plataforma, baja el manifiesto y `datos.sqlite` de esa versión
+(comprobando sus huellas y que vengan del almacenamiento de la plataforma) y abre con eso: no
+hay que volver a subir la página para ver un cambio. Las fotos y los videos del recorrido no
+vienen en la página: se piden por su dirección cuando hacen falta.
+
+Si la plataforma no contesta, o lo que llega no pasa las comprobaciones, la web abre con la base
+de respaldo que trae (`PaqueteLocal.cargar`, `paquete_local.dart`).
+
+Para publicar la web, desde `app/`: `flutter build web --release` y después
+`node tool/web_ligera.mjs`, que quita de `build/web` los medios de la semilla y avisa si la
+página pasa de 100 MB.
 
 ### Botones que se atenúan (`interfaz.atenuar*`)
 
@@ -185,7 +244,8 @@ invita); «Seguir en vertical» lo cierra, y al girar el celular se va solo. En 
 Se atenúan el botón de plegar, los de arriba, el de inicio y el minimapa (no la barra ni el logo).
 Mover la foto no cuenta como usar un botón; tocar cualquier otra cosa los devuelve completos y la
 cuenta empieza de nuevo. Con el mouse basta pasar por encima. Con una página, el chat, una ficha o
-el mapa maximizado abiertos no se atenúan. Se ajusta en la capa «Marca y colores».
+el mapa maximizado abiertos no se atenúan. Se ajusta en la capa «Marca y colores»; después cada
+persona lo puede cambiar para sí misma en «Tu experiencia».
 
 > [!WARNING]
 > **No es secreto.** El contenido institucional viaja en el paquete de datos, que se descarga sin
@@ -244,7 +304,7 @@ recorrido en `app/lib/features/visor360/`.
 - **Lo que solo es del editor** no aparece en la app: los contornos de selección y el aviso «Ubica los
   nodos…» del minimapa sin nodos.
 - **Botón de inicio**: vuelve a la primera panorámica (o al encuadre inicial si ya está en ella).
-- **Atrás (Android)**: cierra primero el saludo, el chat, la ficha, la página o el mapa maximizado.
+- **Atrás (Android)**: cierra primero la bienvenida, el menú, el chat, la ficha, la página o el mapa maximizado.
 
 ## Asistente (`asistente`)
 
@@ -252,7 +312,7 @@ El chat que guía hasta un lugar, sin internet. Capa «Asistente» del apartado 
 
 | Campo | Qué es |
 | ----- | ------ |
-| `visible` | Si se muestra el botón redondo del asistente (junto al de cuenta). Por defecto, sí. |
+| `visible` | Si se muestra el botón redondo del asistente (junto a los de cuenta y «Tu experiencia»). Por defecto, sí. |
 | `nombre` | Cómo se llama (hasta 24 letras). Por defecto «Paz». |
 | `saludo` | El primer mensaje (hasta 200 letras). Vacío: el saludo de siempre, con el nombre. |
 | `sinonimos` | Hasta 60 pares `{ palabra, significa }`, una palabra en cada lado y sin repetir `palabra`: «biblio» significa «biblioteca». Se suman a los que la app ya trae. |

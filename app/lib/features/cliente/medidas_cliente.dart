@@ -164,10 +164,14 @@ class MedidasCliente {
         : Lugar2D(arriba: y, izquierda: x);
   }
 
-  /// El botón de cuenta: arriba, del lado contrario a la barra.
-  Lugar2D get botonCuenta => derecha
-      ? const Lugar2D(arriba: margen, izquierda: margen)
-      : const Lugar2D(arriba: margen, derecha: margen);
+  /// Los botones redondos de arriba, del lado contrario a la barra: el [puesto] 0 va en la
+  /// esquina y los demás, uno al lado del otro hacia el centro.
+  Lugar2D botonArriba(int puesto) {
+    final x = margen + puesto * (ladoBuscar * escala + 8);
+    return derecha
+        ? Lugar2D(arriba: margen, izquierda: x)
+        : Lugar2D(arriba: margen, derecha: x);
+  }
 
   /// El botón redondo de inicio: abajo, pegado al minimapa (que mide [anchoMapa]; 0 si no
   /// se ve). Con el minimapa arriba, va en la esquina de abajo de ese lado.
@@ -230,14 +234,6 @@ class MedidasCliente {
   Lugar2D get panelPagina => derecha
       ? Lugar2D(arriba: 0, abajo: 0, izquierda: 0, derecha: anchoLateral)
       : Lugar2D(arriba: 0, abajo: 0, izquierda: anchoLateral, derecha: 0);
-
-  /// El botón del asistente: en la misma fila de buscar y cuenta, después de los que haya.
-  Lugar2D botonChat({required int antes}) {
-    final x = margen + antes * (ladoBuscar * escala + 8);
-    return derecha
-        ? Lugar2D(arriba: margen, izquierda: x)
-        : Lugar2D(arriba: margen, derecha: x);
-  }
 
   /// Ancho del panel del chat: 380 dp, o lo que quede libre al lado de la barra.
   double get anchoChat => math.max(

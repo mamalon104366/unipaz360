@@ -80,6 +80,7 @@ Future<void> _mostrar(
     MaterialApp(
       home: Scaffold(
         body: VistaCliente(
+          bienvenida: false,
           paquete: _paquete(_conAudiencias()),
           comprobarRed: false,
           institucional: institucional,

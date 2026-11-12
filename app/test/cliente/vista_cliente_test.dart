@@ -15,6 +15,8 @@ import 'package:unipaz360/features/cliente/bienvenida_cliente.dart';
 import 'package:unipaz360/features/cliente/marco_cliente.dart';
 import 'package:unipaz360/features/cliente/medidas_cliente.dart';
 import 'package:unipaz360/features/cliente/minimapa_cliente.dart';
+import 'package:unipaz360/domain/preferencias.dart';
+import 'package:unipaz360/features/cliente/vertical_cliente.dart';
 import 'package:unipaz360/features/cliente/vista_cliente.dart';
 
 PaqueteLocal _paquete(ConfigApp config) => PaqueteLocal(
@@ -59,6 +61,10 @@ Future<void> _mostrar(
   WidgetTester tester,
   Size tamano, {
   ConfigApp? config,
+  bool bienvenida = false,
+  Preferencias preferencias = const Preferencias(),
+  VoidCallback? alAbrirAjustes,
+  ValueChanged<Preferencias>? alCambiarPreferencias,
 }) async {
   tester.view.physicalSize = tamano;
   tester.view.devicePixelRatio = 1;
@@ -67,7 +73,14 @@ Future<void> _mostrar(
   await tester.pumpWidget(
     MaterialApp(
       home: Scaffold(
-        body: VistaCliente(paquete: _paquete(porDefecto), comprobarRed: false),
+        body: VistaCliente(
+          paquete: _paquete(porDefecto),
+          comprobarRed: false,
+          bienvenida: bienvenida,
+          preferencias: preferencias,
+          alAbrirAjustes: alAbrirAjustes,
+          alCambiarPreferencias: alCambiarPreferencias,
+        ),
       ),
     ),
   );
@@ -449,48 +462,326 @@ void main() {
     expect(opacidadDe(tester, BotonInicio), 1);
   });
 
-  testWidgets('en un celular en vertical saluda e invita a girarlo', (
-    tester,
-  ) async {
-    await _mostrar(tester, const Size(412, 915));
-    expect(find.byType(BienvenidaCliente), findsOneWidget);
-    expect(find.text('Bienvenido a UniPaz360'), findsOneWidget);
-    expect(find.text('Girar la pantalla'), findsOneWidget);
-    // En vertical la barra y el mapa empiezan recogidos para dejar ver la foto.
-    expect(find.byTooltip('Mostrar menú'), findsOneWidget);
-    expect(find.byTooltip('Mostrar el mapa'), findsOneWidget);
-    await tester.tap(find.text('Seguir en vertical'));
-    await tester.pump();
-    expect(find.byType(BienvenidaCliente), findsNothing);
-    expect(find.byTooltip('Inicio'), findsOneWidget);
-    // Abrir el mapa en una pantalla tan angosta no lo desborda.
-    await tester.tap(find.byTooltip('Mostrar el mapa'));
-    await tester.pump();
-    expect(tester.getSize(find.byType(MinimapaCliente)).width, anchoMinimoMapa);
-    expect(tester.takeException(), isNull);
-  });
+  group('bienvenida', () {
+    testWidgets(
+      'en un celular de pie saluda, invita a girar y espera la respuesta',
+      (tester) async {
+        await _mostrar(tester, const Size(412, 915), bienvenida: true);
+        await tester.pump(const Duration(seconds: 2));
+        expect(find.byType(BienvenidaCliente), findsOneWidget);
+        expect(find.text('Bienvenido a UniPaz360'), findsOneWidget);
+        expect(find.text('Girar la pantalla'), findsOneWidget);
+        // No se va sola: la persona decide.
+        await tester.pump(const Duration(seconds: 10));
+        expect(find.byType(BienvenidaCliente), findsOneWidget);
+        await tester.tap(find.text('Seguir en vertical'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 500));
+        expect(find.byType(BienvenidaCliente), findsNothing);
+        expect(find.byType(BarraInferior), findsOneWidget);
+      },
+    );
 
-  testWidgets('al girar el celular el saludo se va solo', (tester) async {
-    await _mostrar(tester, const Size(412, 915));
-    expect(find.byType(BienvenidaCliente), findsOneWidget);
-    tester.view.physicalSize = const Size(915, 412);
-    await tester.pump();
-    await tester.pump();
-    expect(find.byType(BienvenidaCliente), findsNothing);
-  });
-
-  testWidgets('en horizontal, en tableta o en escritorio no hay saludo', (
-    tester,
-  ) async {
-    for (final t in const <Size>[
-      Size(915, 412),
-      Size(800, 1280),
-      Size(1440, 900),
-    ]) {
-      await tester.pumpWidget(const SizedBox());
-      await _mostrar(tester, t);
+    testWidgets('«Girar la pantalla» deja la app en horizontal y lo recuerda', (
+      tester,
+    ) async {
+      Preferencias? guardadas;
+      await _mostrar(
+        tester,
+        const Size(412, 915),
+        bienvenida: true,
+        alCambiarPreferencias: (p) => guardadas = p,
+      );
+      await tester.pump(const Duration(seconds: 2));
+      await tester.tap(find.text('Girar la pantalla'));
       await tester.pump();
-      expect(find.byType(BienvenidaCliente), findsNothing, reason: '$t');
-    }
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(guardadas?.orientacion, Orientacion.horizontal);
+      expect(find.byType(BienvenidaCliente), findsNothing);
+    });
+
+    testWidgets(
+      'en horizontal o en escritorio se va sola a los pocos segundos',
+      (tester) async {
+        for (final t in const <Size>[Size(915, 412), Size(1440, 900)]) {
+          await tester.pumpWidget(const SizedBox());
+          await _mostrar(tester, t, bienvenida: true);
+          await tester.pump(const Duration(seconds: 1));
+          expect(find.byType(BienvenidaCliente), findsOneWidget, reason: '$t');
+          expect(find.text('Girar la pantalla'), findsNothing);
+          expect(find.text('Recorre el campus en 360°'), findsOneWidget);
+          await tester.pump(duracionBienvenida);
+          await tester.pump(const Duration(milliseconds: 500));
+          expect(find.byType(BienvenidaCliente), findsNothing, reason: '$t');
+        }
+      },
+    );
+
+    testWidgets('tocarla la cierra de una vez', (tester) async {
+      await _mostrar(tester, const Size(1440, 900), bienvenida: true);
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.tapAt(const Offset(700, 800));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.byType(BienvenidaCliente), findsNothing);
+    });
+
+    testWidgets('al girar el celular deja de pedir que se gire y se va sola', (
+      tester,
+    ) async {
+      await _mostrar(tester, const Size(412, 915), bienvenida: true);
+      await tester.pump(const Duration(seconds: 1));
+      tester.view.physicalSize = const Size(915, 412);
+      await tester.pump();
+      expect(find.text('Girar la pantalla'), findsNothing);
+      await tester.pump(duracionBienvenida);
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.byType(BienvenidaCliente), findsNothing);
+    });
+
+    testWidgets('quien la apagó en sus preferencias no la ve', (tester) async {
+      await _mostrar(
+        tester,
+        const Size(412, 915),
+        bienvenida: true,
+        preferencias: const Preferencias(bienvenida: false),
+      );
+      expect(find.byType(BienvenidaCliente), findsNothing);
+    });
+  });
+
+  group('modo vertical (celular de pie)', () {
+    testWidgets('cambia la barra lateral por la barra de abajo', (
+      tester,
+    ) async {
+      await _mostrar(tester, const Size(412, 915));
+      expect(find.byType(BarraSecciones), findsNothing);
+      expect(find.byType(BotonPlegar), findsNothing);
+      expect(find.byType(BotonInicio), findsNothing);
+      final barra = tester.getRect(find.byType(BarraInferior));
+      expect(barra.center.dx, closeTo(206, 0.5));
+      expect(barra.bottom, 915 - margenBarraInferior);
+      expect(barra.width, lessThan(412));
+      for (final t in <String>['Menú', 'Inicio', 'Mapa']) {
+        expect(find.byTooltip(t), findsOneWidget, reason: t);
+      }
+      // El logo, arriba a la izquierda, sobre la foto.
+      final logo = _logo(tester);
+      expect(logo.tinta, TintaLogo.blanco);
+      expect(logo.sombra, isTrue);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('«Menú» sube la hoja con las secciones y abre una página', (
+      tester,
+    ) async {
+      await _mostrar(tester, const Size(412, 915));
+      expect(find.text('Admisiones'), findsNothing);
+      await tester.tap(find.byTooltip('Menú'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.byType(HojaSecciones), findsOneWidget);
+      for (final s in <String>['Nosotros', 'Admisiones', 'Ubicación']) {
+        expect(find.text(s), findsOneWidget, reason: s);
+      }
+      await tester.tap(find.text('Admisiones'));
+      await tester.pump();
+      expect(find.byType(HojaSecciones), findsNothing);
+      expect(find.text('ADMISIONES'), findsOneWidget);
+      // La página ocupa toda la pantalla; al cerrarla vuelve la barra de abajo.
+      expect(find.byType(BarraInferior), findsNothing);
+      await tester.tap(find.byTooltip('Cerrar'));
+      await tester.pump();
+      expect(find.byType(BarraInferior), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('tocar fuera de la hoja la cierra', (tester) async {
+      await _mostrar(tester, const Size(412, 915));
+      await tester.tap(find.byTooltip('Menú'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.tapAt(const Offset(200, 120));
+      await tester.pump();
+      expect(find.byType(HojaSecciones), findsNothing);
+    });
+
+    testWidgets('«Mapa» lo abre a lo ancho, sin desbordarse, y lo guarda', (
+      tester,
+    ) async {
+      await _mostrar(tester, const Size(412, 915));
+      expect(find.byType(MinimapaCliente), findsNothing);
+      await tester.tap(find.byTooltip('Mapa'));
+      await tester.pump();
+      final mapa = tester.getRect(find.byType(MinimapaCliente));
+      expect(mapa.left, margen);
+      expect(mapa.right, 412 - margen);
+      expect(
+        mapa.bottom,
+        lessThan(tester.getRect(find.byType(BarraInferior)).top),
+      );
+      expect(find.text('Mapa del campus'), findsOneWidget);
+      await tester.tap(find.byTooltip('Mapa'));
+      await tester.pump();
+      expect(find.byType(MinimapaCliente), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('los botones redondos van en columna, arriba a la derecha', (
+      tester,
+    ) async {
+      await _mostrar(tester, const Size(412, 915), alAbrirAjustes: () {});
+      final chat = tester.getRect(find.byType(BotonChat));
+      final ajustes = tester.getRect(find.byType(BotonAjustes));
+      expect(chat.right, 412 - margen);
+      expect(ajustes.right, chat.right);
+      expect(ajustes.top, greaterThan(chat.bottom));
+    });
+
+    testWidgets('al acostar el celular vuelve la barra lateral', (
+      tester,
+    ) async {
+      await _mostrar(tester, const Size(412, 915));
+      expect(find.byType(BarraInferior), findsOneWidget);
+      tester.view.physicalSize = const Size(915, 412);
+      await tester.pump();
+      expect(find.byType(BarraInferior), findsNothing);
+      expect(find.byType(BarraSecciones), findsOneWidget);
+      expect(find.byType(BotonInicio), findsOneWidget);
+    });
+
+    testWidgets('una tableta de pie no usa el modo vertical', (tester) async {
+      await _mostrar(tester, const Size(800, 1280));
+      expect(find.byType(BarraInferior), findsNothing);
+      expect(find.byType(BarraSecciones), findsOneWidget);
+    });
+  });
+
+  group('preferencias de la persona', () {
+    testWidgets('el engranaje abre «Tu experiencia» y va junto al de cuenta', (
+      tester,
+    ) async {
+      var abiertos = 0;
+      await _mostrar(
+        tester,
+        const Size(1440, 900),
+        alAbrirAjustes: () => abiertos++,
+      );
+      final ajustes = find.byTooltip('Tu experiencia');
+      expect(tester.getTopRight(ajustes).dx, 1440 - margen);
+      expect(
+        tester.getCenter(find.byType(BotonChat)).dx,
+        lessThan(tester.getCenter(ajustes).dx),
+      );
+      await tester.tap(ajustes);
+      expect(abiertos, 1);
+    });
+
+    testWidgets('sin quien abra los ajustes no hay engranaje', (tester) async {
+      await _mostrar(tester, const Size(1440, 900));
+      expect(find.byType(BotonAjustes), findsNothing);
+    });
+
+    testWidgets('abrir con el menú y el mapa recogidos', (tester) async {
+      await _mostrar(
+        tester,
+        const Size(1440, 900),
+        preferencias: const Preferencias(
+          menuAbierto: false,
+          mapaAbierto: false,
+        ),
+      );
+      expect(find.byTooltip('Mostrar menú'), findsOneWidget);
+      expect(find.byTooltip('Mostrar el mapa'), findsOneWidget);
+    });
+
+    testWidgets(
+      'abrir con el menú a la vista aunque la plataforma lo pliegue',
+      (tester) async {
+        await _mostrar(
+          tester,
+          const Size(1440, 900),
+          config: _config(barra: <String, Object?>{'iniciaPlegada': true}),
+          preferencias: const Preferencias(menuAbierto: true),
+        );
+        expect(find.byTooltip('Ocultar menú'), findsOneWidget);
+      },
+    );
+
+    testWidgets('el aspecto elegido manda sobre el de la plataforma', (
+      tester,
+    ) async {
+      await _mostrar(
+        tester,
+        const Size(1440, 900),
+        preferencias: const Preferencias(estilo: 'claro'),
+      );
+      // Sobre una barra clara el logo va a color.
+      expect(_logo(tester).tinta, TintaLogo.color);
+    });
+
+    testWidgets('cada quien decide si los botones se atenúan y cuánto', (
+      tester,
+    ) async {
+      await _mostrar(
+        tester,
+        const Size(1440, 900),
+        preferencias: const Preferencias(atenuarOpacidad: 0.25),
+      );
+      await tester.pump(const Duration(seconds: 6));
+      expect(opacidadDe(tester, BotonInicio), 0.25);
+
+      await tester.pumpWidget(const SizedBox());
+      await _mostrar(
+        tester,
+        const Size(1440, 900),
+        preferencias: const Preferencias(atenuar: false),
+      );
+      await tester.pump(const Duration(seconds: 60));
+      expect(opacidadDe(tester, BotonInicio), 1);
+    });
+
+    test('se guardan y se leen; lo raro se ignora', () {
+      const p = Preferencias(
+        bienvenida: false,
+        mapaAbierto: false,
+        menuAbierto: true,
+        atenuar: true,
+        atenuarOpacidad: 0.35,
+        estilo: 'oscuro',
+        orientacion: Orientacion.vertical,
+      );
+      final leidas = Preferencias.desdeJson(jsonDecode(jsonEncode(p.aJson())));
+      expect(leidas.aJson(), p.aJson());
+      expect(const Preferencias().personalizada, isFalse);
+      expect(p.personalizada, isTrue);
+
+      final raras = Preferencias.desdeJson(<String, Object?>{
+        'bienvenida': 'no',
+        'estilo': 'neon',
+        'atenuarOpacidad': 7,
+        'orientacion': 'de cabeza',
+        'mapaAbierto': 1,
+      });
+      expect(raras.bienvenida, isTrue);
+      expect(raras.estilo, isNull);
+      expect(raras.atenuarOpacidad, 0.9);
+      expect(raras.orientacion, Orientacion.automatica);
+      expect(raras.mapaAbierto, isNull);
+      expect(Preferencias.desdeJson('basura').personalizada, isFalse);
+    });
+
+    test('sin cambios, la configuración de la plataforma pasa intacta', () {
+      final c = _config();
+      expect(identical(const Preferencias().aplicar(c), c), isTrue);
+      final con = const Preferencias(
+        estilo: 'oscuro',
+        atenuar: false,
+      ).aplicar(c);
+      expect(con.barraLateral.estilo, 'oscuro');
+      expect(con.atenuar, isFalse);
+      expect(con.barraLateral.secciones, same(c.barraLateral.secciones));
+      expect(con.atenuarTras, c.atenuarTras);
+    });
   });
 }

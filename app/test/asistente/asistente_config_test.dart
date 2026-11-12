@@ -162,6 +162,7 @@ void main() {
               key: ValueKey<bool>(visible),
               paquete: _paquete(_config(<String, Object?>{'visible': visible})),
               comprobarRed: false,
+              bienvenida: false,
             ),
           ),
         ),

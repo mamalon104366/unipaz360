@@ -1,16 +1,22 @@
 /// El paquete con el que trabaja la app y dónde está cada recurso.
 ///
-/// Hoy la app arranca con la **semilla** (`assets/paquete/`): el paquete que arma
-/// `panel/scripts/semilla-app.mjs` con el mismo código que publica la plataforma, así se ve
-/// todo sin internet desde la primera vez. La descarga de versiones nuevas (fase B) cambia
-/// solo de dónde salen los bytes.
+/// - **Android y Windows** arrancan con la **semilla** (`assets/paquete/`), el paquete que
+///   arma `panel/scripts/semilla-app.mjs`: así se ve todo sin internet desde la primera vez.
+///   Las versiones nuevas se descargan cuando la persona acepta (ver `actualizador.dart`).
+/// - **La web** siempre está en internet: cada vez que se abre lee lo último que publicó la
+///   plataforma y pide las fotos y los videos por su dirección, a medida que hacen falta.
+///   Así no hay que volver a subir la página para ver un cambio, y la página no carga con
+///   los medios (su semilla solo sirve de respaldo si la plataforma no contesta).
 library;
 
 import 'dart:async';
 import 'dart:convert';
 import 'dart:ui' as ui;
 
+import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 import 'package:material_ui/material_ui.dart';
 import 'package:sqlite3/common.dart';
 import 'package:typed_data/typed_buffers.dart';
@@ -90,8 +96,12 @@ class PaqueteLocal {
 
   ConfigApp get config => datos.config;
 
-  /// Carga la semilla que viene dentro de la app.
-  static Future<PaqueteLocal> cargarSemilla({AssetBundle? bundle}) async {
+  /// Carga la semilla que viene dentro de la app. Con [conMedios] en `false` (la web) sus
+  /// fotos y videos no se toman de la app: se piden por su dirección.
+  static Future<PaqueteLocal> cargarSemilla({
+    AssetBundle? bundle,
+    bool conMedios = true,
+  }) async {
     final b = bundle ?? rootBundle;
     final porDefecto = normalizarConfig(
       jsonDecode(await b.loadString('assets/config/por_defecto.json')),
@@ -102,7 +112,7 @@ class PaqueteLocal {
       await b.loadString('$carpetaSemilla/manifest.json'),
     );
     final enSemilla = <String>{
-      if (manifiesto is Map && manifiesto['archivos'] is List)
+      if (conMedios && manifiesto is Map && manifiesto['archivos'] is List)
         for (final a in manifiesto['archivos'] as List)
           if (a is Map && '${a['ruta']}'.startsWith('medios/'))
             '${a['ruta']}'.substring('medios/'.length),
@@ -128,7 +138,26 @@ class PaqueteLocal {
   static Future<PaqueteLocal> cargar({
     AssetBundle? bundle,
     AlmacenPaquetes? almacen,
+    bool enWeb = kIsWeb,
+    http.Client? cliente,
+    String urlPuntero = urlPunteroPorDefecto,
   }) async {
+    if (enWeb) {
+      final respaldo = await cargarSemilla(bundle: bundle, conMedios: false);
+      try {
+        return await _publicado(
+              respaldo,
+              bundle: bundle,
+              cliente: cliente,
+              urlPuntero: urlPuntero,
+            ) ??
+            respaldo;
+      } on Object {
+        // La plataforma no contestó o lo que llegó no pasa las comprobaciones: se abre con
+        // el respaldo que trae la página.
+        return respaldo;
+      }
+    }
     final semilla = await cargarSemilla(bundle: bundle);
     final a = almacen ?? crearAlmacen();
     if (!a.soportado) return semilla;
@@ -156,6 +185,71 @@ class PaqueteLocal {
     } on Object {
       // Un paquete descargado que no abre nunca deja a la app sin datos.
       return semilla;
+    }
+  }
+
+  /// Lo último que publicó la plataforma, leído de internet (la web). Devuelve `null` si lo
+  /// publicado es lo mismo que el [respaldo] o más viejo. Se comprueba igual que en una
+  /// descarga: solo del almacenamiento de la plataforma, que esta app lo pueda abrir, y la
+  /// huella del manifiesto y de la base.
+  static Future<PaqueteLocal?> _publicado(
+    PaqueteLocal respaldo, {
+    AssetBundle? bundle,
+    http.Client? cliente,
+    required String urlPuntero,
+  }) async {
+    final c = cliente ?? http.Client();
+    const espera = Duration(seconds: 15);
+    Future<http.Response> bajar(Uri url) async {
+      if (!'$url'.startsWith(origenPermitido)) {
+        throw const ErrorActualizacion('Dirección fuera de la plataforma.');
+      }
+      final r = await c.get(url).timeout(espera);
+      if (r.statusCode != 200) {
+        throw ErrorActualizacion('La plataforma respondió ${r.statusCode}.');
+      }
+      return r;
+    }
+
+    try {
+      // El momento va en la dirección para que ningún caché entregue un puntero viejo.
+      final puntero = Uri.parse(urlPuntero).replace(
+        queryParameters: <String, String>{
+          't': '${DateTime.now().millisecondsSinceEpoch}',
+        },
+      );
+      final remoto = PunteroVersion.leer(
+        utf8.decode((await bajar(puntero)).bodyBytes),
+      );
+      final local = respaldo.puntero;
+      if (remoto == null || !remoto.compatibleCon('web')) return null;
+      if (local != null && !remoto.masNuevaQue(local)) return null;
+      final urlManifiesto = remoto.urlManifiesto;
+      if (urlManifiesto == null) return null;
+      final manifiesto = utf8.decode((await bajar(urlManifiesto)).bodyBytes);
+      if (sha256.convert(utf8.encode(manifiesto)).toString() !=
+          remoto.sha256Manifiesto.toLowerCase()) {
+        throw const ErrorActualizacion('La lista de archivos llegó dañada.');
+      }
+      ArchivoManifiesto? datos;
+      for (final a in leerManifiesto(manifiesto)) {
+        if (a.esDatos) datos = a;
+      }
+      if (datos == null) return null;
+      final bytes = (await bajar(Uri.parse(datos.url))).bodyBytes;
+      if (sha256.convert(bytes).toString() != datos.sha256) {
+        throw const ErrorActualizacion('Los datos llegaron dañados.');
+      }
+      final b = bundle ?? rootBundle;
+      final porDefecto = normalizarConfig(
+        jsonDecode(await b.loadString('assets/config/por_defecto.json')),
+      );
+      return PaqueteLocal(
+        leerBytesPaquete(await cargarSqlite(), bytes, porDefecto: porDefecto),
+        puntero: remoto,
+      );
+    } finally {
+      if (cliente == null) c.close();
     }
   }
 

@@ -92,7 +92,13 @@ Future<void> _mostrar(WidgetTester tester, PaqueteLocal paquete) async {
   addTearDown(tester.view.reset);
   await tester.pumpWidget(
     MaterialApp(
-      home: Scaffold(body: VistaCliente(paquete: paquete, comprobarRed: false)),
+      home: Scaffold(
+        body: VistaCliente(
+          paquete: paquete,
+          comprobarRed: false,
+          bienvenida: false,
+        ),
+      ),
     ),
   );
   await tester.pump();

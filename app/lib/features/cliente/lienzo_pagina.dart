@@ -21,11 +21,7 @@ bool visibleEnApp(ElementoPagina e, {required bool institucional}) =>
 
 /// Alto que ocupa la pestaña: el lienzo o, si algo se sale por abajo, hasta ese elemento
 /// (en el panel el lienzo no recorta y el panel se desplaza hasta allí).
-double altoContenido(
-  PestanaPagina p,
-  double k, {
-  bool institucional = false,
-}) {
+double altoContenido(PestanaPagina p, double k, {bool institucional = false}) {
   var alto = p.alto * k;
   for (final e in p.elementos) {
     if (visibleEnApp(e, institucional: institucional)) {

@@ -7,12 +7,14 @@ import 'package:provider/provider.dart';
 import '../data/cuenta_servicio.dart';
 import '../data/espacio_repository.dart';
 import '../data/mapa_dron_repositorio.dart';
+import '../data/preferencias_repositorio.dart';
 import '../data/recientes_repositorio.dart';
 import '../data/repositorio_simulado.dart';
 import '../data/sesion_repositorio.dart';
 import '../features/cliente/pantalla_cliente.dart';
 import '../ui/dron/dron_viewmodel.dart';
 import '../ui/espacios/espacios_viewmodel.dart';
+import '../ui/preferencias/preferencias_viewmodel.dart';
 import '../ui/recientes/recientes_viewmodel.dart';
 import '../ui/sesion/sesion_viewmodel.dart';
 import 'tema.dart';
@@ -44,7 +46,11 @@ class UniPaz360App extends StatelessWidget {
                   child: ChangeNotifierProvider<DronViewModel>(
                     create: (context) =>
                         DronViewModel(context.read<MapaDronRepository>()),
-                    child: const _RaizUniPaz(),
+                    child: ChangeNotifierProvider<PreferenciasViewModel>(
+                      create: (_) =>
+                          PreferenciasViewModel(PreferenciasEnDispositivo()),
+                      child: const _RaizUniPaz(),
+                    ),
                   ),
                 ),
               ),
@@ -93,15 +99,17 @@ class _RaizUniPazState extends State<_RaizUniPaz> {
       unawaited(context.read<RecientesViewModel>().cargar());
       unawaited(context.read<DronViewModel>().cargarMapa());
       unawaited(_sesion.cargar());
+      unawaited(context.read<PreferenciasViewModel>().cargar());
     });
   }
 
   @override
   Widget build(BuildContext context) {
     final sesion = context.watch<SesionViewModel>();
+    final preferencias = context.watch<PreferenciasViewModel>();
 
-    // Un instante, mientras se lee la sesión guardada (para saber si ya hay cuenta).
-    if (!sesion.listo) {
+    // Un instante, mientras se leen la sesión y los gustos guardados en el dispositivo.
+    if (!sesion.listo || !preferencias.listo) {
       return MaterialApp(
         debugShowCheckedModeBanner: false,
         theme: temaUniPaz,

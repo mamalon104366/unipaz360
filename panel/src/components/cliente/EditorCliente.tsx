@@ -33,6 +33,7 @@ import {
   RotateCcw,
   Route,
   Save,
+  SlidersHorizontal,
   Smartphone,
   Square,
   Star,
@@ -788,13 +789,24 @@ export function EditorCliente({
                 </button>
               )}
 
+              {/* Tu experiencia: en la app cada persona ajusta el aspecto, cómo abre y los botones */}
+              {cuenta && (
+                <div
+                  title="Tu experiencia: en la app, cada persona ajusta el aspecto, cómo abre la app y los botones que se atenúan. Se guarda en su dispositivo."
+                  className={`pointer-events-auto absolute z-30 grid place-items-center rounded-full ${superficie(c.barraLateral.estilo)}`}
+                  style={{ ...tenue, width: ladoBoton, height: ladoBoton, top: m12, [derecha ? 'left' : 'right']: m12 + ladoBoton + 8 * u }}
+                >
+                  <SlidersHorizontal size={18 * e * u} />
+                </div>
+              )}
+
               {/* Asistente: en la app abre el chat; aquí abre su capa */}
               {cuenta && c.asistente.visible && (
                 <button
                   onClick={() => elegirCapa('asistente')}
                   title={`${c.asistente.nombre}: el asistente que guía hasta un lugar (en la app abre el chat)`}
                   className={`pointer-events-auto absolute z-30 grid place-items-center rounded-full text-white shadow-lg ${marco('asistente')}`}
-                  style={{ ...tenue, width: ladoBoton, height: ladoBoton, top: m12, background: 'var(--primario)', [derecha ? 'left' : 'right']: m12 + ladoBoton + 8 * u }}
+                  style={{ ...tenue, width: ladoBoton, height: ladoBoton, top: m12, background: 'var(--primario)', [derecha ? 'left' : 'right']: m12 + 2 * (ladoBoton + 8 * u) }}
                 >
                   <MessageCircle size={18 * e * u} />
                 </button>
@@ -1073,6 +1085,9 @@ export function EditorCliente({
                     </button>
                   </>
                 )}
+                <p className="text-[12px] text-tinta-tenue">
+                  Así nace la app. Después cada persona puede cambiarlo para sí misma en «Tu experiencia» (el botón de los controles deslizantes), junto con el aspecto y cómo abre la app.
+                </p>
               </Seccion>
             </>
           )}
