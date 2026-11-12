@@ -1,13 +1,17 @@
-/// Carga el paquete (la semilla, por ahora) y muestra la vista del visitante.
+/// Carga el paquete (el último descargado o el que trae la app), muestra la vista del
+/// visitante y, si la plataforma publicó una versión nueva, ofrece actualizar.
 library;
 
 import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/paquete/actualizador.dart';
+import '../../core/paquete/almacen.dart';
 import '../../core/paquete/datos_paquete.dart';
 import '../../core/paquete/paquete_local.dart';
 import '../../ui/sesion/dialogo_cuenta.dart';
 import '../../ui/sesion/sesion_viewmodel.dart';
+import 'aviso_actualizacion.dart';
 import 'estilo_cliente.dart';
 import 'vista_cliente.dart';
 
@@ -18,8 +22,15 @@ class PantallaCliente extends StatefulWidget {
   static Future<PaqueteLocal>? _cargando;
 
   /// Lee el paquete antes de mostrar la pantalla (las pruebas lo hacen fuera del reloj falso).
-  static Future<PaqueteLocal> precargar() =>
-      _cargando ??= PaqueteLocal.cargarSemilla();
+  static Future<PaqueteLocal> precargar() => _cargando ??= _leer();
+
+  /// Sin red (en las pruebas) no se mira el almacenamiento: se usa el paquete de la app.
+  static Future<PaqueteLocal> _leer() =>
+      comprobarRed ? PaqueteLocal.cargar() : PaqueteLocal.cargarSemilla();
+
+  /// Quién busca e instala las versiones nuevas (las pruebas ponen uno de mentira).
+  @visibleForTesting
+  static Actualizador Function() crearActualizador = Actualizador.new;
 
   /// Las pruebas apagan la consulta de la red.
   @visibleForTesting
@@ -31,10 +42,79 @@ class PantallaCliente extends StatefulWidget {
 
 class _PantallaClienteState extends State<PantallaCliente> {
   late Future<PaqueteLocal> _paquete = PantallaCliente.precargar();
+  Actualizador? _actualizador;
+
+  /// La versión nueva que se le ofrece a la persona (si hay).
+  VersionDisponible? _nueva;
+  bool _instalando = false;
+  double _avance = 0;
+  String? _errorActualizacion;
+
+  @override
+  void initState() {
+    super.initState();
+    _buscarVersionNueva();
+  }
 
   void _reintentar() => setState(
-    () => _paquete = PantallaCliente._cargando = PaqueteLocal.cargarSemilla(),
+    () => _paquete = PantallaCliente._cargando = PantallaCliente._leer(),
   );
+
+  /// Con el paquete ya abierto, pregunta a la plataforma si hay uno más nuevo. Sin
+  /// internet no pasa nada: la app sigue con el que tiene.
+  Future<void> _buscarVersionNueva() async {
+    if (!PantallaCliente.comprobarRed) return;
+    try {
+      final paquete = await _paquete;
+      final local = paquete.puntero;
+      if (local == null) return;
+      final a = _actualizador ??= PantallaCliente.crearActualizador();
+      final nueva = await a.buscar(local);
+      if (mounted && nueva != null) setState(() => _nueva = nueva);
+    } on Object {
+      // El paquete no abrió: ya se muestra el mensaje con «Reintentar».
+    }
+  }
+
+  Future<void> _actualizar(PaqueteLocal paquete) async {
+    final nueva = _nueva;
+    final a = _actualizador;
+    if (nueva == null || a == null || _instalando) return;
+    setState(() {
+      _instalando = true;
+      _avance = 0;
+      _errorActualizacion = null;
+    });
+    try {
+      await a.instalar(
+        nueva,
+        yaEnLaApp: paquete.mediosEnLaApp,
+        progreso: (v) {
+          if (mounted) setState(() => _avance = v);
+        },
+      );
+      if (!mounted) return;
+      setState(() {
+        _nueva = null;
+        _instalando = false;
+        _paquete = PantallaCliente._cargando = PantallaCliente._leer();
+      });
+    } on ErrorActualizacion catch (e) {
+      if (mounted) {
+        setState(() {
+          _instalando = false;
+          _errorActualizacion = e.mensaje;
+        });
+      }
+    } on Object {
+      if (mounted) {
+        setState(() {
+          _instalando = false;
+          _errorActualizacion = 'No se pudo actualizar.';
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -51,13 +131,39 @@ class _PantallaClienteState extends State<PantallaCliente> {
           } on ProviderNotFoundException {
             sesion = null;
           }
-          return VistaCliente(
-            paquete: s.data!,
-            comprobarRed: PantallaCliente.comprobarRed,
-            institucional: sesion?.sesion?.esInstitucional ?? false,
-            alAbrirCuenta: sesion == null
-                ? null
-                : () => mostrarDialogoCuenta(context),
+          final paquete = s.data!;
+          final nueva = _nueva;
+          return Stack(
+            children: <Widget>[
+              Positioned.fill(
+                child: VistaCliente(
+                  // Al cambiar de versión, la vista empieza de nuevo con los datos nuevos.
+                  key: ValueKey<String>(paquete.puntero?.version ?? ''),
+                  paquete: paquete,
+                  comprobarRed: PantallaCliente.comprobarRed,
+                  institucional: sesion?.sesion?.esInstitucional ?? false,
+                  alAbrirCuenta: sesion == null
+                      ? null
+                      : () => mostrarDialogoCuenta(context),
+                ),
+              ),
+              if (nueva != null)
+                Positioned.fill(
+                  child: AvisoActualizacion(
+                    version: nueva.puntero,
+                    color: colorHex(paquete.config.marca.colorPrimario),
+                    escala: paquete.config.escala,
+                    instalando: _instalando,
+                    avance: _avance,
+                    error: _errorActualizacion,
+                    alActualizar: () => _actualizar(paquete),
+                    alPosponer: () => setState(() {
+                      _nueva = null;
+                      _errorActualizacion = null;
+                    }),
+                  ),
+                ),
+            ],
           );
         }
         if (s.hasError) {

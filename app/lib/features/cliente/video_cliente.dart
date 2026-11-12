@@ -6,6 +6,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:video_player/video_player.dart';
 
+import '../../core/paquete/almacen.dart' show videoArchivo;
 import '../../core/paquete/paquete_local.dart';
 import 'estilo_cliente.dart';
 
@@ -57,6 +58,8 @@ class _ReproductorVideoState extends State<ReproductorVideo> {
     final f = widget.fuente;
     final c = f.asset != null
         ? VideoPlayerController.asset(f.asset!)
+        : f.archivo != null
+        ? videoArchivo(f.archivo!)
         : VideoPlayerController.networkUrl(f.url!);
     _c = c;
     c

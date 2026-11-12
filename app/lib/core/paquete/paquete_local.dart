@@ -18,7 +18,9 @@ import 'package:typed_data/typed_buffers.dart';
 import '../modelo/config_app.dart';
 import '../modelo/normalizar_config.dart';
 import '../modelo/recorrido.dart';
+import 'almacen.dart';
 import 'datos_paquete.dart';
+import 'puntero.dart';
 import 'sqlite_plataforma.dart';
 
 const String carpetaSemilla = 'assets/paquete';
@@ -50,20 +52,38 @@ DatosPaquete leerBytesPaquete(
   }
 }
 
-/// Un video: dentro de la app (asset) o en internet.
+/// Un video: dentro de la app (asset), descargado con un paquete (archivo) o en internet.
 class FuenteVideo {
-  const FuenteVideo.asset(String this.asset) : url = null;
-  const FuenteVideo.red(Uri this.url) : asset = null;
+  const FuenteVideo.asset(String this.asset) : url = null, archivo = null;
+  const FuenteVideo.red(Uri this.url) : asset = null, archivo = null;
+  const FuenteVideo.archivo(String this.archivo) : asset = null, url = null;
 
   final String? asset;
   final Uri? url;
+
+  /// Ruta en el dispositivo.
+  final String? archivo;
 }
 
 class PaqueteLocal {
-  PaqueteLocal(this.datos, {Set<String> mediosEnSemilla = const <String>{}})
-    : _enSemilla = mediosEnSemilla;
+  PaqueteLocal(
+    this.datos, {
+    Set<String> mediosEnSemilla = const <String>{},
+    Map<String, String> mediosEnDisco = const <String, String>{},
+    this.puntero,
+  }) : _enSemilla = mediosEnSemilla,
+       _enDisco = mediosEnDisco;
 
   final DatosPaquete datos;
+
+  /// De qué versión es (para saber si la plataforma publicó una más nueva).
+  final PunteroVersion? puntero;
+
+  /// Medios descargados con el paquete: nombre → ruta en el dispositivo.
+  final Map<String, String> _enDisco;
+
+  /// Los medios que la app ya trae (no hace falta descargarlos).
+  Set<String> get mediosEnLaApp => _enSemilla;
 
   /// Nombres de archivo de los medios que trae la semilla (`assets/paquete/medios/`).
   final Set<String> _enSemilla;
@@ -88,11 +108,60 @@ class PaqueteLocal {
             '${a['ruta']}'.substring('medios/'.length),
     };
     final sqlite = await cargarSqlite();
+    PunteroVersion? puntero;
+    try {
+      puntero = PunteroVersion.leer(
+        await b.loadString('$carpetaSemilla/version.json'),
+      );
+    } on Object {
+      puntero = null;
+    }
     return PaqueteLocal(
       leerBytesPaquete(sqlite, bytes, porDefecto: porDefecto),
       mediosEnSemilla: enSemilla,
+      puntero: puntero,
     );
   }
+
+  /// El paquete con el que abre la app: el último descargado si es más nuevo que el que
+  /// trae la app; si no hay, o está dañado, la semilla.
+  static Future<PaqueteLocal> cargar({
+    AssetBundle? bundle,
+    AlmacenPaquetes? almacen,
+  }) async {
+    final semilla = await cargarSemilla(bundle: bundle);
+    final a = almacen ?? crearAlmacen();
+    if (!a.soportado) return semilla;
+    try {
+      final disco = await a.leerActivo();
+      final local = semilla.puntero;
+      if (disco == null ||
+          (local != null && !disco.puntero.masNuevaQue(local))) {
+        return semilla;
+      }
+      final b = bundle ?? rootBundle;
+      final porDefecto = normalizarConfig(
+        jsonDecode(await b.loadString('assets/config/por_defecto.json')),
+      );
+      return PaqueteLocal(
+        leerBytesPaquete(
+          await cargarSqlite(),
+          disco.sqlite,
+          porDefecto: porDefecto,
+        ),
+        mediosEnSemilla: semilla._enSemilla,
+        mediosEnDisco: disco.medios,
+        puntero: disco.puntero,
+      );
+    } on Object {
+      // Un paquete descargado que no abre nunca deja a la app sin datos.
+      return semilla;
+    }
+  }
+
+  /// El archivo descargado de un medio, si lo hay.
+  String? _archivoDe(MedioPaquete? m) =>
+      m == null ? null : _enDisco[m.nombreArchivo];
 
   String? _assetDe(MedioPaquete? m) =>
       m != null && _enSemilla.contains(m.nombreArchivo)
@@ -109,8 +178,11 @@ class PaqueteLocal {
       return const AssetImage('assets/imagenes/mapa-dron.jpg');
     }
     if (!src.startsWith('https://')) return null;
-    final asset = _assetDe(datos.medioPorUrl[src]);
-    return asset != null ? AssetImage(asset) : NetworkImage(src);
+    final medio = datos.medioPorUrl[src];
+    final asset = _assetDe(medio);
+    if (asset != null) return AssetImage(asset);
+    final archivo = _archivoDe(medio);
+    return archivo != null ? imagenArchivo(archivo) : NetworkImage(src);
   }
 
   /// Video de un elemento del lienzo o de un punto.
@@ -119,9 +191,12 @@ class PaqueteLocal {
     final app = RegExp(r'^app://videos/([\w.-]+)$').firstMatch(src);
     if (app != null) return FuenteVideo.asset('assets/videos/${app.group(1)}');
     if (!src.startsWith('https://')) return null;
-    final asset = _assetDe(datos.medioPorUrl[src]);
-    return asset != null
-        ? FuenteVideo.asset(asset)
+    final medio = datos.medioPorUrl[src];
+    final asset = _assetDe(medio);
+    if (asset != null) return FuenteVideo.asset(asset);
+    final archivo = _archivoDe(medio);
+    return archivo != null
+        ? FuenteVideo.archivo(archivo)
         : FuenteVideo.red(Uri.parse(src));
   }
 
@@ -130,6 +205,8 @@ class PaqueteLocal {
     final m = datos.medioPorArchivo[p.archivo];
     final asset = _assetDe(m);
     if (asset != null) return AssetImage(asset);
+    final archivo = _archivoDe(m);
+    if (archivo != null) return imagenArchivo(archivo);
     return m?.url == null ? null : NetworkImage(m!.url!);
   }
 
