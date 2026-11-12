@@ -1,5 +1,5 @@
 // La vista del visitante arma lo mismo que la vista previa del panel: la barra lateral con el
-// logo de UNIPAZ (o el riel), minimapa, botones de buscar y de inicio, y cada página con sus pestañas.
+// logo de UNIPAZ (o el riel), minimapa, botones del asistente y de inicio, y cada página con sus pestañas.
 import 'dart:convert';
 import 'dart:io';
 
@@ -11,6 +11,7 @@ import 'package:unipaz360/core/modelo/normalizar_config.dart';
 import 'package:unipaz360/core/modelo/recorrido.dart';
 import 'package:unipaz360/core/paquete/datos_paquete.dart';
 import 'package:unipaz360/core/paquete/paquete_local.dart';
+import 'package:unipaz360/features/cliente/bienvenida_cliente.dart';
 import 'package:unipaz360/features/cliente/marco_cliente.dart';
 import 'package:unipaz360/features/cliente/medidas_cliente.dart';
 import 'package:unipaz360/features/cliente/minimapa_cliente.dart';
@@ -44,9 +45,9 @@ PaqueteLocal _paquete(ConfigApp config) => PaqueteLocal(
 
 /// La configuración por defecto; [barra] cambia campos de `barraLateral`.
 ConfigApp _config({Map<String, Object?> barra = const <String, Object?>{}}) {
-  final crudo =
-      jsonDecode(File('assets/config/por_defecto.json').readAsStringSync())
-          as Map<String, dynamic>;
+  final crudo = jsonDecode(
+    File('assets/config/por_defecto.json').readAsStringSync(),
+  ) as Map<String, dynamic>;
   (crudo['barraLateral'] as Map<String, dynamic>).addAll(barra);
   return normalizarConfig(crudo);
 }
@@ -92,7 +93,9 @@ void main() {
         find.text('Centro de Investigaciones Santa Lucía'),
         findsOneWidget,
       );
-      expect(find.byTooltip('Buscar un lugar'), findsOneWidget);
+      // «Cómo llegar» y su botón de buscar ya no existen: guía el asistente.
+      expect(find.byTooltip('Buscar un lugar'), findsNothing);
+      expect(find.byTooltip('Asistente: te guío a un lugar'), findsOneWidget);
       expect(find.byTooltip('Ocultar menú'), findsOneWidget);
       for (final s in <String>[
         'Nosotros',
@@ -100,12 +103,12 @@ void main() {
         'Admisiones',
         'Vistas 360°',
         'Ubicación',
-        'Cómo llegar',
       ]) {
         expect(find.text(s), findsOneWidget, reason: 'falta la sección $s');
       }
+      expect(find.text('Cómo llegar'), findsNothing);
       expect(find.text('MAPA'), findsOneWidget);
-      expect(find.text('Inicio'), findsOneWidget);
+      expect(find.byTooltip('Inicio'), findsOneWidget);
     },
   );
 
@@ -202,10 +205,10 @@ void main() {
     );
     expect(tester.getTopRight(find.byType(BarraSecciones)).dx, 1440);
     expect(tester.getTopRight(find.byType(LogoUnipaz)).dx, 1440 - 14);
-    expect(tester.getTopLeft(find.byType(BotonBuscar)).dx, margen);
+    expect(tester.getTopLeft(find.byType(BotonChat)).dx, margen);
   });
 
-  testWidgets('el botón de buscar solo aparece si hay «Cómo llegar»', (
+  testWidgets('una configuración vieja con «Cómo llegar» ya no la muestra', (
     tester,
   ) async {
     await _mostrar(
@@ -215,20 +218,28 @@ void main() {
         barra: <String, Object?>{
           'secciones': <Object?>[
             <String, Object?>{'id': 'vistas', 'titulo': 'Vistas 360°'},
+            <String, Object?>{
+              'id': 'rutas',
+              'titulo': 'Cómo llegar',
+              'tipo': 'rutas',
+            },
           ],
         },
       ),
     );
+    expect(find.text('Vistas 360°'), findsOneWidget);
+    expect(find.text('Cómo llegar'), findsNothing);
     expect(find.byTooltip('Buscar un lugar'), findsNothing);
   });
 
-  testWidgets('abrir una página esconde el minimapa y el botón de buscar', (
+  testWidgets('abrir una página esconde el minimapa y el botón del asistente', (
     tester,
   ) async {
     await _mostrar(tester, const Size(1440, 900));
     await tester.tap(find.text('Admisiones'));
     await tester.pump();
-    expect(find.byTooltip('Buscar un lugar'), findsNothing);
+    expect(find.byTooltip('Asistente: te guío a un lugar'), findsNothing);
+    expect(find.byTooltip('Inicio'), findsNothing);
     expect(find.text('ADMISIONES'), findsOneWidget);
     expect(find.text('PASO A PASO'), findsOneWidget);
     expect(find.text('CALENDARIO ACADÉMICO'), findsOneWidget);
@@ -241,7 +252,8 @@ void main() {
     await tester.pump();
     await tester.tap(find.byTooltip('Cerrar'));
     await tester.pump();
-    expect(find.byTooltip('Buscar un lugar'), findsOneWidget);
+    expect(find.byTooltip('Asistente: te guío a un lugar'), findsOneWidget);
+    expect(find.byTooltip('Inicio'), findsOneWidget);
   });
 
   testWidgets(
@@ -278,29 +290,12 @@ void main() {
     },
   );
 
-  testWidgets('si empieza plegada y se abre una página, queda el riel', (
-    tester,
-  ) async {
-    await _mostrar(
-      tester,
-      const Size(1440, 900),
-      config: _config(barra: <String, Object?>{'iniciaPlegada': true}),
-    );
-    expect(_logo(tester).sombra, isTrue);
-    await tester.tap(find.byTooltip('Buscar un lugar'));
-    await tester.pump();
-    await tester.pump(duracionBarra);
-    expect(find.text('CÓMO LLEGAR'), findsOneWidget);
-    expect(tester.getSize(find.byType(BarraSecciones)).width, anchoRiel);
-    expect(tester.getTopLeft(find.byType(BarraSecciones)).dx, 0);
-  });
-
   for (final tamano in const <Size>[Size(915, 412), Size(800, 360)]) {
     testWidgets(
       'en un celular de ${tamano.height.toInt()} dp de alto caben todas las secciones',
       (tester) async {
         await _mostrar(tester, tamano);
-        final ultima = tester.getBottomLeft(find.text('Cómo llegar')).dy;
+        final ultima = tester.getBottomLeft(find.text('Ubicación')).dy;
         final pie = tester.getTopLeft(find.text('UNIPAZ 360')).dy;
         expect(
           ultima,
@@ -308,7 +303,9 @@ void main() {
           reason: 'la última sección no debe quedar debajo del pie',
         );
         expect(
-          tester.getBottomLeft(find.text('Centro de Investigaciones Santa Lucía')).dy,
+          tester
+              .getBottomLeft(find.text('Centro de Investigaciones Santa Lucía'))
+              .dy,
           lessThanOrEqualTo(tamano.height),
         );
       },
@@ -321,12 +318,12 @@ void main() {
     await tester.pump();
     expect(find.text('Mapa del campus'), findsOneWidget);
     expect(
-      find.text('Inicio'),
+      find.byTooltip('Inicio'),
       findsNothing,
       reason: 'con el mapa maximizado no se ve el inicio',
     );
     expect(
-      find.byTooltip('Buscar un lugar'),
+      find.byTooltip('Asistente: te guío a un lugar'),
       findsNothing,
       reason: 'chocaría con los botones del mapa maximizado',
     );
@@ -335,36 +332,165 @@ void main() {
     expect(find.byTooltip('Mostrar el mapa'), findsOneWidget);
   });
 
-  testWidgets('el minimapa arriba a la derecha baja para no tapar el buscador', (
+  testWidgets(
+    'el minimapa arriba a la derecha baja para no tapar los botones',
+    (tester) async {
+      final crudo = jsonDecode(
+        File('assets/config/por_defecto.json').readAsStringSync(),
+      ) as Map<String, dynamic>;
+      (crudo['minimapa'] as Map<String, dynamic>)['posicion'] =
+          'arriba-derecha';
+      await _mostrar(
+        tester,
+        const Size(1440, 900),
+        config: normalizarConfig(crudo),
+      );
+      final botones = tester.getBottomLeft(find.byType(BotonChat)).dy;
+      expect(
+        tester.getTopLeft(find.byType(MinimapaCliente)).dy,
+        greaterThan(botones),
+      );
+      // Con el mapa arriba, el inicio se queda en la esquina de abajo.
+      final inicio = tester.getRect(find.byType(BotonInicio));
+      expect(inicio.right, 1440 - margen);
+      expect(inicio.bottom, 900 - margen);
+    },
+  );
+
+  testWidgets('el botón redondo de inicio va pegado al minimapa', (
     tester,
   ) async {
-    final crudo =
+    await _mostrar(tester, const Size(1440, 900));
+    var mapa = tester.getRect(find.byType(MinimapaCliente));
+    var inicio = tester.getRect(find.byType(BotonInicio));
+    expect(inicio.size, const Size(ladoInicio, ladoInicio));
+    expect(inicio.right, closeTo(mapa.left - 8, 0.01));
+    expect(inicio.bottom, mapa.bottom);
+    // Con el mapa minimizado quedan los dos círculos juntos, abajo a la derecha.
+    await tester.tap(find.byTooltip('Minimizar'));
+    await tester.pump();
+    mapa = tester.getRect(find.byTooltip('Mostrar el mapa'));
+    inicio = tester.getRect(find.byType(BotonInicio));
+    expect(mapa.right, 1440 - margen);
+    expect(inicio.right, closeTo(mapa.left - 8, 0.01));
+    expect(inicio.center.dy, mapa.center.dy);
+  });
+
+  double opacidadDe(WidgetTester tester, Type boton) => tester
+      .widget<AnimatedOpacity>(
+        find
+            .ancestor(
+              of: find.byType(boton),
+              matching: find.byType(AnimatedOpacity),
+            )
+            .first,
+      )
+      .opacity;
+
+  testWidgets('sin tocar ningún botón se atenúan; al tocar uno, vuelven', (
+    tester,
+  ) async {
+    await _mostrar(tester, const Size(1440, 900));
+    expect(opacidadDe(tester, BotonInicio), 1);
+    await tester.pump(const Duration(seconds: 4));
+    expect(opacidadDe(tester, BotonInicio), 1, reason: 'todavía no pasan 5 s');
+    await tester.pump(const Duration(seconds: 2));
+    for (final b in <Type>[
+      BotonInicio,
+      BotonChat,
+      BotonPlegar,
+      MinimapaCliente,
+    ]) {
+      expect(opacidadDe(tester, b), 0.5, reason: '$b');
+    }
+    // Tocar la foto no cuenta: siguen atenuados.
+    await tester.tapAt(const Offset(800, 450));
+    await tester.pump();
+    expect(opacidadDe(tester, BotonInicio), 0.5);
+    // Tocar un botón los devuelve, y la cuenta empieza otra vez.
+    await tester.tap(find.byType(BotonInicio));
+    await tester.pump();
+    expect(opacidadDe(tester, BotonInicio), 1);
+    expect(opacidadDe(tester, BotonChat), 1);
+    await tester.pump(const Duration(seconds: 6));
+    expect(opacidadDe(tester, BotonInicio), 0.5);
+  });
+
+  testWidgets('el atenuado se ajusta o se apaga desde la plataforma', (
+    tester,
+  ) async {
+    Map<String, dynamic> crudo() =>
         jsonDecode(File('assets/config/por_defecto.json').readAsStringSync())
             as Map<String, dynamic>;
-    (crudo['minimapa'] as Map<String, dynamic>)['posicion'] = 'arriba-derecha';
+    final lento = crudo();
+    (lento['interfaz'] as Map<String, dynamic>).addAll(<String, Object?>{
+      'atenuarTras': 10,
+      'atenuarOpacidad': 0.3,
+    });
     await _mostrar(
       tester,
       const Size(1440, 900),
-      config: normalizarConfig(crudo),
+      config: normalizarConfig(lento),
     );
-    final buscador = tester.getBottomLeft(find.byType(BotonBuscar)).dy;
-    expect(tester.getTopLeft(find.byType(MinimapaCliente)).dy, greaterThan(buscador));
+    await tester.pump(const Duration(seconds: 6));
+    expect(opacidadDe(tester, BotonInicio), 1);
+    await tester.pump(const Duration(seconds: 5));
+    expect(opacidadDe(tester, BotonInicio), 0.3);
+
+    final apagado = crudo();
+    (apagado['interfaz'] as Map<String, dynamic>)['atenuar'] = false;
+    await tester.pumpWidget(const SizedBox());
+    await _mostrar(
+      tester,
+      const Size(1440, 900),
+      config: normalizarConfig(apagado),
+    );
+    await tester.pump(const Duration(seconds: 90));
+    expect(opacidadDe(tester, BotonInicio), 1);
   });
 
-  testWidgets('«Cómo llegar» busca entre los lugares del paquete', (
+  testWidgets('en un celular en vertical saluda e invita a girarlo', (
     tester,
   ) async {
-    await _mostrar(tester, const Size(1440, 900));
-    await tester.tap(find.text('Cómo llegar'));
+    await _mostrar(tester, const Size(412, 915));
+    expect(find.byType(BienvenidaCliente), findsOneWidget);
+    expect(find.text('Bienvenido a UniPaz360'), findsOneWidget);
+    expect(find.text('Girar la pantalla'), findsOneWidget);
+    // En vertical la barra y el mapa empiezan recogidos para dejar ver la foto.
+    expect(find.byTooltip('Mostrar menú'), findsOneWidget);
+    expect(find.byTooltip('Mostrar el mapa'), findsOneWidget);
+    await tester.tap(find.text('Seguir en vertical'));
     await tester.pump();
-    expect(find.text('CÓMO LLEGAR'), findsOneWidget);
-    expect(find.text('Portería'), findsOneWidget);
+    expect(find.byType(BienvenidaCliente), findsNothing);
+    expect(find.byTooltip('Inicio'), findsOneWidget);
+    // Abrir el mapa en una pantalla tan angosta no lo desborda.
+    await tester.tap(find.byTooltip('Mostrar el mapa'));
+    await tester.pump();
+    expect(tester.getSize(find.byType(MinimapaCliente)).width, anchoMinimoMapa);
+    expect(tester.takeException(), isNull);
   });
 
-  testWidgets('el botón de buscar abre «Cómo llegar»', (tester) async {
-    await _mostrar(tester, const Size(1440, 900));
-    await tester.tap(find.byTooltip('Buscar un lugar'));
+  testWidgets('al girar el celular el saludo se va solo', (tester) async {
+    await _mostrar(tester, const Size(412, 915));
+    expect(find.byType(BienvenidaCliente), findsOneWidget);
+    tester.view.physicalSize = const Size(915, 412);
     await tester.pump();
-    expect(find.text('CÓMO LLEGAR'), findsOneWidget);
+    await tester.pump();
+    expect(find.byType(BienvenidaCliente), findsNothing);
+  });
+
+  testWidgets('en horizontal, en tableta o en escritorio no hay saludo', (
+    tester,
+  ) async {
+    for (final t in const <Size>[
+      Size(915, 412),
+      Size(800, 1280),
+      Size(1440, 900),
+    ]) {
+      await tester.pumpWidget(const SizedBox());
+      await _mostrar(tester, t);
+      await tester.pump();
+      expect(find.byType(BienvenidaCliente), findsNothing, reason: '$t');
+    }
   });
 }

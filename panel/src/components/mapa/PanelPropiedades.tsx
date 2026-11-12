@@ -91,14 +91,18 @@ function FormVertice({ v, aislado, guardar }: { v: Vertice; aislado: boolean; gu
           ))}
         </select>
       </Campo>
-      <Campo etiqueta="Nombre o referencia">
+      <Campo etiqueta="Nombre del lugar">
         <input
           value={descripcion}
+          maxLength={80}
           placeholder="Ej.: Portería principal"
           onChange={(e) => setDescripcion(e.target.value)}
           onBlur={() => descripcion !== (v.descripcion ?? '') && guardar(v.id, { descripcion })}
           className="hundido w-full rounded-xl px-3 py-2.5 text-[15px] outline-none placeholder:text-tinta-tenue"
         />
+        <p className="mt-1.5 text-[12px] leading-snug text-tinta-tenue">
+          Con este nombre lo encuentra el asistente de la app («¿cómo llego a la portería?») y así aparece en el minimapa. Sin nombre, el asistente no puede guiar hasta aquí.
+        </p>
       </Campo>
       <Campo etiqueta="Piso">
         <select

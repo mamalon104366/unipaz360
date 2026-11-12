@@ -148,6 +148,26 @@ const casos = [
     },
   },
   { paginas: { video: { pestanas: [] } }, barraLateral: { secciones: [{ id: 'video', titulo: 'Video', icono: 'video', tipo: 'pagina' }] } },
+  // Los botones que se atenúan: valores fuera de rango, con decimales o de otro tipo.
+  { interfaz: { escala: 1.2, atenuar: 'si', atenuarTras: 500, atenuarOpacidad: 0.05 } },
+  { interfaz: { atenuar: false, atenuarTras: 7.5, atenuarOpacidad: 0.335 } },
+  { interfaz: { atenuar: true, atenuarTras: '12', atenuarOpacidad: 'x' } },
+  // El saludo anterior se cambia por el de ahora; uno propio se respeta.
+  { inicio: { bienvenida: 'Bienvenido al campus de UNIPAZ', textoBoton: 'Volver al comienzo' } },
+  { inicio: { bienvenida: '  ¡Hola! Recorre la sede Santa Lucía  ' } },
+  // «Cómo llegar» ya no existe: las secciones de tipo «rutas» se quitan (y su página también).
+  {
+    barraLateral: {
+      secciones: [
+        { id: 'rutas', titulo: 'Cómo llegar', icono: 'ruta', tipo: 'rutas' },
+        { id: 'uno', titulo: 'Uno' },
+        { id: 'otra', titulo: 'Buscar', tipo: 'rutas', visible: false },
+        'no soy un objeto',
+        { titulo: 'Sin id', tipo: 'recorrido' },
+      ],
+    },
+    paginas: { rutas: { pestanas: [{ id: 'p', titulo: 'P', alto: 500, elementos: [] }] } },
+  },
 ];
 escribir(
   'app/test/cliente/casos_normalizar.json',

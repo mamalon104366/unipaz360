@@ -12,6 +12,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../core/modelo/config_app.dart';
 import '../visor360/animacion_punto.dart';
 import 'estilo_cliente.dart';
+import 'medidas_cliente.dart' show anchoMinimoMapa;
 
 /// Lo que el minimapa sabe de cada nodo.
 class NodoInfo {
@@ -180,7 +181,10 @@ class _MinimapaClienteState extends State<MinimapaCliente> {
           },
         );
       default:
-        final ancho = m.tamano / 100 * widget.anchoPantalla;
+        final ancho = math.max(
+          anchoMinimoMapa,
+          m.tamano / 100 * widget.anchoPantalla,
+        );
         final alto = ancho * 3 / 4;
         final altoLamina = ancho / proporcion;
         NodoMinimapa? nodoActual;

@@ -6,7 +6,10 @@
   "colorAcento": "#0a9640"
  },
  "interfaz": {
-  "escala": 1
+  "escala": 1,
+  "atenuar": true,
+  "atenuarTras": 5,
+  "atenuarOpacidad": 0.5
  },
  "barraLateral": {
   "posicion": "izquierda",
@@ -50,13 +53,6 @@
     "icono": "mapa",
     "visible": true,
     "tipo": "pagina"
-   },
-   {
-    "id": "rutas",
-    "titulo": "Cómo llegar",
-    "icono": "ruta",
-    "visible": true,
-    "tipo": "rutas"
    }
   ]
  },
@@ -80,7 +76,7 @@
  "inicio": {
   "pantalla": "tour",
   "textoBoton": "Inicio",
-  "bienvenida": "Bienvenido al campus de UNIPAZ"
+  "bienvenida": "Bienvenido a UniPaz360"
  },
  "asistente": {
   "visible": true,

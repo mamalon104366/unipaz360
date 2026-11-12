@@ -24,7 +24,6 @@ class PanelPagina extends StatelessWidget {
     required this.alCerrar,
     required this.alCambiarPestana,
     required this.alActivar,
-    required this.rutas,
     required this.derecha,
     this.institucional = false,
   });
@@ -40,9 +39,6 @@ class PanelPagina extends StatelessWidget {
   final VoidCallback alCerrar;
   final ValueChanged<String> alCambiarPestana;
   final ValueChanged<String> alActivar;
-
-  /// Lo que se muestra en una sección de tipo `rutas` (el buscador de la app).
-  final Widget rutas;
 
   /// La barra va a la derecha: la sombra del panel cae hacia ese lado.
   final bool derecha;
@@ -156,7 +152,7 @@ class PanelPagina extends StatelessWidget {
             ),
           Expanded(
             child: pestana == null
-                ? SingleChildScrollView(child: rutas)
+                ? const SizedBox.shrink()
                 : LayoutBuilder(
                     builder: (context, c) => SingleChildScrollView(
                       key: PageStorageKey<String>(

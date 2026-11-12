@@ -25,8 +25,9 @@ const List<String> iconosSeccion = <String>[
   'estrella',
 ];
 
-/// `pagina`: abre su página · `recorrido`: cierra el panel y deja el 360° · `rutas`: buscador de rutas.
-const List<String> tiposSeccion = <String>['pagina', 'recorrido', 'rutas'];
+/// `pagina`: abre su página · `recorrido`: cierra el panel y deja el 360°. El tipo `rutas`
+/// («Cómo llegar») ya no existe: lo reemplazó el asistente.
+const List<String> tiposSeccion = <String>['pagina', 'recorrido'];
 const List<String> tiposElemento = <String>[
   'texto',
   'imagen',
@@ -111,13 +112,6 @@ const List<SeccionApp> seccionesPorDefecto = <SeccionApp>[
     icono: 'mapa',
     visible: true,
     tipo: 'pagina',
-  ),
-  SeccionApp(
-    id: 'rutas',
-    titulo: 'Cómo llegar',
-    icono: 'ruta',
-    visible: true,
-    tipo: 'rutas',
   ),
 ];
 
@@ -570,6 +564,9 @@ class ConfigApp {
   const ConfigApp({
     required this.marca,
     required this.escala,
+    this.atenuar = true,
+    this.atenuarTras = 5,
+    this.atenuarOpacidad = 0.5,
     required this.barraLateral,
     required this.minimapa,
     required this.inicio,
@@ -581,6 +578,12 @@ class ConfigApp {
 
   /// Escala general de textos y botones (`interfaz.escala`, de 0.7 a 1.5).
   final double escala;
+
+  /// Sin tocar ningún botón durante [atenuarTras] segundos, los botones y el minimapa quedan
+  /// con [atenuarOpacidad] de opacidad (`interfaz.atenuar*`). Al tocar uno, vuelven.
+  final bool atenuar;
+  final int atenuarTras;
+  final double atenuarOpacidad;
   final BarraLateralApp barraLateral;
   final MinimapaApp minimapa;
   final InicioApp inicio;
@@ -598,7 +601,12 @@ class ConfigApp {
 
   Map<String, Object?> toJson() => <String, Object?>{
     'marca': marca.toJson(),
-    'interfaz': <String, Object?>{'escala': escala},
+    'interfaz': <String, Object?>{
+      'escala': escala,
+      'atenuar': atenuar,
+      'atenuarTras': atenuarTras,
+      'atenuarOpacidad': atenuarOpacidad,
+    },
     'barraLateral': barraLateral.toJson(),
     'minimapa': minimapa.toJson(),
     'inicio': inicio.toJson(),
@@ -647,7 +655,7 @@ class ConfigApp {
     inicio: InicioApp(
       pantalla: 'tour',
       textoBoton: 'Inicio',
-      bienvenida: 'Bienvenido al campus de UNIPAZ',
+      bienvenida: 'Bienvenido a UniPaz360',
     ),
     asistente: AsistenteApp(
       visible: true,

@@ -17,6 +17,7 @@ import {
   EyeOff,
   FilePlus2,
   GraduationCap,
+  House,
   ImageUp,
   Info,
   Map as MapIcon,
@@ -26,14 +27,12 @@ import {
   MousePointerClick,
   Orbit,
   Pencil,
-  Play,
   MessageCircle,
   Plus,
   Redo2,
   RotateCcw,
   Route,
   Save,
-  Search,
   Smartphone,
   Square,
   Star,
@@ -186,6 +185,13 @@ export function EditorCliente({
   const [dispositivo, setDispositivo] = useState<'movil' | 'escritorio'>('movil');
   const [barraPlegada, setBarraPlegada] = useState(inicial.barraLateral.iniciaPlegada);
   const [estadoMapa, setEstadoMapa] = useState<EstadoMinimapa>(inicial.minimapa.estadoInicial);
+  // Igual que en la app: sin tocar nada un rato, los botones se atenúan para dejar ver la foto.
+  const [atenuado, setAtenuado] = useState(false);
+  const [actividad, setActividad] = useState(0);
+  const despertar = useCallback(() => {
+    setAtenuado(false);
+    setActividad((n) => n + 1);
+  }, []);
   const [panoActual, setPanoActual] = useState(panoramicas[0]?.id ?? null);
   const [ficha, setFicha] = useState<Punto | null>(null);
   const [seleccion, setSeleccion] = useState<string[]>([]);
@@ -491,6 +497,14 @@ export function EditorCliente({
     }
   }
 
+  // Sin tocar ningún botón durante `atenuarTras` segundos, se atenúan.
+  const { atenuar, atenuarTras } = c.interfaz;
+  useEffect(() => {
+    if (!atenuar) return;
+    const reloj = setTimeout(() => setAtenuado(true), atenuarTras * 1000);
+    return () => clearTimeout(reloj);
+  }, [atenuar, atenuarTras, actividad]);
+
   // ---------------------------------------------------------------- medidas de la vista previa
   const e = c.interfaz.escala;
   const m12 = 12 * u;
@@ -507,17 +521,21 @@ export function EditorCliente({
   const ocupado = anchoLateral + m12;
   const lado = (izq: number | string, der: number | string): React.CSSProperties => (derecha ? { left: izq, right: der } : { left: der, right: izq });
   const secciones = c.barraLateral.secciones.filter((s) => s.visible);
-  // El botón redondo de buscar abre la sección «Buscador de rutas» (si hay una visible).
-  const seccionRutas = secciones.find((s) => s.tipo === 'rutas') ?? null;
-  const buscador = !!seccionRutas && !seccionAbierta && estadoMapa !== 'maximizado';
-  // El botón de cuenta va junto al de buscar (en la app abre el inicio de sesión).
+  // El botón de cuenta va arriba, del lado contrario a la barra (en la app abre la cuenta).
   const cuenta = !seccionAbierta && estadoMapa !== 'maximizado';
   const ladoBoton = 40 * e * u;
+  // El botón redondo de inicio va abajo, pegado al minimapa (o en su esquina si el mapa va arriba).
+  const ladoInicio = 46 * u;
+  const anchoMapa = !c.minimapa.visible ? 0 : estadoMapa === 'minimizado' ? 46 * u : (c.minimapa.tamano / 100) * anchoMarco;
+  const junto = c.minimapa.visible && c.minimapa.posicion !== 'arriba-derecha' ? anchoMapa + 8 * u : 0;
+  const posInicio: React.CSSProperties =
+    c.minimapa.posicion === 'abajo-izquierda' ? { bottom: m12, left: (derecha ? m12 : ocupado) + junto } : { bottom: m12, right: (derecha ? ocupado : m12) + junto };
+  const tenue: React.CSSProperties = { opacity: atenuado && atenuar ? c.interfaz.atenuarOpacidad : 1, transition: 'opacity 600ms ease' };
   const posMapa: React.CSSProperties =
     c.minimapa.posicion === 'abajo-izquierda'
       ? { bottom: m12, left: derecha ? m12 : ocupado }
       : c.minimapa.posicion === 'arriba-derecha'
-        ? { top: (buscador || cuenta) && !derecha ? m12 + ladoBoton + 10 * u : m12, right: derecha ? ocupado : m12 }
+        ? { top: cuenta && !derecha ? m12 + ladoBoton + 10 * u : m12, right: derecha ? ocupado : m12 }
         : { bottom: m12, right: derecha ? ocupado : m12 };
   const areaMapa: React.CSSProperties = { top: m12, bottom: m12, ...(derecha ? { left: m12, right: ocupado } : { left: ocupado, right: m12 }) };
   const colores = { primario: c.marca.colorPrimario, acento: c.marca.colorAcento };
@@ -648,6 +666,10 @@ export function EditorCliente({
         <div className="grid min-h-0 flex-1 place-items-center overflow-auto px-6 pb-6">
           <div
             ref={marcoRef}
+            onPointerDownCapture={(ev) => {
+              // Tocar un botón los devuelve; mover la foto no (igual que en la app).
+              if ((ev.target as HTMLElement).closest('button')) despertar();
+            }}
             className={`relative w-full overflow-hidden bg-black shadow-[0_30px_60px_-30px_rgb(0_0_0/0.6)] ${
               dispositivo === 'movil' ? 'aspect-[915/412] max-w-[940px] rounded-[38px] border-[10px] border-[#18181b]' : 'aspect-[16/10] max-w-[1080px] rounded-[16px] border-[6px] border-[#27272a]'
             }`}
@@ -748,21 +770,9 @@ export function EditorCliente({
                   }}
                   title={oculta || riel ? 'Mostrar menú' : 'Ocultar menú'}
                   className="pointer-events-auto absolute z-40 grid place-items-center rounded-full bg-white text-[#1c1c1f] shadow-[0_2px_8px_rgb(0_0_0/0.35)]"
-                  style={{ width: 34 * e * u, height: 34 * e * u, top: `calc(50% - ${17 * e * u}px)`, [derecha ? 'right' : 'left']: oculta ? m12 : anchoLateral - 17 * e * u, transition: TRANSICION_BARRA }}
+                  style={{ width: 34 * e * u, height: 34 * e * u, top: `calc(50% - ${17 * e * u}px)`, [derecha ? 'right' : 'left']: oculta ? m12 : anchoLateral - 17 * e * u, transition: `${TRANSICION_BARRA}, opacity 600ms ease`, opacity: tenue.opacity }}
                 >
                   {(oculta || riel) !== derecha ? <ChevronRight size={18 * e * u} /> : <ChevronLeft size={18 * e * u} />}
-                </button>
-              )}
-
-              {/* Buscar un lugar: abre la sección «Buscador de rutas» */}
-              {buscador && seccionRutas && (
-                <button
-                  onClick={() => abrirSeccion(seccionRutas)}
-                  title="Buscar un lugar"
-                  className={`pointer-events-auto absolute z-30 grid place-items-center rounded-full ${superficie(c.barraLateral.estilo)}`}
-                  style={{ width: ladoBoton, height: ladoBoton, top: m12, [derecha ? 'left' : 'right']: m12 }}
-                >
-                  <Search size={18 * e * u} />
                 </button>
               )}
 
@@ -772,7 +782,7 @@ export function EditorCliente({
                   onClick={() => setVerComo((v) => (v === 'invitado' ? 'institucional' : 'invitado'))}
                   title={verComo === 'invitado' ? 'Cuenta: invitado (en la app abre el inicio de sesión)' : 'Cuenta institucional (en la app abre el inicio de sesión)'}
                   className={`pointer-events-auto absolute z-30 grid place-items-center rounded-full ${superficie(c.barraLateral.estilo)}`}
-                  style={{ width: ladoBoton, height: ladoBoton, top: m12, [derecha ? 'left' : 'right']: buscador ? m12 + ladoBoton + 8 * u : m12 }}
+                  style={{ ...tenue, width: ladoBoton, height: ladoBoton, top: m12, [derecha ? 'left' : 'right']: m12 }}
                 >
                   {verComo === 'invitado' ? <UserRound size={18 * e * u} /> : <GraduationCap size={18 * e * u} />}
                 </button>
@@ -784,7 +794,7 @@ export function EditorCliente({
                   onClick={() => elegirCapa('asistente')}
                   title={`${c.asistente.nombre}: el asistente que guía hasta un lugar (en la app abre el chat)`}
                   className={`pointer-events-auto absolute z-30 grid place-items-center rounded-full text-white shadow-lg ${marco('asistente')}`}
-                  style={{ width: ladoBoton, height: ladoBoton, top: m12, background: 'var(--primario)', [derecha ? 'left' : 'right']: m12 + (buscador ? 2 : 1) * (ladoBoton + 8 * u) }}
+                  style={{ ...tenue, width: ladoBoton, height: ladoBoton, top: m12, background: 'var(--primario)', [derecha ? 'left' : 'right']: m12 + ladoBoton + 8 * u }}
                 >
                   <MessageCircle size={18 * e * u} />
                 </button>
@@ -804,7 +814,7 @@ export function EditorCliente({
                   }}
                   colores={colores}
                   u={u}
-                  posicion={posMapa}
+                  posicion={{ ...posMapa, ...tenue }}
                   areaMaxima={areaMapa}
                   seleccionado={capa === 'minimapa'}
                   alSeleccionar={() => elegirCapa('minimapa')}
@@ -815,10 +825,11 @@ export function EditorCliente({
               {!seccionAbierta && estadoMapa !== 'maximizado' && (
                 <button
                   onClick={() => elegirCapa('inicio')}
-                  className={`pointer-events-auto absolute left-1/2 -translate-x-1/2 font-semibold text-white shadow-lg ${marco('inicio')}`}
-                  style={{ bottom: 14 * u, background: 'var(--primario)', borderRadius: 12 * u, padding: `${8 * u}px ${20 * u}px`, fontSize: 13 * u * c.interfaz.escala }}
+                  title={`${c.inicio.textoBoton}: vuelve a la primera foto del recorrido`}
+                  className={`pointer-events-auto absolute z-30 grid place-items-center rounded-full text-white shadow-lg ${marco('inicio')}`}
+                  style={{ ...tenue, ...posInicio, width: ladoInicio, height: ladoInicio, background: 'var(--primario)' }}
                 >
-                  {c.inicio.textoBoton}
+                  <House size={20 * u} />
                 </button>
               )}
 
@@ -895,9 +906,7 @@ export function EditorCliente({
                         alActivar={activarEnlace}
                         verComo={verComo}
                       />
-                    ) : (
-                      <RutasApp u={u} escala={c.interfaz.escala} />
-                    )}
+                    ) : null}
                   </div>
                 </div>
               )}
@@ -1007,12 +1016,6 @@ export function EditorCliente({
             </>
           )}
 
-          {seccionAbierta?.tipo === 'rutas' && (
-            <p className="text-[14px] leading-relaxed text-tinta-suave">
-              Esta sección abre el buscador de rutas de la app: el visitante elige un espacio y la app le muestra cómo llegar, con la ruta accesible si la necesita. Su contenido sale del mapa y de los espacios, por eso no se edita aquí.
-            </p>
-          )}
-
           {!seccionAbierta && capa === 'marca' && (
             <>
               <Texto etiqueta="Nombre de la app" valor={c.marca.nombre} alCambiar={(v) => setC({ ...c, marca: { ...c.marca, nombre: v } }, 'marca-nombre')} />
@@ -1030,8 +1033,47 @@ export function EditorCliente({
                 max={1.5}
                 paso={0.05}
                 formato={(v) => `${Math.round(v * 100)} %`}
-                alCambiar={(v) => setC({ ...c, interfaz: { escala: v } }, 'escala')}
+                alCambiar={(v) => setC({ ...c, interfaz: { ...c.interfaz, escala: v } }, 'escala')}
               />
+              <Seccion titulo="Botones que se atenúan">
+                <Interruptor
+                  etiqueta="Atenuar los botones si no se usan"
+                  ayuda="Mientras la persona solo mira la foto, los botones y el minimapa se vuelven transparentes. Al tocar cualquiera, vuelven."
+                  valor={c.interfaz.atenuar}
+                  alCambiar={(v) => {
+                    setC({ ...c, interfaz: { ...c.interfaz, atenuar: v } });
+                    despertar();
+                  }}
+                />
+                {c.interfaz.atenuar && (
+                  <>
+                    <Rango
+                      etiqueta="Después de"
+                      valor={c.interfaz.atenuarTras}
+                      min={2}
+                      max={60}
+                      paso={1}
+                      formato={(v) => `${v} s sin tocar nada`}
+                      alCambiar={(v) => {
+                        setC({ ...c, interfaz: { ...c.interfaz, atenuarTras: v } }, 'atenuar-tras');
+                        despertar();
+                      }}
+                    />
+                    <Rango
+                      etiqueta="Quedan con opacidad de"
+                      valor={c.interfaz.atenuarOpacidad}
+                      min={0.2}
+                      max={0.9}
+                      paso={0.05}
+                      formato={(v) => `${Math.round(v * 100)} %`}
+                      alCambiar={(v) => setC({ ...c, interfaz: { ...c.interfaz, atenuarOpacidad: v } }, 'atenuar-op')}
+                    />
+                    <button type="button" onClick={() => setAtenuado((a) => !a)} className="text-[13px] text-acento hover:underline">
+                      {atenuado ? 'Ver los botones completos' : 'Ver cómo quedan atenuados'}
+                    </button>
+                  </>
+                )}
+              </Seccion>
             </>
           )}
           {!seccionAbierta && capa === 'barra' && (
@@ -1080,7 +1122,6 @@ export function EditorCliente({
               />
               <div>
                 <div className="mb-2 text-[13px] font-medium text-tinta-suave">Secciones (orden de la app)</div>
-                <p className="mb-2 text-[12px] text-tinta-tenue">Si hay una sección «Buscador de rutas» visible, la app muestra un botón redondo de buscar arriba, del otro lado de la barra.</p>
                 <ul className="space-y-2">
                   {c.barraLateral.secciones.map((s, i) => {
                     const mover = (d: number) => {
@@ -1315,8 +1356,12 @@ export function EditorCliente({
                 ]}
                 alCambiar={(v) => setC({ ...c, inicio: { ...c.inicio, pantalla: v } })}
               />
-              <Texto etiqueta="Texto del botón" valor={c.inicio.textoBoton} alCambiar={(v) => setC({ ...c, inicio: { ...c.inicio, textoBoton: v } }, 'inicio-boton')} />
+              <Texto etiqueta="Nombre del botón de inicio" valor={c.inicio.textoBoton} alCambiar={(v) => setC({ ...c, inicio: { ...c.inicio, textoBoton: v } }, 'inicio-boton')} />
+              <p className="text-[12px] text-tinta-tenue">El botón redondo con la casa, junto al minimapa: vuelve a la primera foto. El nombre se lee al dejar el dedo o el mouse encima.</p>
               <Texto etiqueta="Mensaje de bienvenida" valor={c.inicio.bienvenida} alCambiar={(v) => setC({ ...c, inicio: { ...c.inicio, bienvenida: v } }, 'inicio-bienv')} />
+              <p className="text-[12px] text-tinta-tenue">
+                La app abre directo en el recorrido, sin pedir cuenta. En un celular en vertical muestra este mensaje con la invitación a girarlo; la cuenta institucional se abre desde el botón de la persona.
+              </p>
             </>
           )}
           {!seccionAbierta && (
@@ -1352,31 +1397,6 @@ export function EditorCliente({
         />
       )}
       {nodo}
-    </div>
-  );
-}
-
-/** Vista de la sección "Cómo llegar": es una función de la app, no una página editable. */
-function RutasApp({ u, escala }: { u: number; escala: number }) {
-  const f = (n: number) => n * u * escala;
-  return (
-    <div style={{ padding: f(24) }} className="text-[#1c1c1f]">
-      <div className="flex items-center gap-[0.6em] rounded-[0.8em] bg-white shadow" style={{ padding: `${f(10)}px ${f(14)}px`, fontSize: f(14) }}>
-        <Search size={f(16)} className="text-[#7b8794]" /> <span className="text-[#7b8794]">¿A dónde quieres ir? Aula, laboratorio, oficina…</span>
-      </div>
-      <div className="mt-[1em] grid grid-cols-2 gap-[0.8em]" style={{ fontSize: f(13) }}>
-        {['Biblioteca', 'Laboratorio de sistemas', 'Bienestar universitario', 'Cafetería'].map((n) => (
-          <div key={n} className="flex items-center gap-[0.6em] rounded-[0.8em] bg-white shadow-sm" style={{ padding: f(12) }}>
-            <Route size={f(16)} style={{ color: 'var(--primario)' }} /> {n}
-          </div>
-        ))}
-      </div>
-      <p className="mt-[1.2em] text-[#526071]" style={{ fontSize: f(12) }}>
-        Ejemplo de cómo se ve el buscador. La app arma las rutas con el mapa y los espacios del campus (con la opción de ruta accesible).
-      </p>
-      <div className="mt-[1em] inline-flex items-center gap-[0.5em] rounded-full text-white" style={{ background: 'var(--primario)', padding: `${f(6)}px ${f(14)}px`, fontSize: f(12) }}>
-        <Play size={f(12)} /> Función de la app
-      </div>
     </div>
   );
 }

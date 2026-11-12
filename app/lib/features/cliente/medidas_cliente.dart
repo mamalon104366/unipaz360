@@ -14,8 +14,15 @@ const double anchoRiel = 56;
 /// Margen general.
 const double margen = 12;
 
-/// Lado del botón redondo de buscar (antes de la escala).
+/// Lado de los botones redondos de arriba: cuenta y asistente (antes de la escala).
 const double ladoBuscar = 40;
+
+/// Lado del botón redondo de inicio y del minimapa minimizado (no cambian con la escala).
+const double ladoInicio = 46;
+
+/// Ancho mínimo del minimapa en estado normal: menos, y no caben el rótulo y sus botones
+/// (pasa en un celular en vertical).
+const double anchoMinimoMapa = 112;
 
 /// Lado del botón redondo que pliega la barra (antes de la escala).
 const double ladoPlegar = 34;
@@ -157,21 +164,38 @@ class MedidasCliente {
         : Lugar2D(arriba: y, izquierda: x);
   }
 
-  /// El botón de buscar: arriba, del lado contrario a la barra.
-  Lugar2D get botonBuscar => derecha
+  /// El botón de cuenta: arriba, del lado contrario a la barra.
+  Lugar2D get botonCuenta => derecha
       ? const Lugar2D(arriba: margen, izquierda: margen)
       : const Lugar2D(arriba: margen, derecha: margen);
 
-  /// El botón de cuenta: junto al de buscar (o en su lugar si no hay buscador).
-  Lugar2D botonCuenta({required bool conBuscador}) {
-    final x = conBuscador ? margen + ladoBuscar * escala + 8 : margen;
-    return derecha
-        ? Lugar2D(arriba: margen, izquierda: x)
-        : Lugar2D(arriba: margen, derecha: x);
+  /// El botón redondo de inicio: abajo, pegado al minimapa (que mide [anchoMapa]; 0 si no
+  /// se ve). Con el minimapa arriba, va en la esquina de abajo de ese lado.
+  Lugar2D botonInicio({required double anchoMapa}) {
+    final junto =
+        config.minimapa.visible && config.minimapa.posicion != 'arriba-derecha'
+        ? anchoMapa + 8
+        : 0.0;
+    return config.minimapa.posicion == 'abajo-izquierda'
+        ? Lugar2D(
+            abajo: margen,
+            izquierda: (derecha ? margen : ocupado) + junto,
+          )
+        : Lugar2D(abajo: margen, derecha: (derecha ? ocupado : margen) + junto);
   }
 
+  /// Ancho del minimapa en el estado [estado] (0 si está oculto).
+  double anchoMapa(String estado) => !config.minimapa.visible
+      ? 0
+      : estado == 'minimizado'
+      ? ladoInicio
+      : math.max(
+          anchoMinimoMapa,
+          config.minimapa.tamano / 100 * pantalla.width,
+        );
+
   /// El minimapa en estado normal o minimizado, según `minimapa.posicion`. Arriba a la
-  /// derecha baja si ahí está el botón de buscar.
+  /// derecha baja si ahí están los botones redondos.
   Lugar2D minimapa({required bool conBuscador}) =>
       switch (config.minimapa.posicion) {
         'abajo-izquierda' => Lugar2D(

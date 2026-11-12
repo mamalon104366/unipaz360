@@ -13,13 +13,16 @@ import { paginaInicial } from './paginasIniciales';
 export const ICONOS_SECCION = ['info', 'video', 'escuela', 'orbita', 'mapa', 'ruta', 'calendario', 'estrella'] as const;
 export type IconoSeccion = (typeof ICONOS_SECCION)[number];
 
-/** pagina: abre su página editable · recorrido: cierra el panel y deja el 360° · rutas: buscador de rutas de la app. */
-export const TIPOS_SECCION = ['pagina', 'recorrido', 'rutas'] as const;
+/**
+ * pagina: abre su página editable · recorrido: cierra el panel y deja el 360°.
+ * El tipo «rutas» (el buscador «Cómo llegar») ya no existe: lo reemplazó el asistente. Las
+ * configuraciones que todavía lo traen pierden esa sección al normalizarse.
+ */
+export const TIPOS_SECCION = ['pagina', 'recorrido'] as const;
 export type TipoSeccion = (typeof TIPOS_SECCION)[number];
 export const ETIQUETA_TIPO_SECCION: Record<TipoSeccion, string> = {
   pagina: 'Página con contenido',
   recorrido: 'Volver al recorrido 360°',
-  rutas: 'Buscador de rutas',
 };
 
 export interface SeccionApp {
@@ -132,8 +135,13 @@ export const MAX_RESPUESTAS = 30;
 export interface ConfigApp {
   /** El nombre y el subtítulo van al pie de la barra; los colores, a botones y resaltados. */
   marca: { nombre: string; subtitulo: string; colorPrimario: string; colorAcento: string };
-  /** Escala general de textos y botones (1 = normal). */
-  interfaz: { escala: number };
+  /**
+   * - `escala`: tamaño general de textos y botones (1 = normal).
+   * - `atenuar`: si la persona pasa `atenuarTras` segundos sin tocar ningún botón, los botones
+   *   y el minimapa quedan con `atenuarOpacidad` de opacidad para dejar ver la foto. Al tocar
+   *   cualquiera vuelven a verse completos.
+   */
+  interfaz: { escala: number; atenuar: boolean; atenuarTras: number; atenuarOpacidad: number };
   /** De arriba abajo y de borde a borde, como en un sitio web: el logo, las secciones y el pie. */
   barraLateral: {
     posicion: 'izquierda' | 'derecha';
@@ -187,7 +195,6 @@ const SECCIONES_POR_DEFECTO: SeccionApp[] = [
   { id: 'admisiones', titulo: 'Admisiones', icono: 'escuela', visible: true, tipo: 'pagina' },
   { id: 'vistas', titulo: 'Vistas 360°', icono: 'orbita', visible: true, tipo: 'recorrido' },
   { id: 'ubicacion', titulo: 'Ubicación', icono: 'mapa', visible: true, tipo: 'pagina' },
-  { id: 'rutas', titulo: 'Cómo llegar', icono: 'ruta', visible: true, tipo: 'rutas' },
 ];
 
 /** Colores del logo de UNIPAZ (marca/LEEME.md). */
@@ -198,7 +205,7 @@ export const ANCHO_MINIMO_BARRA = 210;
 
 export const CONFIG_POR_DEFECTO: ConfigApp = {
   marca: { nombre: 'UNIPAZ 360', subtitulo: 'Centro de Investigaciones Santa Lucía', colorPrimario: AZUL_UNIPAZ, colorAcento: VERDE_UNIPAZ },
-  interfaz: { escala: 1 },
+  interfaz: { escala: 1, atenuar: true, atenuarTras: 5, atenuarOpacidad: 0.5 },
   barraLateral: { posicion: 'izquierda', estilo: 'vidrio', ancho: 20, mostrarLogo: true, plegable: true, iniciaPlegada: false, secciones: SECCIONES_POR_DEFECTO },
   minimapa: {
     visible: true,
@@ -217,10 +224,13 @@ export const CONFIG_POR_DEFECTO: ConfigApp = {
     mostrarNombres: false,
     nodos: [],
   },
-  inicio: { pantalla: 'tour', textoBoton: 'Inicio', bienvenida: 'Bienvenido al campus de UNIPAZ' },
+  inicio: { pantalla: 'tour', textoBoton: 'Inicio', bienvenida: 'Bienvenido a UniPaz360' },
   asistente: { visible: true, nombre: 'Paz', saludo: '', sinonimos: [], respuestas: [] },
   paginas: Object.fromEntries(SECCIONES_POR_DEFECTO.filter((s) => s.tipo === 'pagina').map((s) => [s.id, paginaInicial(s.id, s.titulo)])),
 };
+
+/** El saludo con el que nacía la app antes: quien no lo cambió recibe el de ahora. */
+const BIENVENIDA_ANTERIOR = 'Bienvenido al campus de UNIPAZ';
 
 export const CAPAS = [
   { id: 'marca', nombre: 'Marca y colores' },
@@ -380,7 +390,10 @@ function normalizarAsistente(v: unknown): ConfigApp['asistente'] {
 export function normalizarConfig(c: Partial<ConfigApp> | null | undefined): ConfigApp {
   const d = CONFIG_POR_DEFECTO;
   const x = (c ?? {}) as Partial<ConfigApp> & { minimapa?: Partial<ConfigApp['minimapa']> & { plegable?: boolean; iniciaPlegado?: boolean } };
-  const crudas = Array.isArray(x.barraLateral?.secciones) ? x.barraLateral!.secciones : d.barraLateral.secciones;
+  // «Cómo llegar» (tipo «rutas») se quitó: esas secciones no pasan.
+  const crudas = (Array.isArray(x.barraLateral?.secciones) ? x.barraLateral!.secciones : d.barraLateral.secciones).filter(
+    (s) => (s as { tipo?: unknown } | null)?.tipo !== 'rutas',
+  );
   const ids = new Set<string>();
   const secciones = crudas.slice(0, 12).map((s, i) => {
     let id = ident(s?.id, `seccion-${i + 1}`);
@@ -415,7 +428,12 @@ export function normalizarConfig(c: Partial<ConfigApp> | null | undefined): Conf
       colorPrimario: color(x.marca?.colorPrimario, d.marca.colorPrimario),
       colorAcento: color(x.marca?.colorAcento, d.marca.colorAcento),
     },
-    interfaz: { escala: num(x.interfaz?.escala, 0.7, 1.5, d.interfaz.escala) },
+    interfaz: {
+      escala: num(x.interfaz?.escala, 0.7, 1.5, d.interfaz.escala),
+      atenuar: bool(x.interfaz?.atenuar, d.interfaz.atenuar),
+      atenuarTras: Math.round(num(x.interfaz?.atenuarTras, 2, 60, d.interfaz.atenuarTras)),
+      atenuarOpacidad: red(num(x.interfaz?.atenuarOpacidad, 0.2, 0.9, d.interfaz.atenuarOpacidad)),
+    },
     barraLateral: {
       posicion: uno(x.barraLateral?.posicion, ['izquierda', 'derecha'] as const, d.barraLateral.posicion),
       estilo: uno(x.barraLateral?.estilo, ['oscuro', 'claro', 'vidrio'] as const, d.barraLateral.estilo),
@@ -446,7 +464,7 @@ export function normalizarConfig(c: Partial<ConfigApp> | null | undefined): Conf
     inicio: {
       pantalla: uno(x.inicio?.pantalla, ['tour', 'mapa'] as const, d.inicio.pantalla),
       textoBoton: texto(x.inicio?.textoBoton, d.inicio.textoBoton, 24),
-      bienvenida: texto(x.inicio?.bienvenida, d.inicio.bienvenida, 120),
+      bienvenida: x.inicio?.bienvenida === BIENVENIDA_ANTERIOR ? d.inicio.bienvenida : texto(x.inicio?.bienvenida, d.inicio.bienvenida, 120),
     },
     asistente: normalizarAsistente((x as { asistente?: unknown }).asistente),
     paginas,

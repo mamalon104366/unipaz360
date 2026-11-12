@@ -1,11 +1,13 @@
 /// La app del visitante tal como la diseña el apartado **Cliente** de la plataforma: el
 /// recorrido 360° de fondo y, encima, la barra lateral con el logo de UNIPAZ (o el riel), el
-/// minimapa, los botones de buscar y de inicio, las páginas y la ficha de los puntos. Todo sale de la
+/// minimapa, los botones de cuenta, asistente e inicio, las páginas y la ficha de los puntos. Todo sale de la
 /// configuración del paquete, así que lo que se ve en la vista previa es lo que se ve aquí.
 library;
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:internet_connection_checker_plus/internet_connection_checker_plus.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -17,11 +19,11 @@ import '../asistente/asistente.dart' show Lugar;
 import '../asistente/ui/chat_asistente.dart';
 import '../rutas/rutas.dart' show Ruta;
 import '../visor360/visor_360.dart';
+import 'bienvenida_cliente.dart';
 import 'marco_cliente.dart';
 import 'medidas_cliente.dart';
 import 'minimapa_cliente.dart';
 import 'panel_pagina.dart';
-import 'rutas_cliente.dart';
 
 class VistaCliente extends StatefulWidget {
   const VistaCliente({
@@ -30,6 +32,7 @@ class VistaCliente extends StatefulWidget {
     this.comprobarRed = true,
     this.institucional = false,
     this.alAbrirCuenta,
+    this.bienvenida = true,
   });
 
   final PaqueteLocal paquete;
@@ -42,6 +45,9 @@ class VistaCliente extends StatefulWidget {
 
   /// Abre la cuenta (entrar o salir). Sin ella no se muestra el botón de cuenta.
   final VoidCallback? alAbrirCuenta;
+
+  /// En un celular en vertical, al abrir se saluda y se invita a girarlo.
+  final bool bienvenida;
 
   @override
   State<VistaCliente> createState() => _VistaClienteState();
@@ -70,6 +76,17 @@ class _VistaClienteState extends State<VistaCliente> {
   /// El asistente espera que se toque en el mapa el punto de partida.
   bool _eligiendoOrigen = false;
 
+  /// El saludo del comienzo (solo en un celular en vertical).
+  late bool _bienvenida = widget.bienvenida;
+  bool _medido = false;
+
+  // Sin tocar ningún botón un rato, los botones se atenúan para dejar ver la foto.
+  bool _atenuado = false;
+  Timer? _reloj;
+
+  /// El toque en curso cayó sobre la foto (mover la foto no cuenta como usar un botón).
+  bool _tocoFoto = false;
+
   @override
   void initState() {
     super.initState();
@@ -85,12 +102,59 @@ class _VistaClienteState extends State<VistaCliente> {
         if (mounted) setState(() => _hayRed = s == InternetStatus.connected);
       });
     }
+    _armarReloj();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_medido) return;
+    _medido = true;
+    // En un celular en vertical la barra y el mapa no dejan ver la foto: empiezan recogidos.
+    final t = MediaQuery.sizeOf(context);
+    if (t.shortestSide < 600 && t.height > t.width) {
+      if (c.barraLateral.plegable) _barraPlegada = true;
+      if (c.minimapa.permitirMinimizar && _estadoMapa == 'normal') {
+        _estadoMapa = 'minimizado';
+      }
+    }
   }
 
   @override
   void dispose() {
     _red?.cancel();
+    _reloj?.cancel();
     super.dispose();
+  }
+
+  void _armarReloj() {
+    _reloj?.cancel();
+    if (!c.atenuar) return;
+    _reloj = Timer(Duration(seconds: c.atenuarTras), () {
+      if (mounted) setState(() => _atenuado = true);
+    });
+  }
+
+  /// Se usó un botón: todos vuelven a verse completos y la cuenta empieza de nuevo.
+  void _despertar() {
+    if (_atenuado) setState(() => _atenuado = false);
+    _armarReloj();
+  }
+
+  /// Gira la app a horizontal (aunque el celular tenga el giro automático apagado).
+  static bool get _puedeGirar =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.iOS);
+
+  void _girar() {
+    unawaited(
+      SystemChrome.setPreferredOrientations(const <DeviceOrientation>[
+        DeviceOrientation.landscapeLeft,
+        DeviceOrientation.landscapeRight,
+      ]),
+    );
+    setState(() => _bienvenida = false);
   }
 
   /// La sección abierta (las de tipo `recorrido` no abren panel).
@@ -257,20 +321,13 @@ class _VistaClienteState extends State<VistaCliente> {
     });
   }
 
-  /// La sección «Buscador de rutas» que abre el botón redondo de buscar (si hay una visible).
-  SeccionApp? get _seccionRutas {
-    for (final s in c.barraLateral.secciones) {
-      if (s.tipo == 'rutas' && s.visible) return s;
-    }
-    return null;
-  }
-
   @override
   Widget build(BuildContext context) {
     final mq = MediaQuery.of(context);
     // El diseño es un lienzo fijo: el tamaño del texto lo da `interfaz.escala`.
     // «Atrás» (Android) cierra primero la ficha, la página o el mapa maximizado.
     final algoAbierto =
+        _bienvenida ||
         _chat ||
         _ficha != null ||
         _abierta != null ||
@@ -280,7 +337,9 @@ class _VistaClienteState extends State<VistaCliente> {
       onPopInvokedWithResult: (seFue, _) {
         if (seFue) return;
         setState(() {
-          if (_chat) {
+          if (_bienvenida) {
+            _bienvenida = false;
+          } else if (_chat) {
             _chat = false;
           } else if (_ficha != null) {
             _ficha = null;
@@ -310,9 +369,31 @@ class _VistaClienteState extends State<VistaCliente> {
             paginaAbierta: abierta != null,
             barraPlegada: _barraPlegada,
           );
-          final rutas = _seccionRutas;
-          final buscador =
-              rutas != null && abierta == null && _estadoMapa != 'maximizado';
+          final vertical = pantalla.height > pantalla.width;
+          // Al girar el celular el saludo se va solo.
+          if (_bienvenida && !(m.movil && vertical)) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted && _bienvenida) setState(() => _bienvenida = false);
+            });
+          }
+          final saludo = _bienvenida && m.movil && vertical;
+          // Atenuados solo mientras se mira la foto: con algo abierto se ven completos.
+          final tenue =
+              c.atenuar &&
+              _atenuado &&
+              !_chat &&
+              _ficha == null &&
+              abierta == null &&
+              _estadoMapa != 'maximizado';
+          Widget suave(Widget hijo) => MouseRegion(
+            onEnter: (_) => _despertar(),
+            child: AnimatedOpacity(
+              opacity: tenue ? c.atenuarOpacidad : 1,
+              duration: const Duration(milliseconds: 600),
+              curve: Curves.easeOut,
+              child: hijo,
+            ),
+          );
           final cuenta =
               widget.alAbrirCuenta != null &&
               abierta == null &&
@@ -331,182 +412,189 @@ class _VistaClienteState extends State<VistaCliente> {
                 panoramicaId: datos.panoramicaPorVertice[v.id]?.id,
               ),
           };
-          return Stack(
-            children: <Widget>[
-              Positioned.fill(
-                child: actual == null
-                    ? const DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: <Color>[
-                              Color(0xFF38BDF8),
-                              Color(0xFFBAE6FD),
-                              Color(0xFF047857),
-                            ],
+          return Listener(
+            // Tocar cualquier cosa que no sea la foto devuelve los botones.
+            onPointerDown: (_) {
+              if (!_tocoFoto) _despertar();
+              _tocoFoto = false;
+            },
+            child: Stack(
+              children: <Widget>[
+                Positioned.fill(
+                  child: Listener(
+                    behavior: HitTestBehavior.opaque,
+                    onPointerDown: (_) => _tocoFoto = true,
+                    child: actual == null
+                        ? const DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: <Color>[
+                                  Color(0xFF38BDF8),
+                                  Color(0xFFBAE6FD),
+                                  Color(0xFF047857),
+                                ],
+                              ),
+                            ),
+                          )
+                        : Visor360(
+                            paquete: widget.paquete,
+                            panoramica: actual,
+                            reinicio: _reinicio,
+                            institucional: widget.institucional,
+                            alIrA: _irA,
+                            alTocarPunto: (p) => setState(() => _ficha = p),
+                          ),
+                  ),
+                ),
+                if (c.minimapa.visible && abierta == null)
+                  (_estadoMapa == 'maximizado'
+                          ? m.areaLibre
+                          : m.minimapa(conBuscador: cuenta || asistente))
+                      .ubicar(
+                        child: suave(
+                          MinimapaCliente(
+                            config: c,
+                            imagen: widget.paquete.imagen(c.minimapa.imagen),
+                            nodos: nodos,
+                            actual: actual?.verticeId,
+                            estado: _estadoMapa,
+                            anchoPantalla: pantalla.width,
+                            ruta: _rutaMapa,
+                            alCambiarEstado: (e) => setState(() {
+                              _estadoMapa = e;
+                              if (e != 'maximizado') _eligiendoOrigen = false;
+                            }),
+                            alIr: _tocarNodo,
                           ),
                         ),
-                      )
-                    : Visor360(
-                        paquete: widget.paquete,
-                        panoramica: actual,
-                        reinicio: _reinicio,
-                        institucional: widget.institucional,
-                        alIrA: _irA,
-                        alTocarPunto: (p) => setState(() => _ficha = p),
                       ),
-              ),
-              if (c.minimapa.visible && abierta == null)
-                (_estadoMapa == 'maximizado'
-                        ? m.areaLibre
-                        : m.minimapa(
-                            conBuscador: buscador || cuenta || asistente,
-                          ))
-                    .ubicar(
-                      child: MinimapaCliente(
-                        config: c,
-                        imagen: widget.paquete.imagen(c.minimapa.imagen),
-                        nodos: nodos,
-                        actual: actual?.verticeId,
-                        estado: _estadoMapa,
-                        anchoPantalla: pantalla.width,
-                        ruta: _rutaMapa,
-                        alCambiarEstado: (e) => setState(() {
-                          _estadoMapa = e;
-                          if (e != 'maximizado') _eligiendoOrigen = false;
-                        }),
-                        alIr: _tocarNodo,
+                if (abierta == null && _estadoMapa != 'maximizado')
+                  m
+                      .botonInicio(anchoMapa: m.anchoMapa(_estadoMapa))
+                      .ubicar(
+                        child: suave(BotonInicio(config: c, alTocar: _inicio)),
                       ),
-                    ),
-              if (abierta == null && _estadoMapa != 'maximizado')
-                Positioned(
-                  bottom: 14,
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: BotonInicio(config: c, alTocar: _inicio),
-                  ),
-                ),
-              if (abierta != null)
-                m.panelPagina.ubicarAnimado(
-                  child: PanelPagina(
-                    config: c,
-                    seccion: abierta,
-                    pestanaId: _pestana,
-                    paquete: widget.paquete,
-                    hayRed: _hayRed,
-                    derecha: m.derecha,
-                    institucional: widget.institucional,
-                    alCerrar: () => setState(() => _seccion = null),
-                    alCambiarPestana: (id) => setState(() => _pestana = id),
-                    alActivar: _activarEnlace,
-                    rutas: RutasCliente(
+                if (abierta != null)
+                  m.panelPagina.ubicarAnimado(
+                    child: PanelPagina(
                       config: c,
-                      datos: datos,
-                      nodoActual: actual?.verticeId,
+                      seccion: abierta,
+                      pestanaId: _pestana,
+                      paquete: widget.paquete,
+                      hayRed: _hayRed,
+                      derecha: m.derecha,
+                      institucional: widget.institucional,
+                      alCerrar: () => setState(() => _seccion = null),
+                      alCambiarPestana: (id) => setState(() => _pestana = id),
+                      alActivar: _activarEnlace,
                     ),
                   ),
-                ),
-              m.barra.ubicarAnimado(
-                ancho: m.anchoBarraVisible,
-                child: BarraSecciones(
-                  config: c,
-                  medidas: m,
-                  activa: (s) => abierta != null
-                      ? abierta.id == s.id
-                      : s.tipo == 'recorrido',
-                  alAbrir: _abrirSeccion,
-                ),
-              ),
-              if (buscador)
-                m.botonBuscar.ubicar(
-                  child: BotonBuscar(
+                m.barra.ubicarAnimado(
+                  ancho: m.anchoBarraVisible,
+                  child: BarraSecciones(
                     config: c,
-                    alTocar: () => _abrirSeccion(rutas),
+                    medidas: m,
+                    activa: (s) => abierta != null
+                        ? abierta.id == s.id
+                        : s.tipo == 'recorrido',
+                    alAbrir: _abrirSeccion,
                   ),
                 ),
-              if (cuenta)
-                m
-                    .botonCuenta(conBuscador: buscador)
-                    .ubicar(
-                      child: BotonCuenta(
+                if (cuenta)
+                  m.botonCuenta.ubicar(
+                    child: suave(
+                      BotonCuenta(
                         config: c,
                         institucional: widget.institucional,
                         alTocar: widget.alAbrirCuenta!,
                       ),
                     ),
-              if (asistente)
-                m
-                    .botonChat(antes: (buscador ? 1 : 0) + (cuenta ? 1 : 0))
-                    .ubicar(
-                      child: BotonChat(config: c, alTocar: _abrirChat),
-                    ),
-              if (_eligiendoOrigen && _estadoMapa == 'maximizado')
-                Positioned(
-                  top: 20,
-                  left: 0,
-                  right: 0,
-                  child: IgnorePointer(
-                    child: Center(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xE61C1C1F),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Text(
-                          'Toca en el mapa el punto desde donde sales',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 13 * c.escala,
-                            decoration: TextDecoration.none,
-                            fontWeight: FontWeight.w500,
+                  ),
+                if (asistente)
+                  m
+                      .botonChat(antes: cuenta ? 1 : 0)
+                      .ubicar(
+                        child: suave(BotonChat(config: c, alTocar: _abrirChat)),
+                      ),
+                if (_eligiendoOrigen && _estadoMapa == 'maximizado')
+                  Positioned(
+                    top: 20,
+                    left: 0,
+                    right: 0,
+                    child: IgnorePointer(
+                      child: Center(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xE61C1C1F),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            'Toca en el mapa el punto desde donde sales',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 13 * c.escala,
+                              decoration: TextDecoration.none,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ),
                       ),
                     ),
                   ),
-                ),
-              if (c.barraLateral.mostrarLogo && !m.riel && m.anchoLogo > 0)
-                m.logo.ubicar(
-                  child: LogoBarra(config: c, medidas: m),
-                ),
-              if (c.barraLateral.plegable && !(m.movil && abierta != null))
-                m.botonPlegar.ubicarAnimado(
-                  child: BotonPlegar(
-                    medidas: m,
-                    alTocar: () =>
-                        setState(() => _barraPlegada = !_barraPlegada),
+                if (c.barraLateral.mostrarLogo && !m.riel && m.anchoLogo > 0)
+                  m.logo.ubicar(
+                    child: LogoBarra(config: c, medidas: m),
                   ),
-                ),
-              if (_chat && _conversacion != null && abierta == null)
-                m.panelChat.ubicar(
-                  ancho: m.anchoChat,
-                  child: ChatAsistente(
-                    config: c,
-                    conversacion: _conversacion!,
-                    nodoActual: actual?.verticeId,
-                    alCerrar: () => setState(() => _chat = false),
-                    alVerMapa: _verRutaEnMapa,
-                    alSeguir360: _seguirEn360,
-                    alVerLugar: _verLugar,
-                    alElegirEnMapa: _elegirOrigenEnMapa,
+                if (c.barraLateral.plegable && !(m.movil && abierta != null))
+                  m.botonPlegar.ubicarAnimado(
+                    child: suave(
+                      BotonPlegar(
+                        medidas: m,
+                        alTocar: () =>
+                            setState(() => _barraPlegada = !_barraPlegada),
+                      ),
+                    ),
                   ),
-                ),
-              if (_ficha != null && abierta == null)
-                Positioned.fill(
-                  child: FichaPunto(
-                    punto: _ficha!,
-                    paquete: widget.paquete,
-                    config: c,
-                    alCerrar: () => setState(() => _ficha = null),
+                if (_chat && _conversacion != null && abierta == null)
+                  m.panelChat.ubicar(
+                    ancho: m.anchoChat,
+                    child: ChatAsistente(
+                      config: c,
+                      conversacion: _conversacion!,
+                      nodoActual: actual?.verticeId,
+                      alCerrar: () => setState(() => _chat = false),
+                      alVerMapa: _verRutaEnMapa,
+                      alSeguir360: _seguirEn360,
+                      alVerLugar: _verLugar,
+                      alElegirEnMapa: _elegirOrigenEnMapa,
+                    ),
                   ),
-                ),
-            ],
+                if (_ficha != null && abierta == null)
+                  Positioned.fill(
+                    child: FichaPunto(
+                      punto: _ficha!,
+                      paquete: widget.paquete,
+                      config: c,
+                      alCerrar: () => setState(() => _ficha = null),
+                    ),
+                  ),
+                if (saludo)
+                  Positioned.fill(
+                    child: BienvenidaCliente(
+                      config: c,
+                      puedeGirar: _puedeGirar,
+                      alGirar: _girar,
+                      alSeguir: () => setState(() => _bienvenida = false),
+                    ),
+                  ),
+              ],
+            ),
           );
         },
       ),

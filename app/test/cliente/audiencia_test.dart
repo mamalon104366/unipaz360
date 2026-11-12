@@ -140,25 +140,28 @@ void main() {
     expect(find.text('Aviso solo para estudiantes'), findsOneWidget);
   });
 
-  testWidgets('el botón de cuenta va junto al de buscar y abre la cuenta', (
-    tester,
-  ) async {
-    var abierta = 0;
-    await _mostrar(
-      tester,
-      institucional: false,
-      alAbrirCuenta: () => abierta++,
-    );
-    final cuenta = find.byTooltip('Cuenta: invitado');
-    expect(cuenta, findsOneWidget);
-    expect(
-      tester.getCenter(cuenta).dx,
-      lessThan(tester.getCenter(find.byTooltip('Buscar un lugar')).dx),
-      reason: 'queda a la izquierda del de buscar',
-    );
-    await tester.tap(cuenta);
-    expect(abierta, 1);
-  });
+  testWidgets(
+    'el botón de cuenta va en la esquina, junto al asistente, y abre la cuenta',
+    (tester) async {
+      var abierta = 0;
+      await _mostrar(
+        tester,
+        institucional: false,
+        alAbrirCuenta: () => abierta++,
+      );
+      final cuenta = find.byTooltip('Cuenta: invitado');
+      expect(cuenta, findsOneWidget);
+      expect(
+        tester.getCenter(cuenta).dx,
+        greaterThan(
+          tester.getCenter(find.byTooltip('Asistente: te guío a un lugar')).dx,
+        ),
+        reason: 'el asistente queda a su izquierda',
+      );
+      await tester.tap(cuenta);
+      expect(abierta, 1);
+    },
+  );
 
   testWidgets('con la cuenta institucional el botón lo dice', (tester) async {
     await _mostrar(tester, institucional: true, alAbrirCuenta: () {});

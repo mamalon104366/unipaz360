@@ -506,9 +506,14 @@ ConfigApp normalizarConfig(
       paginasIniciales[id] ?? paginaGenerica(id, titulo);
 
   final barra = _mapa(x['barraLateral']);
-  final List<Object?> crudas = barra['secciones'] is List
-      ? barra['secciones']! as List
-      : <Object?>[for (final s in d.barraLateral.secciones) s.toJson()];
+  // «Cómo llegar» (tipo `rutas`) se quitó: esas secciones no pasan.
+  final List<Object?> crudas = <Object?>[
+    for (final s
+        in barra['secciones'] is List
+            ? barra['secciones']! as List
+            : <Object?>[for (final s in d.barraLateral.secciones) s.toJson()])
+      if (!(s is Map && s['tipo'] == 'rutas')) s,
+  ];
   final ids = <String>{};
   final secciones = <SeccionApp>[];
   for (var i = 0; i < crudas.length && i < 12; i++) {
@@ -583,6 +588,13 @@ ConfigApp normalizarConfig(
       colorAcento: _color(marca['colorAcento'], d.marca.colorAcento),
     ),
     escala: _num(interfaz['escala'], 0.7, 1.5, d.escala),
+    atenuar: _bool(interfaz['atenuar'], d.atenuar),
+    atenuarTras: _redondear(
+      _num(interfaz['atenuarTras'], 2, 60, d.atenuarTras.toDouble()),
+    ),
+    atenuarOpacidad: _red(
+      _num(interfaz['atenuarOpacidad'], 0.2, 0.9, d.atenuarOpacidad),
+    ),
     barraLateral: BarraLateralApp(
       posicion: _uno(barra['posicion'], const <String>[
         'izquierda',
@@ -640,7 +652,10 @@ ConfigApp normalizarConfig(
         'mapa',
       ], d.inicio.pantalla),
       textoBoton: _texto(inicio['textoBoton'], d.inicio.textoBoton, 24),
-      bienvenida: _texto(inicio['bienvenida'], d.inicio.bienvenida, 120),
+      // El saludo con el que nacía la app antes: quien no lo cambió recibe el de ahora.
+      bienvenida: inicio['bienvenida'] == 'Bienvenido al campus de UNIPAZ'
+          ? d.inicio.bienvenida
+          : _texto(inicio['bienvenida'], d.inicio.bienvenida, 120),
     ),
     asistente: _asistente(x['asistente'], d.asistente),
     paginas: Map<String, PaginaApp>.unmodifiable(paginas),

@@ -63,7 +63,6 @@ void main() {
         'admisiones',
         'vistas',
         'ubicacion',
-        'rutas',
       ]);
       expect(porDefecto.paginas.keys, <String>[
         'nosotros',

@@ -1,5 +1,5 @@
 /// Lo que va encima del recorrido: la barra lateral de borde a borde (o el riel de íconos)
-/// con el logo de UNIPAZ, el botón redondo que la pliega, el de buscar y el de inicio.
+/// con el logo de UNIPAZ, el botón redondo que la pliega, los de cuenta y asistente, y el de inicio.
 /// Medidas de `EditorCliente.tsx` (en dp; `em` = 16 · escala).
 library;
 
@@ -352,50 +352,8 @@ class BotonPlegar extends StatelessWidget {
   }
 }
 
-/// El botón redondo de buscar, arriba del lado contrario a la barra: abre «Cómo llegar».
-class BotonBuscar extends StatelessWidget {
-  const BotonBuscar({super.key, required this.config, required this.alTocar});
-
-  final ConfigApp config;
-  final VoidCallback alTocar;
-
-  @override
-  Widget build(BuildContext context) {
-    final e = config.escala;
-    final sup = Superficie.de(config.barraLateral.estilo);
-    return Tooltip(
-      message: 'Buscar un lugar',
-      child: MouseRegion(
-        cursor: SystemMouseCursors.click,
-        child: Semantics(
-          button: true,
-          label: 'Buscar un lugar',
-          excludeSemantics: true,
-          child: GestureDetector(
-            onTap: alTocar,
-            child: SizedBox(
-              width: ladoBuscar * e,
-              height: ladoBuscar * e,
-              child: sup.caja(
-                radio: ladoBuscar * e / 2,
-                child: Center(
-                  child: Icon(
-                    LucideIcons.search,
-                    size: 18 * e,
-                    color: sup.tinta,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// El botón redondo de cuenta, junto al de buscar: abre la cuenta (entrar con la cuenta
-/// institucional o salir). Con la cuenta institucional muestra el birrete.
+/// El botón redondo de cuenta, arriba del lado contrario a la barra: abre la cuenta (entrar con
+/// la cuenta institucional o salir). Con la cuenta institucional muestra el birrete.
 class BotonCuenta extends StatelessWidget {
   const BotonCuenta({
     super.key,
@@ -446,7 +404,8 @@ class BotonCuenta extends StatelessWidget {
   }
 }
 
-/// El botón de inicio, abajo al centro.
+/// El botón redondo de inicio, abajo junto al minimapa: vuelve a la primera foto del recorrido.
+/// Es igual al minimapa minimizado (mismo tamaño y color) para que se lean como pareja.
 class BotonInicio extends StatelessWidget {
   const BotonInicio({super.key, required this.config, required this.alTocar});
 
@@ -454,42 +413,55 @@ class BotonInicio extends StatelessWidget {
   final VoidCallback alTocar;
 
   @override
-  Widget build(BuildContext context) => MouseRegion(
-    cursor: SystemMouseCursors.click,
-    child: GestureDetector(
-      onTap: alTocar,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-        decoration: BoxDecoration(
-          color: colorHex(config.marca.colorPrimario),
-          borderRadius: BorderRadius.circular(12),
-          // shadow-lg de Tailwind.
-          boxShadow: <BoxShadow>[
-            sombraCss(
-              y: 4,
-              blur: 6,
-              spread: -4,
-              color: const Color(0x1A000000),
+  Widget build(BuildContext context) {
+    final color = colorHex(config.marca.colorPrimario);
+    final nombre = config.inicio.textoBoton;
+    return Tooltip(
+      message: nombre,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: Semantics(
+          button: true,
+          label: '$nombre: volver al comienzo del recorrido',
+          excludeSemantics: true,
+          child: GestureDetector(
+            onTap: alTocar,
+            child: Container(
+              width: ladoInicio,
+              height: ladoInicio,
+              decoration: BoxDecoration(
+                color: color,
+                shape: BoxShape.circle,
+                // shadow-lg de Tailwind, como el minimapa minimizado.
+                boxShadow: <BoxShadow>[
+                  sombraCss(
+                    y: 4,
+                    blur: 6,
+                    spread: -4,
+                    color: const Color(0x1A000000),
+                  ),
+                  sombraCss(
+                    y: 10,
+                    blur: 15,
+                    spread: -3,
+                    color: const Color(0x1A000000),
+                  ),
+                ],
+              ),
+              child: Icon(
+                LucideIcons.house,
+                size: 20,
+                color: tintaSobre(color),
+              ),
             ),
-            sombraCss(
-              y: 10,
-              blur: 15,
-              spread: -3,
-              color: const Color(0x1A000000),
-            ),
-          ],
-        ),
-        child: Text(
-          config.inicio.textoBoton,
-          softWrap: false,
-          style: estiloTexto(tamano: 13 * config.escala, peso: 600, alto: 1.5),
+          ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
 
-/// El botón redondo del asistente, junto a los de buscar y cuenta: abre el chat que guía
+/// El botón redondo del asistente, junto al de cuenta: abre el chat que guía
 /// hasta un lugar. Va con el color primario para que se distinga.
 class BotonChat extends StatelessWidget {
   const BotonChat({super.key, required this.config, required this.alTocar});
