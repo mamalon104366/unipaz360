@@ -33,6 +33,9 @@ function delMismoSitio(request: NextRequest) {
 
 export function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
+  // Las rutas de la app (Android, Windows y la web, desde otro dominio) no usan la sesión del
+  // panel: quien llama se identifica con un secreto o una ficha en el cuerpo.
+  if (pathname.startsWith('/api/app/')) return NextResponse.next();
   if (pathname.startsWith('/api/') && !SOLO_LECTURA.has(request.method) && !delMismoSitio(request)) {
     return NextResponse.json({ error: 'La petición no viene del panel.' }, { status: 403 });
   }

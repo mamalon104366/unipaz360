@@ -1,21 +1,25 @@
 /// Quién está usando la aplicación.
 enum TipoSesion {
-  /// Entra sin cuenta: ve el mapa, las rutas, los recorridos 360°, el dron y
-  /// el chatbot.
+  /// Sin cuenta: ve el mapa, los recorridos 360°, el dron y el asistente. Es lo que hay
+  /// también cuando no se ha guardado ninguna sesión: la app abre sin pedir cuenta.
   invitado,
 
-  /// Entra con su correo institucional: además ve los horarios de clase y el
-  /// calendario académico.
+  /// Entró con Google y su correo institucional: además ve lo que es solo para la
+  /// comunidad (horarios de clase, calendario académico…).
   institucional,
 }
 
 /// Sesión activa en el dispositivo.
 class Sesion {
-  const Sesion({required this.tipo, this.correo, this.nombre});
+  const Sesion({required this.tipo, this.correo, this.nombre, this.ficha});
 
   final TipoSesion tipo;
   final String? correo;
   final String? nombre;
+
+  /// La ficha que entregó la plataforma al entrar con Google: con ella la app avisa cada
+  /// vez que se abre. Una cuenta institucional sin ficha no es válida.
+  final String? ficha;
 
   /// Dominio que da acceso a los horarios y al calendario.
   static const String dominioInstitucional = 'unipaz.edu.co';
@@ -43,16 +47,23 @@ class Sesion {
     'tipo': tipo.name,
     if (correo != null) 'correo': correo,
     if (nombre != null) 'nombre': nombre,
+    if (ficha != null) 'ficha': ficha,
   };
 
   /// Reconstruye una sesión guardada. Devuelve `null` si el dato está roto.
   static Sesion? desdeJson(Map<String, Object?> json) {
+    String? texto(String clave) {
+      final v = json[clave];
+      return v is String ? v : null;
+    }
+
     for (final candidato in TipoSesion.values) {
       if (candidato.name == json['tipo']) {
         return Sesion(
           tipo: candidato,
-          correo: json['correo'] as String?,
-          nombre: json['nombre'] as String?,
+          correo: texto('correo'),
+          nombre: texto('nombre'),
+          ficha: texto('ficha'),
         );
       }
     }

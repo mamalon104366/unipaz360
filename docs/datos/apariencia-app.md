@@ -23,11 +23,11 @@ se multiplica por `interfaz.escala` (0.7 a 1.5).
 | Pie de la barra | `marca.nombre` en mayúsculas (0.7 em, peso 700) y `marca.subtitulo` (0.62 em, hasta 2 líneas; en celular, 1). |
 | Botón de plegar | Redondo y blanco, de 34 dp, a media altura y montado sobre el borde de la barra. Con la barra oculta, a 12 dp del borde de la pantalla. Solo si `barraLateral.plegable`. |
 | Riel de íconos | 56 dp de ancho, con el símbolo arriba. Se usa con una página abierta: en celular siempre (así la página tiene más espacio) y en escritorio si se pliega la barra. |
-| Botón de buscar | Redondo, de 40 dp, a 12 dp de la esquina superior del lado contrario a la barra. Abre la sección de tipo `rutas`; si no hay una visible, no aparece. Se oculta con una página abierta o el mapa maximizado. |
-| Minimapa normal | Ancho `minimapa.tamano` % de la pantalla, proporción 4:3, en la esquina `minimapa.posicion`. Arriba a la derecha baja para no tapar el botón de buscar. |
+| Botones de arriba | Redondos, de 40 dp, a 12 dp de la esquina superior del lado contrario a la barra y con 8 dp entre ellos: en la esquina el de cuenta y, a su lado, el del asistente. Se ocultan con una página abierta o el mapa maximizado. |
+| Minimapa normal | Ancho `minimapa.tamano` % de la pantalla (nunca menos de 112 dp, para que quepan su rótulo y sus botones), proporción 4:3, en la esquina `minimapa.posicion`. Arriba a la derecha baja para no tapar los botones de arriba. |
 | Minimapa minimizado | Botón redondo de 46 dp con el ícono de mapa. |
 | Minimapa maximizado | Ocupa el área libre (al lado de la barra) con 12 dp de margen; muestra la foto completa y los nombres. |
-| Botón de inicio | Abajo al centro de la pantalla, a 14 dp del borde. |
+| Botón de inicio | Redondo, de 46 dp y del color principal, con una casa: igual al minimapa minimizado. Va abajo, a 12 dp del borde y a 8 dp del minimapa, del lado del centro de la pantalla. Con el minimapa arriba (o sin minimapa) queda en la esquina de abajo de ese lado. Su nombre (`inicio.textoBoton`) se lee al dejar el dedo o el mouse encima. Se oculta con una página abierta o el mapa maximizado. |
 
 **Plegar la barra:** sin una página abierta, la barra se corre fuera de la pantalla en 280 ms
 (`easeOutCubic`) y quedan el logo y el botón para abrirla. El minimapa y lo demás usan el espacio.
@@ -52,7 +52,7 @@ ni viaja en el paquete. `barraLateral.mostrarLogo` lo muestra u oculta.
 
 ### Superficies
 
-`barraLateral.estilo` da la superficie de la barra y del botón de buscar.
+`barraLateral.estilo` da la superficie de la barra y del botón de cuenta.
 
 | Estilo | Fondo | Línea |
 | ------ | ----- | ----- |
@@ -68,7 +68,10 @@ ni viaja en el paquete. `barraLateral.mostrarLogo` lo muestra u oculta.
 | ------ | ---------- |
 | `pagina` | Abre su página (ver abajo), en el panel que va del borde de la barra al borde derecho. |
 | `recorrido` | Cierra la página abierta y deja el recorrido 360°. |
-| `rutas` | Abre el buscador de rutas de la app (sale del mapa y de los espacios; no se edita aquí). |
+
+El tipo `rutas` (la sección «Cómo llegar», con su botón redondo de buscar) **ya no existe**: guiar
+hasta un lugar es trabajo del asistente. Una configuración que todavía traiga secciones de ese tipo
+las pierde al normalizarse, en el panel y en la app.
 
 Íconos: `info`, `video`, `escuela`, `orbita`, `mapa`, `ruta`, `calendario`, `estrella`.
 
@@ -134,9 +137,55 @@ Lo que no se reconoce es `todos`. Las reglas están en `panel/src/lib/audiencia.
   y en la lista de puntos.
 - **Vista previa**: el selector «Ver como» (Invitado o Cuenta institucional) muestra lo que ve cada
   quien. Al editar, lo institucional se atenúa en vez de esconderse, para poder seleccionarlo.
-- **Botón de cuenta**: redondo, de 40 dp, junto al de buscar (o en su lugar si no hay buscador).
-  En la app abre la cuenta (entrar con la cuenta institucional o salir); con la cuenta institucional
-  muestra un birrete. Se oculta con una página abierta o el mapa maximizado.
+- **Botón de cuenta**: redondo, de 40 dp, en la esquina superior del lado contrario a la barra.
+  En la app abre la cuenta (entrar con Google o salir); con la cuenta institucional muestra un
+  birrete. Se oculta con una página abierta o el mapa maximizado.
+
+### La app abre sin pedir cuenta
+
+No hay pantalla de ingreso: la app abre directo en el recorrido y quien no entra es invitado. La
+cuenta institucional es opcional y se abre con el botón de cuenta:
+
+1. La app inventa un secreto, calcula su SHA-256 (el «reto») y abre en el navegador
+   `<plataforma>/api/sesion/google?app=<reto>`.
+2. La persona entra con Google. La plataforma solo acepta cuentas verificadas `@unipaz.edu.co`
+   y deja el ingreso confirmado para ese reto. No se abre sesión en la plataforma.
+3. La app pregunta cada 2,5 s con el secreto (`POST /api/app/ingreso`) y recibe el correo, el
+   nombre y una **ficha**, una sola vez. Un ingreso sin terminar vence a los 15 minutos.
+4. Con la ficha, la app avisa cada vez que se abre (`POST /api/app/uso`): así se cuentan las
+   aperturas (como mucho una por minuto y por dispositivo). Al cerrar sesión la ficha se anula
+   (`POST /api/app/salir`).
+
+El secreto y la ficha solo viven en el dispositivo; la base guarda sus SHA-256 (tablas
+`usuario_app` y `sesion_app`, migración `0006`). Las rutas `/api/app/*` no usan cookies y
+aceptan cualquier origen (la web de la app está en otro dominio). Quién entró y cuántas veces
+abrió la app lo ve el superadministrador en **Ajustes → Usuarios de la app** (con exportación a
+CSV). Quien usa la app sin cuenta no deja ningún registro.
+
+Código: `panel/src/lib/usuariosApp.ts`, `app/lib/data/cuenta_servicio.dart` y
+`app/lib/ui/sesion/`. La dirección de la plataforma se puede cambiar al compilar la app con
+`--dart-define=PANEL_URL=https://…`.
+
+### El saludo en un celular en vertical
+
+Al abrir la app en un celular en vertical (lado corto menor de 600 dp y más alto que ancho) se
+muestra `inicio.bienvenida` con la invitación a girarlo. «Girar la pantalla» pone la app en
+horizontal aunque el celular tenga el giro automático apagado (Android y iPhone; en la web solo se
+invita); «Seguir en vertical» lo cierra, y al girar el celular se va solo. En vertical la barra
+(si es plegable) y el minimapa (si se puede minimizar) empiezan recogidos.
+
+### Botones que se atenúan (`interfaz.atenuar*`)
+
+| Campo | Qué es |
+| ----- | ------ |
+| `atenuar` | Si se atenúan. Por defecto, sí. |
+| `atenuarTras` | Segundos sin tocar ningún botón (2 a 60, entero). Por defecto 5. |
+| `atenuarOpacidad` | Con qué opacidad quedan (0.2 a 0.9). Por defecto 0.5. |
+
+Se atenúan el botón de plegar, los de arriba, el de inicio y el minimapa (no la barra ni el logo).
+Mover la foto no cuenta como usar un botón; tocar cualquier otra cosa los devuelve completos y la
+cuenta empieza de nuevo. Con el mouse basta pasar por encima. Con una página, el chat, una ficha o
+el mapa maximizado abiertos no se atenúan. Se ajusta en la capa «Marca y colores».
 
 > [!WARNING]
 > **No es secreto.** El contenido institucional viaja en el paquete de datos, que se descarga sin
@@ -194,10 +243,8 @@ recorrido en `app/lib/features/visor360/`.
   el tamaño lo da `interfaz.escala`.
 - **Lo que solo es del editor** no aparece en la app: los contornos de selección y el aviso «Ubica los
   nodos…» del minimapa sin nodos.
-- **Sección `rutas`**: en la vista previa es un ejemplo; en la app funciona de verdad y sin internet
-  (busca entre los espacios y los nodos con nombre del paquete y arma la ruta con el motor de rutas).
 - **Botón de inicio**: vuelve a la primera panorámica (o al encuadre inicial si ya está en ella).
-- **Atrás (Android)**: cierra primero la ficha, la página o el mapa maximizado.
+- **Atrás (Android)**: cierra primero el saludo, el chat, la ficha, la página o el mapa maximizado.
 
 ## Asistente (`asistente`)
 
@@ -205,7 +252,7 @@ El chat que guía hasta un lugar, sin internet. Capa «Asistente» del apartado 
 
 | Campo | Qué es |
 | ----- | ------ |
-| `visible` | Si se muestra el botón redondo del asistente (junto a buscar y cuenta). Por defecto, sí. |
+| `visible` | Si se muestra el botón redondo del asistente (junto al de cuenta). Por defecto, sí. |
 | `nombre` | Cómo se llama (hasta 24 letras). Por defecto «Paz». |
 | `saludo` | El primer mensaje (hasta 200 letras). Vacío: el saludo de siempre, con el nombre. |
 | `sinonimos` | Hasta 60 pares `{ palabra, significa }`, una palabra en cada lado y sin repetir `palabra`: «biblio» significa «biblioteca». Se suman a los que la app ya trae. |

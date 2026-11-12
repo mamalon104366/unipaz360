@@ -69,17 +69,40 @@ void main() {
     expect(find.text('Vistas 360°'), findsOneWidget);
   });
 
-  testWidgets('la primera vez pide entrar como invitado o con la cuenta', (
+  testWidgets('la primera vez abre directo en el recorrido, sin pedir cuenta', (
     tester,
   ) async {
+    await _precargarPaquete(tester);
     SharedPreferences.setMockInitialValues({});
 
     await tester.pumpWidget(const UniPaz360App());
     await tester.pump(const Duration(seconds: 2));
     await tester.pump();
+    await _esperarPaquete(tester);
 
-    expect(find.text('Continuar con Google'), findsOneWidget);
-    expect(find.text('Iniciar como invitado'), findsOneWidget);
+    expect(find.byType(PantallaCliente), findsOneWidget);
+    expect(find.text('Vistas 360°'), findsOneWidget);
+    expect(find.text('Continuar con Google'), findsNothing);
+    expect(find.text('Iniciar como invitado'), findsNothing);
+    // La cuenta se abre solo si la persona toca su botón.
+    expect(find.byTooltip('Cuenta: invitado'), findsOneWidget);
+  });
+
+  testWidgets('la dirección del ingreso de antes entra a la app', (
+    tester,
+  ) async {
+    await _precargarPaquete(tester);
+    SharedPreferences.setMockInitialValues({});
+
+    await tester.pumpWidget(const UniPaz360App());
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pump();
+    await _esperarPaquete(tester);
+    GoRouter.of(tester.element(find.byType(PantallaCliente))).go('/ingreso');
+    await tester.pump();
+    await _esperarPaquete(tester);
+
+    expect(find.byType(PantallaCliente), findsOneWidget);
   });
 
   group('EspaciosViewModel', () {

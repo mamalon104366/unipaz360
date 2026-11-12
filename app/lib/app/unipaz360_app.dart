@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
+import '../data/cuenta_servicio.dart';
 import '../data/espacio_repository.dart';
 import '../data/mapa_dron_repositorio.dart';
 import '../data/recientes_repositorio.dart';
@@ -13,7 +14,6 @@ import '../features/cliente/pantalla_cliente.dart';
 import '../ui/dron/dron_viewmodel.dart';
 import '../ui/espacios/espacios_viewmodel.dart';
 import '../ui/recientes/recientes_viewmodel.dart';
-import '../ui/sesion/pantalla_ingreso.dart';
 import '../ui/sesion/sesion_viewmodel.dart';
 import 'tema.dart';
 
@@ -34,8 +34,10 @@ class UniPaz360App extends StatelessWidget {
               create: (context) =>
                   RecientesViewModel(context.read<RecientesRepository>()),
               child: ChangeNotifierProvider<SesionViewModel>(
-                create: (context) =>
-                    SesionViewModel(context.read<SesionRepository>()),
+                create: (context) => SesionViewModel(
+                  context.read<SesionRepository>(),
+                  servicio: ServicioCuentaHttp(),
+                ),
                 child: ChangeNotifierProvider<EspaciosViewModel>(
                   create: (context) =>
                       EspaciosViewModel(context.read<EspacioRepository>()),
@@ -54,7 +56,8 @@ class UniPaz360App extends StatelessWidget {
   }
 }
 
-/// Arranca los datos y decide qué mostrar: el ingreso o la aplicación.
+/// Arranca los datos y muestra la aplicación. No hay pantalla de ingreso: la app abre directo
+/// en el recorrido y la cuenta institucional se abre desde el botón de cuenta.
 class _RaizUniPaz extends StatefulWidget {
   const _RaizUniPaz();
 
@@ -65,16 +68,10 @@ class _RaizUniPaz extends StatefulWidget {
 class _RaizUniPazState extends State<_RaizUniPaz> {
   late final SesionViewModel _sesion = context.read<SesionViewModel>();
 
-  /// Las rutas se crean acá porque el ingreso depende de la sesión, y la
-  /// sesión avisa cuando cambia (`refreshListenable`).
   late final GoRouter _router = GoRouter(
-    refreshListenable: _sesion,
-    redirect: _redirigir,
     routes: [
-      GoRoute(
-        path: '/ingreso',
-        builder: (context, state) => const PantallaIngreso(),
-      ),
+      // La pantalla de ingreso ya no existe: quien llegue a esa dirección entra a la app.
+      GoRoute(path: '/ingreso', redirect: (context, state) => '/'),
       // La app del visitante, tal como la diseña el apartado Cliente de la plataforma.
       GoRoute(path: '/', builder: (context, state) => const PantallaCliente()),
       // Las rutas antiguas vuelven a la experiencia única del tour.
@@ -99,19 +96,11 @@ class _RaizUniPazState extends State<_RaizUniPaz> {
     });
   }
 
-  /// Sin sesión solo se puede ver el ingreso; y con sesión ya no hay nada que
-  /// hacer allí, así que se vuelve a la aplicación.
-  String? _redirigir(BuildContext context, GoRouterState estado) {
-    final enIngreso = estado.matchedLocation == '/ingreso';
-    if (!_sesion.haySesion) return enIngreso ? null : '/ingreso';
-    return enIngreso ? '/' : null;
-  }
-
   @override
   Widget build(BuildContext context) {
     final sesion = context.watch<SesionViewModel>();
 
-    // Mientras se lee la sesión guardada no se puede decidir la ruta.
+    // Un instante, mientras se lee la sesión guardada (para saber si ya hay cuenta).
     if (!sesion.listo) {
       return MaterialApp(
         debugShowCheckedModeBanner: false,

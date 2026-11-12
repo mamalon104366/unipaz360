@@ -23,6 +23,7 @@ import {
   QrCode,
   Route,
   ScrollText,
+  Smartphone,
   Send,
   Unlink,
   UserRound,
@@ -117,6 +118,7 @@ export function BarraLateral({
                       ...(u?.rol === 'superadmin'
                         ? [
                             { href: '/ajustes', icono: Users, nombre: 'Cuentas y roles' },
+                            { href: '/ajustes/app', icono: Smartphone, nombre: 'Usuarios de la app' },
                             { href: '/ajustes/auditoria', icono: ScrollText, nombre: 'Auditoría' },
                           ]
                         : []),
