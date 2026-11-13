@@ -447,6 +447,60 @@ class BotonAjustes extends StatelessWidget {
   }
 }
 
+/// El botón redondo del QR, junto al del asistente: en el celular abre el lector de las placas;
+/// en el computador y en la web, la lista para elegir dónde está la persona.
+class BotonQr extends StatelessWidget {
+  const BotonQr({
+    super.key,
+    required this.config,
+    required this.escanea,
+    required this.alTocar,
+  });
+
+  final ConfigApp config;
+
+  /// El dispositivo lee códigos QR (celular).
+  final bool escanea;
+  final VoidCallback alTocar;
+
+  @override
+  Widget build(BuildContext context) {
+    final e = config.escala;
+    final sup = Superficie.de(config.barraLateral.estilo);
+    final ayuda = escanea
+        ? '¿Dónde estás? Escanea el QR o elige en el mapa'
+        : '¿Dónde estás? Elige en el mapa';
+    return Tooltip(
+      message: ayuda,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: Semantics(
+          button: true,
+          label: ayuda,
+          excludeSemantics: true,
+          child: GestureDetector(
+            onTap: alTocar,
+            child: SizedBox(
+              width: ladoBuscar * e,
+              height: ladoBuscar * e,
+              child: sup.caja(
+                radio: ladoBuscar * e / 2,
+                child: Center(
+                  child: Icon(
+                    LucideIcons.scanQrCode,
+                    size: 18 * e,
+                    color: sup.tinta,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// El botón redondo de inicio, abajo junto al minimapa: vuelve a la primera foto del recorrido.
 /// Es igual al minimapa minimizado (mismo tamaño y color) para que se lean como pareja.
 class BotonInicio extends StatelessWidget {

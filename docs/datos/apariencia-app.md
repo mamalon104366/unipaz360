@@ -188,12 +188,13 @@ En un celular de pie no hay barra lateral (`vertical_cliente.dart`):
 | Pieza | Cómo es |
 | ----- | ------- |
 | Logo | Arriba a la izquierda, en blanco y con sombra, de 150 dp. |
-| Botones redondos | En columna, arriba a la derecha: asistente, cuenta y «Tu experiencia». |
+| Botones redondos | En columna, arriba a la derecha: asistente, QR («¿Dónde estás?»), cuenta y «Tu experiencia». |
 | Barra de abajo | Flotante y centrada, de 58 dp de alto, a 14 dp del borde, con la superficie de `barraLateral.estilo`: **Menú**, **Inicio** y **Mapa**. El que está abierto se pinta del color principal y muestra su nombre. |
 | Menú | Una hoja que sube desde abajo con el nombre de la app y las secciones visibles. Tocar afuera la cierra. |
 | Página | Ocupa toda la pantalla. |
 | Mapa | Solo abierto (a lo ancho, entre el logo y la barra de abajo) o guardado en la barra. |
 | Chat | Ocupa la pantalla con 12 dp de margen. |
+| Recorrido guiado | Su tarjeta toma el lugar de la barra de abajo; el botón del mapa la deja abajo y abre el mapa encima. |
 
 Una tableta de pie usa el diseño de siempre. La vista previa de la plataforma muestra el
 horizontal; el modo vertical se arma solo con la misma configuración.
@@ -272,7 +273,8 @@ apps publicadas, pero si se publica una antes, hay que subir `app_minima`.
 Dibujo de los nodos: el nodo actual en el color de acento (14 dp, con una onda),
 los que tienen foto 360° en el color principal (10 dp) y los demás en gris
 (7 dp, no se pueden tocar). Tocar un nodo con foto lleva a su panorámica; desde el
-estado maximizado, además, vuelve al estado normal. Los marcadores no se giran ni
+estado maximizado, además, vuelve al estado normal. Mientras la persona elige dónde
+está o desde dónde sale, todos se pueden tocar (`elegirPunto`). Los marcadores no se giran ni
 se agrandan con el encuadre (se dibujan con la rotación y la escala inversas).
 
 En el panel, **Ubicar nodos en el mapa** permite arrastrarlos sobre la foto. Con 3
@@ -304,7 +306,8 @@ recorrido en `app/lib/features/visor360/`.
 - **Lo que solo es del editor** no aparece en la app: los contornos de selección y el aviso «Ubica los
   nodos…» del minimapa sin nodos.
 - **Botón de inicio**: vuelve a la primera panorámica (o al encuadre inicial si ya está en ella).
-- **Atrás (Android)**: cierra primero la bienvenida, el menú, el chat, la ficha, la página o el mapa maximizado.
+- **Atrás (Android)**: cierra primero la bienvenida, el menú, el chat, la ficha, la página o el mapa maximizado;
+  en el recorrido guiado, sale del recorrido.
 
 ## Asistente (`asistente`)
 
@@ -322,3 +325,115 @@ La app compara sin tildes ni mayúsculas. Lo que no está escrito no se inventa:
 entendió y ofrece lo que sí sabe hacer. Código: `panel/src/lib/configApp.ts`
 (`normalizarAsistente`), `app/lib/core/modelo/normalizar_config.dart` y
 `app/lib/features/asistente/`.
+
+El asistente solo guía a **lugares con nombre**: los espacios del paquete y los nodos con
+descripción. Un paquete sin ninguno no tiene a dónde llevar a nadie.
+
+### Dónde está la persona (botón del QR)
+
+El botón redondo del QR va junto al del asistente (en horizontal, a su lado; de pie, debajo). Se
+ve si el paquete tiene nodos, sin página abierta ni el mapa maximizado y con el chat cerrado.
+
+Al tocarlo se abre **«¿Dónde estás?»** con **dos formas de ubicarse** (`HojaComoUbicarse` en
+`ubicacion_cliente.dart`), lado a lado o, en un celular de pie, una encima de la otra:
+
+| Forma | Qué hace |
+| ----- | -------- |
+| **Escanear el QR** | En el celular (Android y iPhone) abre el **lector de placas** a pantalla completa (`escaner_qr.dart`, paquete `mobile_scanner`). Pide la cámara la primera vez. Se lee solo, con linterna. Si el código no es una placa, o es de un punto que no está en esta versión, lo dice y sigue leyendo. «No veo una placa · Elegir el lugar» lleva al mapa. De pie, el marco va al centro con el texto debajo; acostado, el marco va a la izquierda y el texto y el botón a su lado. En el computador y la web se ve apagada, con «Solo en el celular». |
+| **Elegir en el mapa** | El minimapa se abre grande con «Toca en el mapa el punto donde estás». Mientras se elige, **todos** los puntos se pueden tocar (también los que no tienen foto 360°), un poco más grandes y con 10 dp más de zona de toque. Debajo, «Prefiero buscarlo en una lista». |
+
+Si el minimapa todavía no tiene **puntos ubicados** (se ubican en la plataforma con «Ubicar nodos
+en el mapa»; con 3 basta, el resto se calcula), la segunda forma se llama «Elegir el lugar» y abre
+la lista: primero los lugares con nombre y después las fotos 360° de los demás nodos, con buscador
+si son más de 5.
+
+Al saberlo, la app abre la foto 360° de ese punto (o lo marca en el mapa si no tiene) y avisa
+«Placa leída · Estás en…» o «Ubicación elegida · Estás en…» durante 10 s, con «¿A dónde vas?»
+para abrir el asistente. El chat lo muestra arriba («Estás en…») y sale desde ahí: ya no pregunta
+desde dónde se sale. Lo que se sabe vale 30 minutos (después la persona pudo caminar).
+
+Cuando el asistente pregunta «¿Desde dónde sales?», ofrece «Escanear el QR» en el celular (abre
+el lector de una vez) y «Elegir dónde estoy» en el computador (abre las dos formas). Lo que se
+elija responde con la ruta y el chat baja solo hasta ella. En una pantalla angosta (un celular
+acostado con el menú abierto) el aviso va encima de la barra y «¿A dónde vas?» baja a su línea.
+
+### Placas QR del campus
+
+Cada placa lleva `unipaz360://nodo/<id>` (la genera la plataforma en **Anclajes**,
+`panel/src/lib/anclajes.ts`). La app reconoce:
+
+- `unipaz360://nodo/<id>` (lo que imprime la plataforma);
+- las direcciones web de UniPaz360 con el nodo: `…/?nodo=<id>`, `…/#/nodo/<id>` o `…/nodo/<id>`.
+
+Un QR de otra página no cuenta como placa, aunque lleve `?nodo=`. El id debe tener la forma de
+un nodo (letras, números, `-` o `_`, hasta 20). Código: `features/ubicacion/codigo_qr.dart`.
+
+**Abrir la app desde la placa.** En Android, escanear la placa con la cámara del celular abre la
+app en ese punto (filtro `unipaz360://nodo` en `AndroidManifest.xml`). La app llega a
+`/?nodo=<id>` (`direccionDeEntrada` en `app/unipaz360_app.dart`), no muestra la bienvenida y
+avisa «Estás en…». En la web, `…/#/nodo/<id>` y `…/#/?nodo=<id>` hacen lo mismo. Si la app no
+está instalada, el esquema `unipaz360://` no abre nada: por eso el lector va dentro de la app.
+
+Tres cuidados para que la placa sea siempre la última que se leyó:
+
+- **La placa que llega mientras la app carga no se pierde.** Si el sistema había cerrado la app,
+  Android la reabre con el enlace viejo de la tarea y manda el nuevo aparte, a veces antes de que
+  exista el enrutador. `EnlacesEntrantes` (`app/enlaces_entrantes.dart`) se registra al empezar
+  `main`, guarda ese enlace y el enrutador arranca con él.
+- **Volver desde «Recientes» no repite la placa.** Android vuelve a mandar el enlace de la última
+  placa; `MainActivity.kt` lo ignora cuando la app se abre desde el historial.
+- **La versión nueva espera.** Si hay una versión nueva del campus, se ofrece 11 s después de
+  abrir desde una placa, para no tapar «Estás en…».
+
+> [!NOTE]
+> El repositorio todavía no tiene proyecto de iPhone. Cuando se cree (en un Mac, con
+> `flutter create --platforms ios .`), hay que agregar a `ios/Runner/Info.plist` el texto del
+> permiso de cámara (`NSCameraUsageDescription`), sin el cual el lector cierra la app, y el
+> esquema `unipaz360` en `CFBundleURLTypes` para que la placa abra la app.
+
+### Recorrido guiado
+
+Cada ruta del asistente trae «Recorrido guiado» (resaltado) además de «Ver en el mapa». Al tocarlo:
+
+- El chat se cierra y la barra lateral se recoge (al salir vuelve como estaba). Mientras dura,
+  se apartan el inicio, el asistente, la cuenta y «Tu experiencia»; el QR queda para decir «ya
+  estoy aquí». Los botones no se atenúan.
+- Abajo aparece la **tarjeta** (`guia_cliente.dart`): la barra de avance, el ícono del giro,
+  «Paso N de M · Hacia el lugar», la indicación, «Faltan X m · Y min» y los botones «Paso
+  anterior» y «Siguiente» («Llegar» en el último tramo). En horizontal va entre la barra y el
+  minimapa (hasta 560 dp de ancho).
+- Cada paso se lee **desde donde está la persona**: en «Sigue derecho 125 m hasta X» todavía no
+  ha llegado a X (llega al tocar «Siguiente»); después de «Sube hasta el piso 1» queda arriba.
+  De ahí salen los metros que faltan, el punto del mapa y la foto (`posicionActual` en
+  `recorrido_guiado.dart`).
+- El **minimapa** dibuja la ruta y marca dónde está la persona.
+- La **foto 360°** es la de donde está la persona o, si ahí no hay, la última del camino. La
+  vista gira sola (0,9 s) hacia donde hay que seguir y muestra un círculo verde que late, «Sigue
+  por aquí». Tocarlo es «Siguiente». Si esa dirección queda fuera de la vista, una flecha en el
+  borde dice hacia qué lado girar.
+- Leer la placa de un punto del camino salta al paso que se lee desde ahí, y el mapa marca la
+  placa.
+- «Atrás» o la ✕ salen del recorrido.
+
+**Hacia dónde señala** (`direccion_guia.dart`), en este orden:
+
+1. El «Ir a» de la foto (puesto a mano o automático) hacia una foto que queda más adelante en
+   el camino; si hay varios, el que lleva más cerca.
+2. Si no hay, y la foto tiene el **norte calibrado** (`ajustes.norte` distinto de 0), el rumbo
+   hacia el siguiente nodo.
+3. Si no, no señala nada: es mejor no señalar que señalar mal.
+
+Al llegar, la tarjeta celebra «¡Llegaste a…!» y, si la insignia es nueva, la muestra.
+«Terminar» deja a la persona ubicada en el destino.
+
+### Insignias
+
+Cada lugar con nombre al que se llega **siguiendo el recorrido guiado** da una insignia: el
+destino y los lugares con nombre que se pasan por el camino (no el de salida). Un aviso dorado
+«¡Nueva insignia!» sale arriba durante 3,6 s; la del destino la celebra la tarjeta de llegada.
+«Mis insignias» (en la llegada y en el chat, con el número ganado) abre la colección: un anillo
+con cuántas lleva y una medalla por lugar, dorada si la ganó y gris con candado si no.
+
+Se guardan en el dispositivo, sin cuenta (`localStorage` en la web, preferencias nativas en
+Android y Windows; clave `unipaz360.insignias`, lugar → fecha). No viajan a la plataforma.
+Código: `domain/insignias.dart`, `data/insignias_repositorio.dart` y `ui/insignias/`.

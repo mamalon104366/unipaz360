@@ -15,7 +15,7 @@ enum TipoOpcion {
   /// Abre el mapa con la ruta dibujada.
   verMapa,
 
-  /// Abre la foto 360° del origen y resalta las flechas del camino.
+  /// Empieza el recorrido guiado: la ruta paso a paso, con las fotos 360° del camino.
   seguir360,
 
   /// Abre el mapa centrado en el lugar.
@@ -23,6 +23,10 @@ enum TipoOpcion {
 
   /// Deja elegir el punto de partida tocando el mapa (ver `Asistente.origenElegido`).
   elegirEnMapa,
+
+  /// Ubica a la persona: en el celular abre el lector de QR; en el computador y en la web,
+  /// la lista de lugares para elegir dónde está.
+  ubicarme,
 }
 
 /// Un botón de respuesta rápida.

@@ -11,6 +11,7 @@ import 'package:unipaz360/core/modelo/recorrido.dart';
 import 'package:unipaz360/core/paquete/datos_paquete.dart';
 import 'package:unipaz360/core/paquete/paquete_local.dart';
 import 'package:unipaz360/features/asistente/ui/chat_asistente.dart';
+import 'package:unipaz360/features/cliente/guia_cliente.dart';
 import 'package:unipaz360/features/cliente/marco_cliente.dart';
 import 'package:unipaz360/features/cliente/vista_cliente.dart';
 import 'package:unipaz360/features/rutas/rutas.dart';
@@ -147,7 +148,7 @@ void main() {
     );
     expect(find.textContaining('Ruta lista'), findsOneWidget);
     expect(find.text('Ver en el mapa'), findsOneWidget);
-    expect(find.text('Seguir en 360°'), findsOneWidget);
+    expect(find.text('Recorrido guiado'), findsOneWidget);
   });
 
   testWidgets(
@@ -169,16 +170,19 @@ void main() {
     },
   );
 
-  testWidgets('sin fotos 360° en el camino, «Seguir en 360°» lo dice', (
+  testWidgets('«Recorrido guiado» cierra el chat y empieza paso a paso, aunque no haya fotos', (
     tester,
   ) async {
     await _mostrar(tester, _paquete());
     await tester.tap(find.byType(BotonChat));
     await tester.pumpAndSettle();
     await _escribir(tester, 'llévame a la biblioteca desde la portería');
-    await tester.tap(find.text('Seguir en 360°'));
+    await tester.tap(find.text('Recorrido guiado'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('Todavía no hay fotos 360°'), findsOneWidget);
+    expect(find.byType(ChatAsistente), findsNothing);
+    expect(find.byType(TarjetaGuia), findsOneWidget);
+    expect(find.textContaining('Paso 1 de'), findsOneWidget);
+    expect(find.textContaining('Hacia la Biblioteca'), findsOneWidget);
   });
 
   testWidgets('sin lugares en el paquete el asistente lo dice de entrada', (

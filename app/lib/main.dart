@@ -4,10 +4,13 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
+import 'app/enlaces_entrantes.dart';
 import 'app/unipaz360_app.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Antes que nada: la placa QR que abra la app mientras carga no se pierde.
+  EnlacesEntrantes.instancia.escuchar();
   // En el celular la app ocupa toda la pantalla: la barra de estado y los botones del
   // sistema se recogen, y vuelven al deslizar desde el borde. La orientación no se fuerza:
   // la decide la persona (ver «Tu experiencia»).

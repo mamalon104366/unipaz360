@@ -2,6 +2,7 @@
 /// visitante y, si la plataforma publicó una versión nueva, ofrece actualizar.
 library;
 
+import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
@@ -9,17 +10,29 @@ import '../../core/paquete/actualizador.dart';
 import '../../core/paquete/almacen.dart';
 import '../../core/paquete/datos_paquete.dart';
 import '../../core/paquete/paquete_local.dart';
+import '../../domain/insignias.dart';
 import '../../domain/preferencias.dart';
+import '../../ui/insignias/insignias_viewmodel.dart';
 import '../../ui/preferencias/preferencias_viewmodel.dart';
 import '../../ui/sesion/dialogo_cuenta.dart';
 import '../../ui/sesion/sesion_viewmodel.dart';
 import 'ajustes_cliente.dart';
 import 'aviso_actualizacion.dart';
+import 'escaner_qr.dart';
 import 'estilo_cliente.dart';
 import 'vista_cliente.dart';
 
 class PantallaCliente extends StatefulWidget {
-  const PantallaCliente({super.key});
+  const PantallaCliente({super.key, this.nodo});
+
+  /// El nodo de la placa QR con la que se abrió la app (o `null`).
+  final String? nodo;
+
+  /// El celular lee las placas con la cámara; el computador y la web eligen el lugar a mano.
+  static bool get leeQr =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.iOS);
 
   /// El paquete se lee una sola vez por sesión de la app.
   static Future<PaqueteLocal>? _cargando;
@@ -38,6 +51,10 @@ class PantallaCliente extends StatefulWidget {
   /// Las pruebas apagan la consulta de la red.
   @visibleForTesting
   static bool comprobarRed = true;
+
+  /// Abierta desde una placa, cuánto se espera para ofrecer una versión nueva (lo que dura el
+  /// aviso «Estás en…»).
+  static const Duration esperaTrasPlaca = Duration(seconds: 11);
 
   @override
   State<PantallaCliente> createState() => _PantallaClienteState();
@@ -73,7 +90,13 @@ class _PantallaClienteState extends State<PantallaCliente> {
       if (local == null) return;
       final a = _actualizador ??= PantallaCliente.crearActualizador();
       final nueva = await a.buscar(local);
-      if (mounted && nueva != null) setState(() => _nueva = nueva);
+      if (nueva == null) return;
+      // Abierta desde una placa: primero se lee «Estás en…» (dura 10 s); la versión nueva se
+      // ofrece después, para no taparlo.
+      if (widget.nodo != null) {
+        await Future<void>.delayed(PantallaCliente.esperaTrasPlaca);
+      }
+      if (mounted) setState(() => _nueva = nueva);
     } on Object {
       // El paquete no abrió: ya se muestra el mensaje con «Reintentar».
     }
@@ -140,7 +163,14 @@ class _PantallaClienteState extends State<PantallaCliente> {
           } on ProviderNotFoundException {
             gustos = null;
           }
+          InsigniasViewModel? insignias;
+          try {
+            insignias = context.watch<InsigniasViewModel>();
+          } on ProviderNotFoundException {
+            insignias = null;
+          }
           final paquete = s.data!;
+          final nodos = paquete.datos.grafo.nodos;
           final nueva = _nueva;
           return Stack(
             children: <Widget>[
@@ -162,6 +192,18 @@ class _PantallaClienteState extends State<PantallaCliente> {
                           context,
                           plataforma: paquete.config,
                         ),
+                  escanearQr: PantallaCliente.leeQr
+                      ? () => abrirEscanerQr(
+                          context,
+                          config: paquete.config,
+                          existe: nodos.containsKey,
+                        )
+                      : null,
+                  ubicacionInicial: widget.nodo,
+                  insignias: insignias?.valor ?? const Insignias(),
+                  alGanarInsignia: insignias == null
+                      ? null
+                      : (id) => insignias!.ganar(id),
                 ),
               ),
               if (nueva != null)

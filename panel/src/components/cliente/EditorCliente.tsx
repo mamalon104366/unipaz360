@@ -33,6 +33,7 @@ import {
   RotateCcw,
   Route,
   Save,
+  ScanQrCode,
   SlidersHorizontal,
   Smartphone,
   Square,
@@ -810,6 +811,17 @@ export function EditorCliente({
                 >
                   <MessageCircle size={18 * e * u} />
                 </button>
+              )}
+
+              {/* QR: «¿Dónde estás?» con dos formas de ubicarse, el QR de una placa (en el celular) o el mapa */}
+              {cuenta && nodosInfo.length > 0 && (
+                <div
+                  title="¿Dónde estás?: en la app abre dos formas de ubicarse, escanear el QR de una placa del campus (en el celular) o tocar el punto en el mapa. Con eso el asistente sabe desde dónde guiar. Para que el mapa sirva, ubica los nodos en el minimapa."
+                  className={`pointer-events-auto absolute z-30 grid place-items-center rounded-full ${superficie(c.barraLateral.estilo)}`}
+                  style={{ ...tenue, width: ladoBoton, height: ladoBoton, top: m12, [derecha ? 'left' : 'right']: m12 + (c.asistente.visible ? 3 : 2) * (ladoBoton + 8 * u) }}
+                >
+                  <ScanQrCode size={18 * e * u} />
+                </div>
               )}
 
               {/* Minimapa */}

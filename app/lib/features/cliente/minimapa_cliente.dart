@@ -78,6 +78,7 @@ class MinimapaCliente extends StatefulWidget {
     required this.alIr,
     this.ruta = const <String>[],
     required this.anchoPantalla,
+    this.elegirPunto = false,
   });
 
   final ConfigApp config;
@@ -93,6 +94,10 @@ class MinimapaCliente extends StatefulWidget {
   /// Nodos de la ruta que mostró el asistente, en orden (vacía si no hay).
   final List<String> ruta;
   final double anchoPantalla;
+
+  /// La persona está eligiendo un punto (dónde está o desde dónde sale): todos se pueden
+  /// tocar, también los que no tienen foto 360°.
+  final bool elegirPunto;
 
   @override
   State<MinimapaCliente> createState() => _MinimapaClienteState();
@@ -179,6 +184,7 @@ class _MinimapaClienteState extends State<MinimapaCliente> {
             widget.alIr(id);
             widget.alCambiarEstado('normal');
           },
+          elegirPunto: widget.elegirPunto,
         );
       default:
         final ancho = math.max(
@@ -400,6 +406,7 @@ class _Lamina extends StatelessWidget {
     this.ruta = const <String>[],
     this.opacidad = 1,
     this.redondeo = 0,
+    this.elegirPunto = false,
   });
 
   final MinimapaApp m;
@@ -418,6 +425,7 @@ class _Lamina extends StatelessWidget {
   final List<String> ruta;
   final double opacidad;
   final double redondeo;
+  final bool elegirPunto;
 
   @override
   Widget build(BuildContext context) {
@@ -474,6 +482,7 @@ class _Lamina extends StatelessWidget {
               primario: primario,
               acento: acento,
               alIr: alIr,
+              elegirPunto: elegirPunto,
             ),
         ],
       ),
@@ -493,6 +502,7 @@ class _Marcador extends StatelessWidget {
     required this.primario,
     required this.acento,
     required this.alIr,
+    this.elegirPunto = false,
   });
 
   final NodoMinimapa nodo;
@@ -505,23 +515,27 @@ class _Marcador extends StatelessWidget {
   final Color primario;
   final Color acento;
   final ValueChanged<String> alIr;
+  final bool elegirPunto;
 
   static const double _caja = 320;
 
   @override
   Widget build(BuildContext context) {
     final con360 = info?.panoramicaId != null;
+    // Eligiendo un punto, los que no tienen foto también se tocan: se agrandan un poco y su
+    // zona de toque crece 10 dp alrededor (en un celular un punto de 7 dp no se atina).
     final d = actual
         ? 14.0
-        : con360
+        : con360 || elegirPunto
         ? 10.0
         : 7.0;
+    final toque = elegirPunto ? 10.0 : 0.0;
     final color = actual
         ? acento
         : con360
         ? primario
         : const Color(0xFF9CA3AF);
-    Widget punto = Container(
+    final circulo = Container(
       width: d,
       height: d,
       decoration: BoxDecoration(
@@ -533,8 +547,11 @@ class _Marcador extends StatelessWidget {
         ],
       ),
     );
+    Widget punto = circulo;
     if (actual) {
-      // La onda del nodo actual (.minimapa-actual::after).
+      // La onda del nodo actual (.minimapa-actual::after). Va con [circulo], no con `punto`:
+      // la función se llama después, cuando `punto` ya es el propio Animador, y se metería
+      // dentro de sí mismo sin fin.
       punto = Animador(
         nombre: 'brillo',
         constructor: (context, paso) => Stack(
@@ -559,7 +576,7 @@ class _Marcador extends StatelessWidget {
                 ),
               ),
             ),
-            punto,
+            circulo,
           ],
         ),
       );
@@ -569,24 +586,26 @@ class _Marcador extends StatelessWidget {
         : '${info!.nombre}${con360 ? '' : ' (sin foto 360°)'}';
     return Positioned(
       left: x - _caja / 2,
-      top: y - d / 2,
+      top: y - d / 2 - toque,
       width: _caja,
       child: Transform(
         transform: contra,
-        origin: Offset(_caja / 2, d / 2),
+        origin: Offset(_caja / 2, d / 2 + toque),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             Tooltip(
               message: titulo,
               child: MouseRegion(
-                cursor: con360
+                cursor: con360 || elegirPunto
                     ? SystemMouseCursors.click
                     : SystemMouseCursors.basic,
                 child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
-                  onTap: con360 ? () => alIr(nodo.verticeId) : null,
-                  child: punto,
+                  onTap: con360 || elegirPunto
+                      ? () => alIr(nodo.verticeId)
+                      : null,
+                  child: Padding(padding: EdgeInsets.all(toque), child: punto),
                 ),
               ),
             ),
@@ -631,6 +650,7 @@ class _MapaMaximizado extends StatefulWidget {
     required this.alCambiarEstado,
     required this.alIr,
     this.ruta = const <String>[],
+    this.elegirPunto = false,
   });
 
   final MinimapaApp m;
@@ -645,6 +665,9 @@ class _MapaMaximizado extends StatefulWidget {
 
   /// Nodos de la ruta que mostró el asistente, en orden (vacía si no hay).
   final List<String> ruta;
+
+  /// Todos los puntos se pueden tocar (ver [MinimapaCliente.elegirPunto]).
+  final bool elegirPunto;
 
   @override
   State<_MapaMaximizado> createState() => _MapaMaximizadoState();
@@ -823,6 +846,7 @@ class _MapaMaximizadoState extends State<_MapaMaximizado> {
                                       acento: widget.acento,
                                       alIr: widget.alIr,
                                       redondeo: 6,
+                                      elegirPunto: widget.elegirPunto,
                                     ),
                                   ),
                                 ),

@@ -5,6 +5,8 @@
 ///   (de 30° a 90°).
 /// - Dibuja los puntos (2D y 3D) y las flechas hacia las fotos vecinas.
 /// - Al pasar a otra foto hace un fundido de 1,1 s y los puntos aparecen al terminar.
+/// - En el recorrido guiado gira solo hacia donde hay que seguir y lo señala («Sigue por aquí»);
+///   si esa dirección queda fuera de la vista, una flecha en el borde indica hacia dónde girar.
 library;
 
 import 'dart:math' as math;
@@ -34,6 +36,26 @@ class _Vista {
   final double fov;
 }
 
+/// Hacia dónde seguir en el recorrido guiado, en el marco de la foto (como los puntos).
+class DireccionGuia {
+  const DireccionGuia({
+    required this.panoramicaId,
+    required this.yaw,
+    required this.pitch,
+    this.etiqueta = 'Sigue por aquí',
+    this.vez = 0,
+  });
+
+  /// La foto en la que vale (en otra foto no se muestra).
+  final String panoramicaId;
+  final double yaw;
+  final double pitch;
+  final String etiqueta;
+
+  /// Cambia con cada paso: la vista vuelve a girar hacia la dirección aunque sea la misma.
+  final int vez;
+}
+
 class Visor360 extends StatefulWidget {
   const Visor360({
     super.key,
@@ -43,6 +65,8 @@ class Visor360 extends StatefulWidget {
     required this.alTocarPunto,
     this.reinicio = 0,
     this.institucional = false,
+    this.guia,
+    this.alTocarGuia,
   });
 
   final PaqueteLocal paquete;
@@ -60,12 +84,17 @@ class Visor360 extends StatefulWidget {
   /// Los puntos institucionales solo se ven con esa cuenta.
   final bool institucional;
 
+  /// Hacia dónde seguir en el recorrido guiado (o `null`).
+  final DireccionGuia? guia;
+
+  /// Tocar la señal «Sigue por aquí».
+  final VoidCallback? alTocarGuia;
+
   @override
   State<Visor360> createState() => _Visor360State();
 }
 
-class _Visor360State extends State<Visor360>
-    with SingleTickerProviderStateMixin {
+class _Visor360State extends State<Visor360> with TickerProviderStateMixin {
   Motor360? _motor;
   String? _cargada;
   _Vista? _anterior;
@@ -81,6 +110,42 @@ class _Visor360State extends State<Visor360>
           if (s == AnimationStatus.completed) setState(() => _anterior = null);
         });
 
+  // El giro suave hacia la dirección de la guía.
+  late final AnimationController _giro =
+      AnimationController(vsync: this, duration: const Duration(milliseconds: 900))
+        ..addListener(_alGirar);
+  double _giroYaw0 = 0;
+  double _giroDeltaYaw = 0;
+  double _giroPitch0 = 0;
+  double _giroPitch1 = 0;
+
+  void _alGirar() {
+    final v = Curves.easeInOutCubic.transform(_giro.value);
+    setState(() {
+      _yaw = normalizarGrados(_giroYaw0 + _giroDeltaYaw * v);
+      _pitch = _giroPitch0 + (_giroPitch1 - _giroPitch0) * v;
+    });
+  }
+
+  /// La dirección de la guía en esta foto, ya en el marco del visor.
+  ({double yaw, double pitch})? get _guiaEnVista {
+    final g = widget.guia;
+    if (g == null || g.panoramicaId != widget.panoramica.id || _cargada != widget.panoramica.id) return null;
+    final a = widget.panoramica.ajustes;
+    return aVista(g.yaw, g.pitch, a.inclinacion, a.alabeo);
+  }
+
+  /// Gira la vista hacia la guía (un poco por encima del piso, para ver hacia dónde se va).
+  void _girarHacia() {
+    final v = _guiaEnVista;
+    if (v == null) return;
+    _giroYaw0 = _yaw;
+    _giroDeltaYaw = normalizarGrados(v.yaw - _yaw);
+    _giroPitch0 = _pitch;
+    _giroPitch1 = (v.pitch * 0.35).clamp(-15.0, 10.0);
+    _giro.forward(from: 0);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -92,7 +157,11 @@ class _Visor360State extends State<Visor360>
     super.didUpdateWidget(viejo);
     if (viejo.panoramica.id != widget.panoramica.id) {
       _cargar(widget.panoramica);
+    } else if (widget.guia != null &&
+        (viejo.guia?.vez != widget.guia!.vez || viejo.guia?.panoramicaId != widget.guia!.panoramicaId)) {
+      _girarHacia();
     } else if (viejo.reinicio != widget.reinicio) {
+      _giro.stop();
       setState(() {
         _yaw = widget.panoramica.rumboInicial;
         _pitch = 0;
@@ -103,6 +172,7 @@ class _Visor360State extends State<Visor360>
 
   @override
   void dispose() {
+    _giro.dispose();
     _transicion.dispose();
     super.dispose();
   }
@@ -131,12 +201,14 @@ class _Visor360State extends State<Visor360>
         _fov = _fovInicial;
       });
       if (_anterior != null) _transicion.forward(from: 0);
+      _girarHacia();
     } catch (e) {
       if (mounted) setState(() => _error = e);
     }
   }
 
   void _arrastrar(ScaleUpdateDetails d, Size tamano) {
+    if (_giro.isAnimating) _giro.stop();
     setState(() {
       if (d.pointerCount > 1) {
         _fov = (_fovAlEmpezar / d.scale).clamp(_fovMinimo, _fovMaximo);
@@ -258,6 +330,7 @@ class _Visor360State extends State<Visor360>
     final a = p.ajustes;
     final ahora = DateTime.now();
     final r = <Widget>[];
+    final guia = _guiaEnVista;
     for (final punto
         in widget.paquete.datos.puntos[p.id] ?? const <PuntoPanoramica>[]) {
       if (!punto.vigenteEn(ahora)) continue;
@@ -328,6 +401,41 @@ class _Visor360State extends State<Visor360>
         ),
       );
     }
+    if (guia != null) {
+      final delta = normalizarGrados(guia.yaw - camara.yaw);
+      final en = camara.proyectar(vectorApp(guia.yaw, guia.pitch));
+      final dentro = en != null &&
+          delta.abs() < grados(camara.fovHorizontal) / 2 &&
+          en.dx > 0 &&
+          en.dx < camara.tamano.width &&
+          en.dy > 0 &&
+          en.dy < camara.tamano.height;
+      final etiqueta = widget.guia!.etiqueta;
+      if (dentro) {
+        r.add(
+          Positioned(
+            key: const ValueKey<String>('guia'),
+            left: en.dx,
+            top: en.dy,
+            child: FractionalTranslation(
+              translation: const Offset(-0.5, -0.5),
+              child: SenalGuia(etiqueta: etiqueta, alTocar: widget.alTocarGuia),
+            ),
+          ),
+        );
+      } else {
+        // La dirección quedó atrás o a un lado: una flecha en el borde dice hacia dónde girar.
+        r.add(
+          Positioned(
+            key: const ValueKey<String>('guia-borde'),
+            top: camara.tamano.height / 2 - 26,
+            left: delta < 0 ? 12 : null,
+            right: delta >= 0 ? 12 : null,
+            child: FlechaBorde(derecha: delta >= 0, alTocar: _girarHacia),
+          ),
+        );
+      }
+    }
     return r;
   }
 
@@ -377,6 +485,161 @@ class _Visor360State extends State<Visor360>
     return TarjetaCapa(punto: p);
   }
 }
+
+/// La señal del recorrido guiado sobre la foto: un círculo que late con una flecha hacia arriba.
+class SenalGuia extends StatefulWidget {
+  const SenalGuia({super.key, required this.etiqueta, this.alTocar});
+
+  final String etiqueta;
+  final VoidCallback? alTocar;
+
+  @override
+  State<SenalGuia> createState() => _SenalGuiaState();
+}
+
+class _SenalGuiaState extends State<SenalGuia> with SingleTickerProviderStateMixin {
+  late final AnimationController _latido = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1400),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _latido.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: widget.alTocar != null,
+    label: widget.etiqueta,
+    excludeSemantics: true,
+    child: MouseRegion(
+      cursor: widget.alTocar == null ? SystemMouseCursors.basic : SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: widget.alTocar,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            SizedBox(
+              width: 92,
+              height: 92,
+              child: AnimatedBuilder(
+                animation: _latido,
+                builder: (context, hijo) {
+                  final v = _latido.value;
+                  return Stack(
+                    alignment: Alignment.center,
+                    children: <Widget>[
+                      // Dos ondas que se abren y se apagan.
+                      for (final d in const <double>[0, 0.5])
+                        Opacity(
+                          opacity: (1 - ((v + d) % 1)) * 0.55,
+                          child: Container(
+                            width: 46 + 46 * ((v + d) % 1),
+                            height: 46 + 46 * ((v + d) % 1),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 2.5),
+                            ),
+                          ),
+                        ),
+                      Transform.translate(
+                        offset: Offset(0, -3 * math.sin(v * 2 * math.pi)),
+                        child: hijo,
+                      ),
+                    ],
+                  );
+                },
+                child: Container(
+                  width: 54,
+                  height: 54,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0A9640),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 3),
+                    boxShadow: const <BoxShadow>[
+                      BoxShadow(color: Color(0x80000000), blurRadius: 14, offset: Offset(0, 5)),
+                    ],
+                  ),
+                  child: const Icon(Icons.keyboard_double_arrow_up_rounded, size: 32, color: Colors.white),
+                ),
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xE61C1C1F),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                widget.etiqueta,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  decoration: TextDecoration.none,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+/// Una flecha en el borde de la foto: la dirección del recorrido quedó a ese lado.
+class FlechaBorde extends StatelessWidget {
+  const FlechaBorde({super.key, required this.derecha, required this.alTocar});
+
+  final bool derecha;
+  final VoidCallback alTocar;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    label: derecha
+        ? 'Gira a la derecha para ver hacia dónde seguir'
+        : 'Gira a la izquierda para ver hacia dónde seguir',
+    excludeSemantics: true,
+    child: MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: alTocar,
+        child: Container(
+          height: 52,
+          padding: EdgeInsets.only(left: derecha ? 14 : 8, right: derecha ? 8 : 14),
+          decoration: BoxDecoration(
+            color: const Color(0xE60A9640),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: Colors.white, width: 2),
+            boxShadow: const <BoxShadow>[
+              BoxShadow(color: Color(0x66000000), blurRadius: 12, offset: Offset(0, 4)),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              if (!derecha) const Icon(Icons.chevron_left_rounded, size: 30, color: Colors.white),
+              const Text(
+                'Por aquí',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w700,
+                  decoration: TextDecoration.none,
+                ),
+              ),
+              if (derecha) const Icon(Icons.chevron_right_rounded, size: 30, color: Colors.white),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
 
 bool _esImagen(String url) => RegExp(
   r'\.(jpe?g|png|webp|gif|avif)(\?|$)',

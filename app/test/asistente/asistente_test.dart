@@ -58,14 +58,31 @@ void main() {
     test('sin saber dónde está, pregunta desde dónde sale y luego da la ruta', () {
       final pregunta = asistente.responder('¿Cómo llego a la biblioteca?');
       expect(pregunta.texto, 'Te llevo a la Biblioteca (GEN-BIB), en el Bloque 1, planta baja. ¿Desde dónde sales?');
-      expect(_etiquetas(pregunta), <String>['Portería principal', 'Elegir en el mapa']);
+      expect(_etiquetas(pregunta), <String>['Elegir dónde estoy', 'Portería principal', 'Elegir en el mapa']);
+      expect(pregunta.opciones.first.tipo, TipoOpcion.ubicarme);
+      expect(asistente.esperaOrigen, isTrue);
+      expect(asistente.destino?.id, 'E05');
       expect(pregunta.ruta, isNull);
 
       final ruta = asistente.responder('Portería principal');
       expect(ruta.texto, 'Ruta lista hasta la Biblioteca: 1 min (65 m).');
       expect(_pasos(ruta), <String>['Sal desde Portería principal.', 'Sigue derecho 65 m hasta Puerta del Bloque 1 (piso 0).', 'Llegaste a la Biblioteca.']);
-      expect(_etiquetas(ruta), <String>['Ver en el mapa', 'Seguir en 360°']);
+      expect(_etiquetas(ruta), <String>['Ver en el mapa', 'Recorrido guiado']);
+      expect(ruta.opciones.last.tipo, TipoOpcion.seguir360);
       expect(asistente.ultimaRuta, same(ruta.ruta));
+      expect(asistente.esperaOrigen, isFalse);
+    });
+
+    test('en el celular ofrece escanear la placa QR para saber desde dónde sale', () {
+      final enCelular = Asistente(_fuente(), puedeEscanear: true);
+      final r = enCelular.responder('¿Cómo llego a la biblioteca?');
+      expect(_etiquetas(r).first, 'Escanear el QR');
+      expect(r.opciones.first.tipo, TipoOpcion.ubicarme);
+      final sinSaber = enCelular.responder('desde donde estoy');
+      expect(sinSaber.texto, contains('Escanea el código QR de la placa más cercana'));
+      // En el computador no se habla de escanear.
+      final enComputador = Asistente(_fuente())..responder('¿Cómo llego a la biblioteca?');
+      expect(enComputador.responder('desde donde estoy').texto, isNot(contains('QR')));
     });
 
     test('si la app sabe dónde está (360° o QR), da la ruta de una vez', () {

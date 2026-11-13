@@ -28,10 +28,14 @@ class Asistente {
     this.nombre = 'Paz',
     this.saludoPropio = '',
     this.respuestasFrecuentes = const <(String, String)>[],
+    this.puedeEscanear = false,
   });
 
   final FuenteGuia fuente;
   final String nombre;
+
+  /// El dispositivo lee códigos QR (celular): «Escanear el QR»; si no, «Elegir dónde estoy».
+  final bool puedeEscanear;
 
   /// El saludo escrito en la plataforma; vacío = el de siempre.
   final String saludoPropio;
@@ -69,6 +73,12 @@ class Asistente {
 
   /// La última ruta que se mostró (para dibujarla en el mapa o seguirla en 360°).
   Ruta? get ultimaRuta => _ultimaRuta;
+
+  /// El destino de la conversación (para nombrarlo en el recorrido guiado).
+  Lugar? get destino => _destino;
+
+  /// ¿Está preguntando desde dónde sale la persona?
+  bool get esperaOrigen => (_espera == _Espera.origen || _espera == _Espera.elegirOrigen) && _destino != null;
 
   /// El mensaje con que abre la conversación.
   Respuesta saludo() => Respuesta(
@@ -201,7 +211,7 @@ class Asistente {
           final aqui = contexto.nodoActual;
           if (aqui == null || !fuente.grafo.nodos.containsKey(aqui)) {
             return Respuesta(
-              'Todavía no sé dónde estás. Escanea el código QR más cercano, abre la foto 360° del lugar o elige uno.',
+              _sinUbicacion,
               opciones: _opcionesOrigen(const Contexto()),
             );
           }
@@ -276,7 +286,7 @@ class Asistente {
     if (actual != null && fuente.grafo.nodos.containsKey(actual)) return _ruta(lugar, actual);
     if (aqui) {
       _espera = _Espera.origen;
-      return Respuesta('Todavía no sé dónde estás. Escanea el código QR más cercano o elige desde dónde sales.', opciones: _opcionesOrigen(contexto));
+      return Respuesta(_sinUbicacion, opciones: _opcionesOrigen(contexto));
     }
     _espera = _Espera.origen;
     final donde = _dondeQueda(lugar);
@@ -324,7 +334,7 @@ class Asistente {
     var texto = accesible ? 'Ruta sin escaleras ${hastaLugar(destino.nombre)}: $tiempo.' : 'Ruta lista ${hastaLugar(destino.nombre)}: $tiempo.';
     final opciones = <Opcion>[
       const Opcion('Ver en el mapa', tipo: TipoOpcion.verMapa),
-      const Opcion('Seguir en 360°', tipo: TipoOpcion.seguir360),
+      const Opcion('Recorrido guiado', tipo: TipoOpcion.seguir360),
     ];
     if (!accesible && ruta.tramos.any((x) => x.escaleras)) {
       final sinEscaleras = buscarRuta(fuente.grafo, origen, destino.nodoId, perfil: PerfilRuta.accesible);
@@ -376,6 +386,10 @@ class Asistente {
 
   // ------------------------------------------------------------------ textos
 
+  String get _sinUbicacion => puedeEscanear
+      ? 'Todavía no sé dónde estás. Escanea el código QR de la placa más cercana o elige desde dónde sales.'
+      : 'Todavía no sé dónde estás. Elige el lugar donde estás o desde dónde sales.';
+
   Respuesta _ayuda() => Respuesta(
     'Puedo llevarte a cualquier salón, laboratorio u oficina, decirte dónde queda un lugar o cuál es el baño más cercano. '
     'Funciono sin internet. Prueba con «¿cómo llego a la biblioteca?» o «llévame al ${_codigoEjemplo()} sin escaleras».',
@@ -414,6 +428,7 @@ class Asistente {
     final porteria = fuente.porteria;
     return <Opcion>[
       if (contexto.nodoActual != null) const Opcion('Desde donde estoy', enviar: 'desde donde estoy'),
+      Opcion(puedeEscanear ? 'Escanear el QR' : 'Elegir dónde estoy', tipo: TipoOpcion.ubicarme),
       if (porteria != null) Opcion(porteria.nombre),
       const Opcion('Elegir en el mapa', tipo: TipoOpcion.elegirEnMapa),
     ];
