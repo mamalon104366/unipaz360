@@ -393,7 +393,8 @@ class Asistente {
   Respuesta _ayuda() => Respuesta(
     'Puedo llevarte a cualquier salón, laboratorio u oficina, decirte dónde queda un lugar o cuál es el baño más cercano. '
     'Funciono sin internet. Prueba con «¿cómo llego a la biblioteca?» o «llévame al ${_codigoEjemplo()} sin escaleras».',
-    opciones: _ejemplos(),
+    // Ya preguntó qué puede hacer: no se le vuelve a ofrecer.
+    opciones: _ejemplos(conAyuda: false),
   );
 
   Respuesta _noEntendi() => Respuesta(
@@ -408,19 +409,27 @@ class Asistente {
 
   String _codigoEjemplo() => fuente.lugares.map((l) => l.codigo).whereType<String>().where((c) => c.isNotEmpty).firstOrNull ?? 'B1-101';
 
-  List<Opcion> _ejemplos() {
+  /// Hasta tres lugares para empezar y, si [conAyuda], «¿Qué puedes hacer?».
+  List<Opcion> _ejemplos({bool conAyuda = true}) {
     final ejemplos = <Opcion>[];
+    final usados = <String>{};
+    Opcion irA(Lugar l) => Opcion('Ir ${aLugar(l.nombre)}', tipo: TipoOpcion.irA, lugarId: l.id, enviar: 'llévame ${aLugar(l.nombre)}');
     for (final c in const <String>['biblioteca', 'bano', 'cafeteria', 'laboratorio', 'aula']) {
       final hay = fuente.deCategoria(c);
       if (hay.isEmpty) continue;
-      ejemplos.add(
-        c == 'bano'
-            ? const Opcion('Baño más cercano', enviar: 'baño más cercano')
-            : Opcion('Ir ${aLugar(hay.first.nombre)}', tipo: TipoOpcion.irA, lugarId: hay.first.id, enviar: 'llévame ${aLugar(hay.first.nombre)}'),
-      );
+      usados.add(hay.first.id);
+      ejemplos.add(c == 'bano' ? const Opcion('Baño más cercano', enviar: 'baño más cercano') : irA(hay.first));
       if (ejemplos.length == 3) break;
     }
-    ejemplos.add(const Opcion('¿Qué puedes hacer?'));
+    // Sin esas categorías (por ejemplo, si solo hay nodos con nombre), los primeros lugares del
+    // mapa. La portería no: de ahí suele salir la gente.
+    final porteria = fuente.porteria?.id;
+    bool esPorteria(Lugar l) => l.id == porteria || l.categoria == 'porteria' || normalizar(l.nombre).contains('porteria');
+    for (final l in fuente.lugares) {
+      if (ejemplos.length >= 3) break;
+      if (!esPorteria(l) && usados.add(l.id)) ejemplos.add(irA(l));
+    }
+    if (conAyuda) ejemplos.add(const Opcion('¿Qué puedes hacer?'));
     return ejemplos;
   }
 

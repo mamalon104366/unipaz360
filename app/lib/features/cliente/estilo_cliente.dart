@@ -128,6 +128,143 @@ class Superficie {
   }
 }
 
+/// Los colores de los paneles que flotan sobre la foto (el chat, la tarjeta del recorrido
+/// guiado) según el aspecto que eligió la persona (`barraLateral.estilo`): vidrio, oscuro o
+/// claro.
+class TemaPanel {
+  const TemaPanel({
+    required this.fondo,
+    required this.texto,
+    required this.suave,
+    required this.tenue,
+    required this.linea,
+    required this.burbuja,
+    required this.tarjeta,
+    required this.tarjetaBorde,
+    required this.campo,
+    required this.campoBorde,
+    required this.acento,
+    required this.boton,
+    required this.botonTinta,
+    required this.botonApagado,
+    required this.botonApagadoTinta,
+    required this.resalte,
+    required this.bien,
+    required this.ojo,
+    this.borde,
+    this.desenfoque = 0,
+    this.claro = false,
+  });
+
+  factory TemaPanel.de(String estilo, Color primario) {
+    // Sobre fondo oscuro, el azul de la marca se aclara para que se lea.
+    final acentoOscuro = Color.lerp(primario, Colors.white, 0.58)!;
+    return switch (estilo) {
+      'claro' => TemaPanel(
+        fondo: Colors.white,
+        texto: const Color(0xFF16181D),
+        suave: const Color(0xFF5F6670),
+        tenue: const Color(0xFF9AA1AB),
+        linea: const Color(0x14000000),
+        burbuja: Color.lerp(const Color(0xFFF2F3F5), primario, 0.07)!,
+        tarjeta: const Color(0xFFF6F7F9),
+        tarjetaBorde: const Color(0x14000000),
+        campo: Colors.white,
+        campoBorde: const Color(0x24000000),
+        acento: primario,
+        boton: primario,
+        botonTinta: tintaSobre(primario),
+        botonApagado: const Color(0xFFE1E3E8),
+        botonApagadoTinta: Colors.white,
+        resalte: const Color(0x0F000000),
+        bien: const Color(0xFF087A36),
+        ojo: const Color(0xFFB45309),
+        claro: true,
+      ),
+      'oscuro' => TemaPanel(
+        fondo: const Color(0xFF1E1F23),
+        texto: const Color(0xFFECEDEF),
+        suave: const Color(0xFFB2B5BC),
+        tenue: const Color(0xFF7C808A),
+        linea: const Color(0x1AFFFFFF),
+        burbuja: const Color(0xFF303238),
+        tarjeta: const Color(0xFF26282D),
+        tarjetaBorde: const Color(0x14FFFFFF),
+        campo: const Color(0xFF2A2C31),
+        campoBorde: const Color(0x24FFFFFF),
+        acento: acentoOscuro,
+        boton: Colors.white,
+        botonTinta: const Color(0xFF111214),
+        botonApagado: const Color(0x29FFFFFF),
+        botonApagadoTinta: const Color(0x80FFFFFF),
+        resalte: const Color(0x14FFFFFF),
+        bien: const Color(0xFF4ADE80),
+        ojo: const Color(0xFFFBBF24),
+        borde: const Color(0x14FFFFFF),
+      ),
+      _ => TemaPanel(
+        fondo: const Color(0xB8121418),
+        texto: const Color(0xF7FFFFFF),
+        suave: const Color(0xBFFFFFFF),
+        tenue: const Color(0x85FFFFFF),
+        linea: const Color(0x1FFFFFFF),
+        burbuja: const Color(0x2EFFFFFF),
+        tarjeta: const Color(0x14FFFFFF),
+        tarjetaBorde: const Color(0x1FFFFFFF),
+        campo: const Color(0x1AFFFFFF),
+        campoBorde: const Color(0x33FFFFFF),
+        acento: acentoOscuro,
+        boton: Colors.white,
+        botonTinta: const Color(0xFF111214),
+        botonApagado: const Color(0x33FFFFFF),
+        botonApagadoTinta: const Color(0x99FFFFFF),
+        resalte: const Color(0x1AFFFFFF),
+        bien: const Color(0xFF4ADE80),
+        ojo: const Color(0xFFFBBF24),
+        borde: const Color(0x2EFFFFFF),
+        desenfoque: 24,
+      ),
+    };
+  }
+
+  final Color fondo;
+  final Color texto;
+  final Color suave;
+  final Color tenue;
+  final Color linea;
+
+  /// Fondo de los mensajes de la persona.
+  final Color burbuja;
+
+  /// Fondo de las tarjetas (la ruta, las sugerencias y los botones).
+  final Color tarjeta;
+  final Color tarjetaBorde;
+
+  /// El campo para escribir.
+  final Color campo;
+  final Color campoBorde;
+
+  /// Íconos y detalles con el color de la marca.
+  final Color acento;
+
+  /// El botón de enviar: activo y apagado.
+  final Color boton;
+  final Color botonTinta;
+  final Color botonApagado;
+  final Color botonApagadoTinta;
+
+  /// Lo que se pone encima al pasar el mouse.
+  final Color resalte;
+
+  /// Verde (llegada, ruta accesible) y ámbar (escaleras).
+  final Color bien;
+  final Color ojo;
+
+  final Color? borde;
+  final double desenfoque;
+  final bool claro;
+}
+
 /// Las claves viejas de las secciones y su igual del catálogo (`ALIAS_ICONO_SECCION` del panel).
 const Map<String, String> aliasIconoSeccion = <String, String>{
   'escuela': 'graduacion',

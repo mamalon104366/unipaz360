@@ -77,7 +77,8 @@ class HojaInsignias extends StatelessWidget {
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: <Color>[primario, Color.lerp(primario, Colors.black, 0.35)!],
+                    // Los dos colores de la marca, como Paz y el recorrido guiado.
+                    colors: <Color>[primario, colorHex(config.marca.colorAcento, porDefecto: const Color(0xFF0A9640))],
                   ),
                 ),
                 padding: const EdgeInsets.fromLTRB(20, 18, 8, 18),

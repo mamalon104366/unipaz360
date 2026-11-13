@@ -23,7 +23,6 @@ import {
   MousePointer2,
   MousePointerClick,
   Pencil,
-  MessageCircle,
   Plus,
   Redo2,
   RotateCcw,
@@ -31,6 +30,7 @@ import {
   ScanQrCode,
   SlidersHorizontal,
   Smartphone,
+  Sparkles,
   Square,
   Trash2,
   Type,
@@ -780,10 +780,19 @@ export function EditorCliente({
                 <button
                   onClick={() => elegirCapa('asistente')}
                   title={`${c.asistente.nombre}: el asistente que guía hasta un lugar (en la app abre el chat)`}
-                  className={`pointer-events-auto absolute z-30 grid place-items-center rounded-full text-white shadow-lg ${marco('asistente')}`}
-                  style={{ ...tenue, width: ladoBoton, height: ladoBoton, top: m12, background: 'var(--primario)', [derecha ? 'left' : 'right']: m12 + 2 * (ladoBoton + 8 * u) }}
+                  className={`pointer-events-auto absolute z-30 grid place-items-center rounded-full border border-white/35 text-white ${marco('asistente')}`}
+                  style={{
+                    ...tenue,
+                    width: ladoBoton,
+                    height: ladoBoton,
+                    top: m12,
+                    // La cara de Paz, como en la app: los dos colores de la marca y un destello.
+                    background: 'linear-gradient(135deg, var(--primario), var(--acento))',
+                    boxShadow: '0 4px 12px color-mix(in srgb, var(--primario) 45%, transparent)',
+                    [derecha ? 'left' : 'right']: m12 + 2 * (ladoBoton + 8 * u),
+                  }}
                 >
-                  <MessageCircle size={18 * e * u} />
+                  <Sparkles size={18 * e * u} />
                 </button>
               )}
 

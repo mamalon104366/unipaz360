@@ -10,6 +10,13 @@ import '../../core/paquete/almacen.dart' show videoArchivo;
 import '../../core/paquete/paquete_local.dart';
 import 'estilo_cliente.dart';
 
+/// El fondo mientras el video carga o si no se pudo abrir.
+const LinearGradient _fondoEspera = LinearGradient(
+  begin: Alignment.topLeft,
+  end: Alignment.bottomRight,
+  colors: <Color>[Color(0xFF1D2230), Color(0xFF0B0C10)],
+);
+
 class ReproductorVideo extends StatefulWidget {
   const ReproductorVideo({
     super.key,
@@ -108,27 +115,68 @@ class _ReproductorVideoState extends State<ReproductorVideo> {
   Widget build(BuildContext context) {
     final c = _c;
     if (_error != null) {
-      return Container(
-        color: Colors.black,
-        alignment: Alignment.center,
-        padding: const EdgeInsets.all(12),
-        child: Text(
-          'No fue posible cargar el video en este dispositivo.',
-          textAlign: TextAlign.center,
-          style: estiloTexto(tamano: 13, color: Colors.white70),
+      return DecoratedBox(
+        decoration: const BoxDecoration(gradient: _fondoEspera),
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                const Icon(
+                  LucideIcons.videoOff,
+                  color: Colors.white54,
+                  size: 26,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'No fue posible cargar el video en este dispositivo.',
+                  textAlign: TextAlign.center,
+                  style: estiloTexto(
+                    tamano: 13,
+                    color: Colors.white70,
+                    alto: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       );
     }
     if (c == null || !c.value.isInitialized) {
-      return const ColoredBox(
-        color: Colors.black,
+      // Mientras carga: un fondo oscuro con el botón de reproducir y un anillo que gira.
+      return const DecoratedBox(
+        decoration: BoxDecoration(gradient: _fondoEspera),
         child: Center(
           child: SizedBox(
-            width: 28,
-            height: 28,
-            child: CircularProgressIndicator(
-              strokeWidth: 2.5,
-              color: Colors.white,
+            width: 58,
+            height: 58,
+            child: Stack(
+              alignment: Alignment.center,
+              children: <Widget>[
+                SizedBox.expand(
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Color(0xB3FFFFFF),
+                  ),
+                ),
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Color(0x2EFFFFFF),
+                    shape: BoxShape.circle,
+                  ),
+                  child: SizedBox(
+                    width: 46,
+                    height: 46,
+                    child: Icon(
+                      LucideIcons.play,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),

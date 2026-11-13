@@ -332,6 +332,37 @@ entendió y ofrece lo que sí sabe hacer. Código: `panel/src/lib/configApp.ts`
 El asistente solo guía a **lugares con nombre**: los espacios del paquete y los nodos con
 descripción. Un paquete sin ninguno no tiene a dónde llevar a nadie.
 
+### Cómo se ve el chat (al estilo de ChatGPT)
+
+Código: `app/lib/features/asistente/ui/chat_asistente.dart`.
+
+- **Colores:** siguen el aspecto que eligió la persona en «Tu experiencia» (`TemaPanel` en
+  `estilo_cliente.dart`): vidrio (oscuro translúcido con desenfoque), oscuro o claro. La cara de
+  Paz, el botón redondo y la acción principal llevan los dos colores de la marca en degradado
+  (`colorPrimario` → `colorAcento`). La vista previa del panel dibuja el mismo botón.
+- **Bienvenida:** antes de la primera pregunta, Paz en grande, la pregunta del saludo de título
+  («¿A dónde quieres ir?»), el resto del saludo debajo y las sugerencias en tarjetas: hasta tres
+  lugares (los de biblioteca, baño, cafetería, laboratorio o aula; si faltan, los primeros
+  lugares del mapa, sin la portería) y «¿Qué puedes hacer?».
+- **Mensajes:** los de la persona, en burbuja a la derecha; los de Paz, sin burbuja y a todo el
+  ancho. Una ruta trae una tarjeta con el tiempo, los metros (y si es accesible o tiene
+  escaleras) y los pasos en línea de tiempo. «Recorrido guiado» va primero y resaltado. Debajo
+  de cada respuesta, «Copiar».
+- **Escritura en vivo:** Paz primero «piensa» («Calculando la ruta…», «Buscando el lugar…» o
+  «Pensando…», con un brillo que recorre el texto); después el texto aparece letra por letra,
+  con un punto donde va; luego los pasos, uno tras otro; y al final los botones. Mientras
+  escribe, el botón de enviar se vuelve «Detener», que muestra la respuesta completa de una
+  vez. Si el sistema pide quitar las animaciones (accesibilidad), la respuesta aparece completa.
+- **Arriba:** «Nueva conversación» (vuelve a la bienvenida), las insignias y cerrar. En el
+  computador, Escape también cierra el chat y el campo queda listo para escribir al abrirlo.
+- **Abajo:** el campo redondeado, con el botón del QR (o «Elegir dónde estoy») a la izquierda y
+  el de enviar a la derecha; encima, los lugares que coinciden con lo que se escribe. Si la
+  persona sube a leer, aparece un botón para volver al último mensaje.
+- La cifra y su unidad («185 m», «3 min») no se separan al cambiar de línea.
+
+La tarjeta del recorrido guiado (`guia_cliente.dart`) usa los mismos colores: barra de avance
+con el degradado de la marca, el ícono del paso en el círculo de Paz y «Siguiente» con degradado.
+
 ### Dónde está la persona (botón del QR)
 
 El botón redondo del QR va junto al del asistente (en horizontal, a su lado; de pie, debajo). Se

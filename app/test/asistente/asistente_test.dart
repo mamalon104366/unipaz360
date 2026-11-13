@@ -211,6 +211,12 @@ void main() {
       expect(r.ruta, isNull);
     });
 
+    test('después de «¿qué puedes hacer?» no vuelve a ofrecer lo mismo', () {
+      final r = asistente.responder('¿qué puedes hacer?');
+      expect(_etiquetas(r), isNotEmpty);
+      expect(_etiquetas(r), isNot(contains('¿Qué puedes hacer?')));
+    });
+
     test('ayuda, gracias, cancelar y despedida', () {
       expect(asistente.responder('¿qué puedes hacer?').texto, contains('Funciono sin internet.'));
       expect(asistente.responder('gracias').texto, startsWith('¡Con gusto!'));

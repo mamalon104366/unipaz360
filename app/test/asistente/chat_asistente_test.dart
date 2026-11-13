@@ -3,6 +3,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:unipaz360/core/modelo/config_app.dart';
@@ -22,70 +23,73 @@ ConfigApp _config() => normalizarConfig(
 );
 
 /// Un campus mínimo: la portería, un cruce y la biblioteca, unidos por dos tramos.
-PaqueteLocal _paquete({bool conLugares = true}) => PaqueteLocal(
-  DatosPaquete(
-    version: 'prueba',
-    esquema: 3,
-    campus: 'Prueba',
-    config: _config(),
-    vertices: const <VerticePaquete>[
-      VerticePaquete(
-        id: 'V-001',
-        lat: 7.0660,
-        lon: -73.7450,
-        nivel: 0,
-        tipo: 'acceso',
-        descripcion: 'Portería principal',
+/// [cruceConNombre] le pone nombre al cruce (un lugar sin categoría).
+PaqueteLocal _paquete({bool conLugares = true, bool cruceConNombre = false}) =>
+    PaqueteLocal(
+      DatosPaquete(
+        version: 'prueba',
+        esquema: 3,
+        campus: 'Prueba',
+        config: _config(),
+        vertices: <VerticePaquete>[
+          const VerticePaquete(
+            id: 'V-001',
+            lat: 7.0660,
+            lon: -73.7450,
+            nivel: 0,
+            tipo: 'acceso',
+            descripcion: 'Portería principal',
+          ),
+          VerticePaquete(
+            id: 'V-002',
+            lat: 7.0664,
+            lon: -73.7450,
+            nivel: 0,
+            tipo: 'cruce',
+            descripcion: cruceConNombre ? 'Cruce central' : null,
+          ),
+          const VerticePaquete(
+            id: 'V-003',
+            lat: 7.0664,
+            lon: -73.7446,
+            nivel: 0,
+            tipo: 'puerta',
+          ),
+        ],
+        tramos: const <Tramo>[
+          Tramo(
+            id: 'T-001',
+            origen: 'V-001',
+            destino: 'V-002',
+            longitudM: 45,
+            accesible: true,
+          ),
+          Tramo(
+            id: 'T-002',
+            origen: 'V-002',
+            destino: 'V-003',
+            longitudM: 44,
+            accesible: true,
+          ),
+        ],
+        espacios: conLugares
+            ? const <EspacioPaquete>[
+                EspacioPaquete(
+                  id: 'E-001',
+                  nombre: 'Biblioteca',
+                  codigo: 'B2-101',
+                  categoria: 'biblioteca',
+                  nivel: 0,
+                  verticeId: 'V-003',
+                ),
+              ]
+            : const <EspacioPaquete>[],
+        panoramicas: const <Panoramica>[],
+        puntos: const <String, List<PuntoPanoramica>>{},
+        enlaces: const <String, List<EnlacePanoramica>>{},
+        medios: const <MedioPaquete>[],
       ),
-      VerticePaquete(
-        id: 'V-002',
-        lat: 7.0664,
-        lon: -73.7450,
-        nivel: 0,
-        tipo: 'cruce',
-      ),
-      VerticePaquete(
-        id: 'V-003',
-        lat: 7.0664,
-        lon: -73.7446,
-        nivel: 0,
-        tipo: 'puerta',
-      ),
-    ],
-    tramos: const <Tramo>[
-      Tramo(
-        id: 'T-001',
-        origen: 'V-001',
-        destino: 'V-002',
-        longitudM: 45,
-        accesible: true,
-      ),
-      Tramo(
-        id: 'T-002',
-        origen: 'V-002',
-        destino: 'V-003',
-        longitudM: 44,
-        accesible: true,
-      ),
-    ],
-    espacios: conLugares
-        ? const <EspacioPaquete>[
-            EspacioPaquete(
-              id: 'E-001',
-              nombre: 'Biblioteca',
-              codigo: 'B2-101',
-              categoria: 'biblioteca',
-              nivel: 0,
-              verticeId: 'V-003',
-            ),
-          ]
-        : const <EspacioPaquete>[],
-    panoramicas: const <Panoramica>[],
-    puntos: const <String, List<PuntoPanoramica>>{},
-    enlaces: const <String, List<EnlacePanoramica>>{},
-    medios: const <MedioPaquete>[],
-  ),
-);
+    );
 
 Future<void> _mostrar(WidgetTester tester, PaqueteLocal paquete) async {
   tester.view.physicalSize = const Size(1280, 720);
@@ -170,19 +174,121 @@ void main() {
     },
   );
 
-  testWidgets('«Recorrido guiado» cierra el chat y empieza paso a paso, aunque no haya fotos', (
-    tester,
-  ) async {
-    await _mostrar(tester, _paquete());
-    await tester.tap(find.byType(BotonChat));
-    await tester.pumpAndSettle();
-    await _escribir(tester, 'llévame a la biblioteca desde la portería');
-    await tester.tap(find.text('Recorrido guiado'));
-    await tester.pumpAndSettle();
-    expect(find.byType(ChatAsistente), findsNothing);
-    expect(find.byType(TarjetaGuia), findsOneWidget);
-    expect(find.textContaining('Paso 1 de'), findsOneWidget);
-    expect(find.textContaining('Hacia la Biblioteca'), findsOneWidget);
+  testWidgets(
+    '«Recorrido guiado» cierra el chat y empieza paso a paso, aunque no haya fotos',
+    (tester) async {
+      await _mostrar(tester, _paquete());
+      await tester.tap(find.byType(BotonChat));
+      await tester.pumpAndSettle();
+      await _escribir(tester, 'llévame a la biblioteca desde la portería');
+      await tester.tap(find.text('Recorrido guiado'));
+      await tester.pumpAndSettle();
+      expect(find.byType(ChatAsistente), findsNothing);
+      expect(find.byType(TarjetaGuia), findsOneWidget);
+      expect(find.textContaining('Paso 1 de'), findsOneWidget);
+      expect(find.textContaining('Hacia la Biblioteca'), findsOneWidget);
+    },
+  );
+
+  group('como ChatGPT', () {
+    Finder campo() => find.descendant(
+      of: find.byType(ChatAsistente),
+      matching: find.byType(TextField),
+    );
+
+    Future<void> abrir(WidgetTester tester, [PaqueteLocal? paquete]) async {
+      await _mostrar(tester, paquete ?? _paquete());
+      await tester.tap(find.byType(BotonChat));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets(
+      'la respuesta se escribe en vivo: piensa, escribe y al final los botones',
+      (tester) async {
+        await abrir(tester);
+        await tester.enterText(
+          campo(),
+          'llévame a la biblioteca desde la portería',
+        );
+        await tester.testTextInput.receiveAction(TextInputAction.send);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 200));
+        // Primero «piensa»: todavía no hay texto ni botones, y enviar se volvió «detener».
+        expect(find.text('Calculando la ruta…'), findsOneWidget);
+        expect(find.textContaining('Ruta lista'), findsNothing);
+        expect(find.bySemanticsLabel('Detener'), findsOneWidget);
+        // Luego escribe; los botones salen al final.
+        await tester.pump(const Duration(milliseconds: 700));
+        expect(find.text('Calculando la ruta…'), findsNothing);
+        expect(find.text('Recorrido guiado'), findsNothing);
+        await tester.pumpAndSettle();
+        expect(find.textContaining('Ruta lista'), findsOneWidget);
+        expect(find.text('Recorrido guiado'), findsOneWidget);
+        expect(find.bySemanticsLabel('Detener'), findsNothing);
+      },
+    );
+
+    testWidgets('«Detener» muestra de una vez la respuesta completa', (
+      tester,
+    ) async {
+      await abrir(tester);
+      await tester.enterText(
+        campo(),
+        'llévame a la biblioteca desde la portería',
+      );
+      await tester.testTextInput.receiveAction(TextInputAction.send);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.tap(find.bySemanticsLabel('Detener'));
+      await tester.pump();
+      expect(find.textContaining('Ruta lista'), findsOneWidget);
+      expect(find.text('Recorrido guiado'), findsOneWidget);
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets(
+      'la bienvenida sugiere lugares (no la portería) y tocar uno pregunta por él',
+      (tester) async {
+        await abrir(tester, _paquete(cruceConNombre: true));
+        expect(find.text('Ir a la Biblioteca'), findsOneWidget);
+        // Sin más categorías, completa con los lugares del mapa; la portería no, de ahí se sale.
+        expect(find.text('Ir al Cruce central'), findsOneWidget);
+        expect(find.text('Ir a la Portería principal'), findsNothing);
+        expect(find.text('¿Qué puedes hacer?'), findsOneWidget);
+
+        await tester.tap(find.text('Ir a la Biblioteca'));
+        await tester.pumpAndSettle();
+        expect(find.textContaining('¿Desde dónde sales?'), findsOneWidget);
+      },
+    );
+
+    testWidgets('«Nueva conversación» vuelve a la bienvenida', (tester) async {
+      await abrir(tester);
+      await _escribir(tester, 'llévame a la biblioteca desde la portería');
+      expect(find.textContaining('Ruta lista'), findsOneWidget);
+      await tester.tap(find.byTooltip('Nueva conversación'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Ruta lista'), findsNothing);
+      expect(find.text('Ir a la Biblioteca'), findsOneWidget);
+    });
+
+    testWidgets(
+      'en el computador el campo queda listo para escribir y Escape cierra el chat',
+      (tester) async {
+        await abrir(tester);
+        final texto = tester.widget<TextField>(campo());
+        expect(texto.focusNode!.hasFocus, isTrue);
+        await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+        await tester.pumpAndSettle();
+        expect(find.byType(ChatAsistente), findsNothing);
+      },
+      variant: TargetPlatformVariant.only(TargetPlatform.windows),
+    );
+
+    test('la cifra y su unidad no se separan al cambiar de línea', () {
+      expect(sinCortarCifras('3 min (185 m).'), '3 min (185 m).');
+      expect(sinCortarCifras('Sube hasta el piso 1.'), 'Sube hasta el piso 1.');
+    });
   });
 
   testWidgets('sin lugares en el paquete el asistente lo dice de entrada', (
