@@ -191,9 +191,9 @@ class _ChatAsistenteState extends State<ChatAsistente>
   final ScrollController _lista = ScrollController();
   final FocusNode _foco = FocusNode();
 
-  /// La escritura en vivo de la respuesta [_escribiendo].
-  late final AnimationController _escritura = AnimationController(vsync: this)
-    ..addStatusListener(_alTerminarEscritura);
+  /// La escritura en vivo de la respuesta [_escribiendo]. Se crea al abrir (en [initState]):
+  /// si se creara al primer uso y ese fuera al cerrar, buscaría su `TickerMode` sin contexto.
+  late final AnimationController _escritura;
 
   /// Mensajes que ya estaban: los de la persona que llegan después entran con animación.
   /// Se cuentan al abrir (en [initState]), no al primer uso: si no, los que lleguen antes de
@@ -217,6 +217,8 @@ class _ChatAsistenteState extends State<ChatAsistente>
   @override
   void initState() {
     super.initState();
+    _escritura = AnimationController(vsync: this)
+      ..addStatusListener(_alTerminarEscritura);
     _vistos = _entrando = widget.conversacion.mensajes.length;
     _campo.addListener(_actualizar);
     _foco.addListener(_actualizar);
