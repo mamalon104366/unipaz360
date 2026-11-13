@@ -64,7 +64,7 @@ export const aparienciaDe = (e: Estilo): Apariencia => ({
 /** Formas que tiene cada tipo de punto en el editor. */
 export function formasDe(t: TipoPunto): Forma[] {
   if (t === 'enlace') return ['flecha', 'miniatura', 'etiqueta', 'pin', 'icono', 'circulo'];
-  if (t === 'imagen') return ['capa3d', 'miniatura', 'burbuja', 'etiqueta', 'icono', 'pin'];
+  if (t === 'imagen') return ['capa3d', 'recorte', 'miniatura', 'burbuja', 'etiqueta', 'icono', 'pin'];
   if (t === 'video') return ['capa3d', 'etiqueta', 'burbuja', 'icono', 'pin'];
   return ['etiqueta', 'burbuja', 'icono', 'pin', 'circulo', 'capa3d'];
 }

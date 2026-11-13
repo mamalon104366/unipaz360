@@ -344,6 +344,29 @@ body {
   width: 2.4em;
   height: 2.4em;
 }
+/* Vista previa de la luz y el color del editor 360°: solo la foto, no los puntos. */
+.psv-filtrable .psv-canvas {
+  filter: var(--filtro-foto, none);
+}
+/* Imagen sin marco: la imagen entera y sin caja; un PNG con transparencia queda recortado y su
+   sombra sigue su silueta (igual en Flutter: marcadores_2d.dart). */
+.pz-recorte .pz-cuerpo {
+  width: 7em;
+  height: 7em;
+}
+.pz-recorte-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 0.35em 0.5em rgb(0 0 0 / 0.55));
+  pointer-events: none;
+  -webkit-user-drag: none;
+}
+.pz-recorte .pz-ico {
+  width: 2.8em;
+  height: 2.8em;
+}
 .pz-rotulo {
   position: absolute;
   top: calc(100% + 0.8em);

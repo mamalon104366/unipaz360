@@ -7,6 +7,8 @@
 /// recibe algo que no entiende.
 library;
 
+import 'iconos_punto.generado.dart';
+
 /// Ancho del lienzo de una página en unidades de diseño. La app multiplica todo por
 /// `k = ancho real del panel / anchoPagina`.
 const double anchoPagina = 1000;
@@ -14,14 +16,11 @@ const double anchoPagina = 1000;
 /// Foto del dron que viene dentro de la app (`assets/imagenes/mapa-dron.jpg`).
 const String imagenDron = 'app://imagenes/mapa-dron.jpg';
 
+/// Íconos de las secciones (`ICONOS_SECCION` del panel): todo el catálogo de los puntos y dos
+/// claves viejas que se dibujan con su igual (`aliasIconoSeccion`).
 const List<String> iconosSeccion = <String>[
-  'info',
-  'video',
+  ...iconosPunto,
   'escuela',
-  'orbita',
-  'mapa',
-  'ruta',
-  'calendario',
   'estrella',
 ];
 

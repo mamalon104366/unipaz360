@@ -111,9 +111,10 @@ class _Visor360State extends State<Visor360> with TickerProviderStateMixin {
         });
 
   // El giro suave hacia la dirección de la guía.
-  late final AnimationController _giro =
-      AnimationController(vsync: this, duration: const Duration(milliseconds: 900))
-        ..addListener(_alGirar);
+  late final AnimationController _giro = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 900),
+  )..addListener(_alGirar);
   double _giroYaw0 = 0;
   double _giroDeltaYaw = 0;
   double _giroPitch0 = 0;
@@ -130,7 +131,11 @@ class _Visor360State extends State<Visor360> with TickerProviderStateMixin {
   /// La dirección de la guía en esta foto, ya en el marco del visor.
   ({double yaw, double pitch})? get _guiaEnVista {
     final g = widget.guia;
-    if (g == null || g.panoramicaId != widget.panoramica.id || _cargada != widget.panoramica.id) return null;
+    if (g == null ||
+        g.panoramicaId != widget.panoramica.id ||
+        _cargada != widget.panoramica.id) {
+      return null;
+    }
     final a = widget.panoramica.ajustes;
     return aVista(g.yaw, g.pitch, a.inclinacion, a.alabeo);
   }
@@ -158,7 +163,8 @@ class _Visor360State extends State<Visor360> with TickerProviderStateMixin {
     if (viejo.panoramica.id != widget.panoramica.id) {
       _cargar(widget.panoramica);
     } else if (widget.guia != null &&
-        (viejo.guia?.vez != widget.guia!.vez || viejo.guia?.panoramicaId != widget.guia!.panoramicaId)) {
+        (viejo.guia?.vez != widget.guia!.vez ||
+            viejo.guia?.panoramicaId != widget.guia!.panoramicaId)) {
       _girarHacia();
     } else if (viejo.reinicio != widget.reinicio) {
       _giro.stop();
@@ -404,7 +410,8 @@ class _Visor360State extends State<Visor360> with TickerProviderStateMixin {
     if (guia != null) {
       final delta = normalizarGrados(guia.yaw - camara.yaw);
       final en = camara.proyectar(vectorApp(guia.yaw, guia.pitch));
-      final dentro = en != null &&
+      final dentro =
+          en != null &&
           delta.abs() < grados(camara.fovHorizontal) / 2 &&
           en.dx > 0 &&
           en.dx < camara.tamano.width &&
@@ -439,9 +446,11 @@ class _Visor360State extends State<Visor360> with TickerProviderStateMixin {
     return r;
   }
 
-  /// La foto de la forma «miniatura»: en un «Ir a», la del destino.
+  /// La foto de las formas «miniatura» e «imagen sin marco»: en un «Ir a», la del destino.
   ImageProvider? _miniatura(PuntoPanoramica p) {
-    if (p.estilo.forma != 'miniatura') return null;
+    if (p.estilo.forma != 'miniatura' && p.estilo.forma != 'recorte') {
+      return null;
+    }
     if (p.tipo == 'enlace') {
       final destino =
           widget.paquete.datos.panoramicaPorId[p.destinoPanoramicaId];
@@ -497,7 +506,8 @@ class SenalGuia extends StatefulWidget {
   State<SenalGuia> createState() => _SenalGuiaState();
 }
 
-class _SenalGuiaState extends State<SenalGuia> with SingleTickerProviderStateMixin {
+class _SenalGuiaState extends State<SenalGuia>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _latido = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1400),
@@ -515,7 +525,9 @@ class _SenalGuiaState extends State<SenalGuia> with SingleTickerProviderStateMix
     label: widget.etiqueta,
     excludeSemantics: true,
     child: MouseRegion(
-      cursor: widget.alTocar == null ? SystemMouseCursors.basic : SystemMouseCursors.click,
+      cursor: widget.alTocar == null
+          ? SystemMouseCursors.basic
+          : SystemMouseCursors.click,
       child: GestureDetector(
         onTap: widget.alTocar,
         child: Column(
@@ -540,7 +552,10 @@ class _SenalGuiaState extends State<SenalGuia> with SingleTickerProviderStateMix
                             height: 46 + 46 * ((v + d) % 1),
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white, width: 2.5),
+                              border: Border.all(
+                                color: Colors.white,
+                                width: 2.5,
+                              ),
                             ),
                           ),
                         ),
@@ -559,10 +574,18 @@ class _SenalGuiaState extends State<SenalGuia> with SingleTickerProviderStateMix
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white, width: 3),
                     boxShadow: const <BoxShadow>[
-                      BoxShadow(color: Color(0x80000000), blurRadius: 14, offset: Offset(0, 5)),
+                      BoxShadow(
+                        color: Color(0x80000000),
+                        blurRadius: 14,
+                        offset: Offset(0, 5),
+                      ),
                     ],
                   ),
-                  child: const Icon(Icons.keyboard_double_arrow_up_rounded, size: 32, color: Colors.white),
+                  child: const Icon(
+                    Icons.keyboard_double_arrow_up_rounded,
+                    size: 32,
+                    color: Colors.white,
+                  ),
                 ),
               ),
             ),
@@ -609,19 +632,31 @@ class FlechaBorde extends StatelessWidget {
         onTap: alTocar,
         child: Container(
           height: 52,
-          padding: EdgeInsets.only(left: derecha ? 14 : 8, right: derecha ? 8 : 14),
+          padding: EdgeInsets.only(
+            left: derecha ? 14 : 8,
+            right: derecha ? 8 : 14,
+          ),
           decoration: BoxDecoration(
             color: const Color(0xE60A9640),
             borderRadius: BorderRadius.circular(999),
             border: Border.all(color: Colors.white, width: 2),
             boxShadow: const <BoxShadow>[
-              BoxShadow(color: Color(0x66000000), blurRadius: 12, offset: Offset(0, 4)),
+              BoxShadow(
+                color: Color(0x66000000),
+                blurRadius: 12,
+                offset: Offset(0, 4),
+              ),
             ],
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              if (!derecha) const Icon(Icons.chevron_left_rounded, size: 30, color: Colors.white),
+              if (!derecha)
+                const Icon(
+                  Icons.chevron_left_rounded,
+                  size: 30,
+                  color: Colors.white,
+                ),
               const Text(
                 'Por aquí',
                 style: TextStyle(
@@ -631,7 +666,12 @@ class FlechaBorde extends StatelessWidget {
                   decoration: TextDecoration.none,
                 ),
               ),
-              if (derecha) const Icon(Icons.chevron_right_rounded, size: 30, color: Colors.white),
+              if (derecha)
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  size: 30,
+                  color: Colors.white,
+                ),
             ],
           ),
         ),
@@ -639,7 +679,6 @@ class FlechaBorde extends StatelessWidget {
     ),
   );
 }
-
 
 bool _esImagen(String url) => RegExp(
   r'\.(jpe?g|png|webp|gif|avif)(\?|$)',

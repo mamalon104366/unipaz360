@@ -128,17 +128,16 @@ class Superficie {
   }
 }
 
-/// Íconos de las secciones (los mismos de Lucide que usa el panel).
-IconData iconoSeccion(String icono) => switch (icono) {
-  'video' => LucideIcons.video,
-  'escuela' => LucideIcons.graduationCap,
-  'orbita' => LucideIcons.orbit,
-  'mapa' => LucideIcons.map,
-  'ruta' => LucideIcons.route,
-  'calendario' => LucideIcons.calendarDays,
-  'estrella' => LucideIcons.star,
-  _ => LucideIcons.info,
+/// Las claves viejas de las secciones y su igual del catálogo (`ALIAS_ICONO_SECCION` del panel).
+const Map<String, String> aliasIconoSeccion = <String, String>{
+  'escuela': 'graduacion',
+  'estrella': 'destacado',
 };
+
+/// Íconos de las secciones: los del catálogo de los puntos (los mismos de Lucide que usa el
+/// panel), con las dos claves viejas de las secciones.
+IconData iconoSeccion(String icono) =>
+    iconosLucide[aliasIconoSeccion[icono] ?? icono] ?? LucideIcons.info;
 
 /// Ícono de un punto del recorrido (`iconoDe` de `iconosPunto.ts`): el elegido en su estilo
 /// o, si no hay, el de su tipo.

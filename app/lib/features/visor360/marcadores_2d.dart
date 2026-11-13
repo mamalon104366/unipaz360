@@ -1,5 +1,5 @@
 /// Las formas de los puntos que miran siempre al visitante: etiqueta, ícono, anillo, pin,
-/// tarjeta y miniatura. Medidas en `em` copiadas de `panel/src/app/globals.css` (.pz-*):
+/// tarjeta, miniatura e imagen sin marco. Medidas en `em` copiadas de `panel/src/app/globals.css` (.pz-*):
 /// `em = 13 · escala` (escala de 0.5 a 2.5). También la flecha automática hacia las fotos
 /// vecinas (.psv-flecha).
 library;
@@ -281,6 +281,30 @@ class MarcadorPunto2D extends StatelessWidget {
             ],
           );
     switch (forma) {
+      case 'recorte':
+        // La imagen entera y sin caja (`.pz-recorte`): un PNG con fondo transparente se ve
+        // recortado y la sombra sigue su silueta.
+        final imagen = miniatura;
+        return conRotulo(
+          girar(
+            SizedBox(
+              width: 7 * em,
+              height: 7 * em,
+              child: imagen == null
+                  ? Center(
+                      child: _Ico(
+                        tipo: punto.tipo,
+                        icono: icono,
+                        color: color,
+                        em: em,
+                        diametro: 2.8,
+                      ),
+                    )
+                  : SiluetaConSombra(imagen: imagen, em: em),
+            ),
+          ),
+          7 + 0.8,
+        );
       case 'icono':
         return conRotulo(
           girar(
@@ -763,4 +787,46 @@ class _Chevron extends CustomPainter {
 
   @override
   bool shouldRepaint(_Chevron old) => false;
+}
+
+/// Una imagen con la sombra siguiendo su silueta (`filter: drop-shadow(0 0.35em 0.5em …)` del
+/// panel): en un PNG con fondo transparente, la sombra es la de la figura, no la de un cuadro.
+class SiluetaConSombra extends StatelessWidget {
+  const SiluetaConSombra({super.key, required this.imagen, required this.em});
+
+  final ImageProvider imagen;
+  final double em;
+
+  @override
+  Widget build(BuildContext context) {
+    final img = Image(
+      image: imagen,
+      fit: BoxFit.contain,
+      width: double.infinity,
+      height: double.infinity,
+      gaplessPlayback: true,
+    );
+    return Stack(
+      fit: StackFit.expand,
+      children: <Widget>[
+        Transform.translate(
+          offset: Offset(0, 0.35 * em),
+          child: ImageFiltered(
+            imageFilter: ui.ImageFilter.blur(
+              sigmaX: 0.25 * em,
+              sigmaY: 0.25 * em,
+            ),
+            child: ColorFiltered(
+              colorFilter: const ColorFilter.mode(
+                Color(0x8C000000),
+                BlendMode.srcIn,
+              ),
+              child: img,
+            ),
+          ),
+        ),
+        img,
+      ],
+    );
+  }
 }

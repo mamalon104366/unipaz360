@@ -8,10 +8,18 @@
  * así se ve igual en el celular, en Windows y en la web. Contrato: docs/datos/apariencia-app.md
  */
 import { AUDIENCIAS, type Audiencia } from './audiencia';
+import { ICONOS_PUNTO, type IconoPunto } from './iconosPunto.generado';
 import { paginaInicial } from './paginasIniciales';
 
-export const ICONOS_SECCION = ['info', 'video', 'escuela', 'orbita', 'mapa', 'ruta', 'calendario', 'estrella'] as const;
-export type IconoSeccion = (typeof ICONOS_SECCION)[number];
+/**
+ * Los íconos de las secciones son los del catálogo de los puntos (`iconosPunto.generado.ts`).
+ * Dos claves viejas de las secciones siguen valiendo y se dibujan con su igual del catálogo.
+ */
+export const ALIAS_ICONO_SECCION = { escuela: 'graduacion', estrella: 'destacado' } as const satisfies Record<string, IconoPunto>;
+export type IconoSeccion = IconoPunto | keyof typeof ALIAS_ICONO_SECCION;
+export const ICONOS_SECCION: readonly IconoSeccion[] = [...ICONOS_PUNTO, ...(Object.keys(ALIAS_ICONO_SECCION) as (keyof typeof ALIAS_ICONO_SECCION)[])];
+/** El ícono del catálogo con que se dibuja el de una sección. */
+export const iconoDeSeccion = (i: IconoSeccion): IconoPunto => (i in ALIAS_ICONO_SECCION ? ALIAS_ICONO_SECCION[i as keyof typeof ALIAS_ICONO_SECCION] : (i as IconoPunto));
 
 /**
  * pagina: abre su página editable · recorrido: cierra el panel y deja el 360°.

@@ -73,7 +73,10 @@ El tipo `rutas` (la sección «Cómo llegar», con su botón redondo de buscar) 
 hasta un lugar es trabajo del asistente. Una configuración que todavía traiga secciones de ese tipo
 las pierde al normalizarse, en el panel y en la app.
 
-Íconos: `info`, `video`, `escuela`, `orbita`, `mapa`, `ruta`, `calendario`, `estrella`.
+Íconos: cualquiera de los 188 del catálogo de los puntos (`docs/datos/puntos-360.md`, «Íconos»),
+que el editor muestra con buscador y grupos al tocar el ícono de la sección. Las claves viejas
+`escuela` y `estrella` siguen valiendo y se dibujan como `graduacion` y `destacado`
+(`ALIAS_ICONO_SECCION` en `configApp.ts`, `aliasIconoSeccion` en la app).
 
 ## Páginas: un lienzo libre, como en Figma
 

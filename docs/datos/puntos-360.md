@@ -32,7 +32,7 @@ node --conditions=react-server --experimental-transform-types panel/scripts/punt
 
 | Campo | Qué es |
 | ----- | ------ |
-| `forma` | `etiqueta`, `icono`, `circulo` (anillo), `pin`, `burbuja` (tarjeta), `miniatura`, `flecha` (en el piso), `capa3d` (dentro de la imagen). |
+| `forma` | `etiqueta`, `icono`, `circulo` (anillo), `pin`, `burbuja` (tarjeta), `miniatura`, `recorte` (imagen sin marco), `flecha` (en el piso), `capa3d` (dentro de la imagen). |
 | `color` | Color de acento `#rrggbb`. El ícono va en negro si la luminancia del color es > 0.6 (la misma de `Color.computeLuminance()`), si no en blanco. |
 | `escala` | Tamaño de las formas 2D: 0.5 a 2.5 (1 = 13 dp de letra base). |
 | `ancho`, `alto` | Formas 3D: tamaño en "píxeles de esfera"; ancho angular (rad) ≈ `ancho / 1000`. |
@@ -41,7 +41,7 @@ node --conditions=react-server --experimental-transform-types panel/scripts/punt
 | `velocidad` | De 0.5 a 2 (1 = normal): la duración de la animación se divide por este número. |
 | `icono` | Uno de los íconos de la lista (abajo) o `''`: el del tipo de punto. |
 | `fondo` | `oscuro`, `claro`, `color` (el de acento) o `''`: el de la forma. Ver «Fondos». |
-| `rotulo` | `true`: el título queda siempre visible debajo del ícono, el anillo o el pin. |
+| `rotulo` | `true`: el título queda siempre visible debajo del ícono, el anillo, el pin o la imagen sin marco. |
 | `opacidad` | De 0.2 a 1, sobre todo el punto. |
 | `esquinas` | Capa dentro de la imagen: radio de las esquinas en px de la capa (por defecto 14). Nunca pasa de la mitad del lado corto: con un valor grande queda redonda. |
 | `marco` | Capa dentro de la imagen: grosor del marco, del color de acento, de 0 a 60 px (0 = sin marco). |
@@ -55,15 +55,22 @@ Color por defecto según el tipo: información `#2563eb`, anuncio `#f59e0b`, ima
 ### Íconos
 
 Son de Lucide, los mismos en el panel (`lucide-react`) y en la app (`lucide_icons_flutter`).
-La lista sale de `panel/scripts/puntos-flutter.mjs` y está en
-`panel/src/lib/iconosPunto.generado.ts`:
+El catálogo (188 íconos en 9 grupos: Lugares, Académico, Servicios, Transporte, Salud y
+deporte, Cultura, Naturaleza y campo, Señales y seguridad, Información) sale de
+`panel/scripts/puntos-flutter.mjs` y está en `panel/src/lib/iconosPunto.generado.ts`, con la
+etiqueta y el grupo de cada uno. El editor lo muestra con buscador y pestañas por grupo
+(`components/ui/SelectorIconos.tsx`); las secciones del menú de la app usan el mismo catálogo.
 
-`info`, `anuncio`, `imagen`, `video`, `ir`, `edificio`, `accesibilidad`, `biblioteca`, `aula`,
-`graduacion`, `laboratorio`, `microscopio`, `computo`, `cafeteria`, `restaurante`, `gimnasio`,
-`deportes`, `musica`, `arte`, `teatro`, `salud`, `enfermeria`, `banos`, `parqueadero`, `bus`,
-`bicicletas`, `wifi`, `entrada`, `ubicacion`, `calendario`, `horario`, `telefono`, `correo`,
-`seguridad`, `precaucion`, `ayuda`, `naturaleza`, `destacado`, `favorito`, `foto`, `idea`,
-`personas`, `tienda`, `historia`.
+Las claves ya guardadas no cambian nunca: lo nuevo se agrega al final de la lista. Las 44
+primeras: `info`, `anuncio`, `imagen`, `video`, `ir`, `edificio`, `accesibilidad`,
+`biblioteca`, `aula`, `graduacion`, `laboratorio`, `microscopio`, `computo`, `cafeteria`,
+`restaurante`, `gimnasio`, `deportes`, `musica`, `arte`, `teatro`, `salud`, `enfermeria`,
+`banos`, `parqueadero`, `bus`, `bicicletas`, `wifi`, `entrada`, `ubicacion`, `calendario`,
+`horario`, `telefono`, `correo`, `seguridad`, `precaucion`, `ayuda`, `naturaleza`,
+`destacado`, `favorito`, `foto`, `idea`, `personas`, `tienda`, `historia`. Las 144 del 13 de
+noviembre de 2026 van del campus (`auditorio`, `capilla`, `canchas`, `piscina`, `cajero`,
+`impresion`, `extintor`, `salida`, `encuentro`…) al campo (`cultivos`, `maquinaria`,
+`piscicultura`, `avicultura`, `vivero`, `riego`…).
 
 Sin ícono elegido, cada tipo usa el suyo: información `info`, anuncio `anuncio`, imagen
 `imagen`, video `video`, «Ir a» `ir`, espacio `edificio`, accesibilidad `accesibilidad`.
@@ -97,8 +104,12 @@ el globo con el título al pasar el mouse.
 - **Mirando al visitante (2D)**: etiqueta (píldora oscura con ícono y título),
   ícono (círculo de color con borde blanco), anillo (aro blanco con núcleo de color),
   pin (gota de color; su punta toca el punto), tarjeta (blanca con ícono, título y
-  hasta 3 líneas de texto; su piquito toca el punto) y miniatura (foto redonda —en un
-  «Ir a», la del destino— con el título debajo).
+  hasta 3 líneas de texto; su piquito toca el punto), miniatura (foto redonda —en un
+  «Ir a», la del destino— con el título debajo) e **imagen sin marco** (`recorte`, solo en
+  los puntos de imagen): la imagen entera en un cuadro de 7 em, sin caja ni círculo, con una
+  sombra que sigue su silueta (`drop-shadow(0 0.35em 0.5em rgb(0 0 0 / 0.55))`). Con un PNG
+  de fondo transparente (un logo, una señal) queda recortada sobre la foto. Sin imagen,
+  muestra el ícono. El rótulo va a 7.8 em.
 - **Sobre la esfera (3D)**: flecha doble en el piso y capa dentro de la imagen
   (imagen, GIF, video o tarjeta) que se ajusta con tamaño y giro a una pared o pantalla.
   La capa puede llevar esquinas redondeadas y un marco del color de acento; el contenido

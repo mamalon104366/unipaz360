@@ -37,6 +37,7 @@ import {
   Search,
   Shapes,
   Sparkles,
+  Star,
   Trash2,
   Undo2,
   Upload,
@@ -47,20 +48,26 @@ import { Interruptor } from '@/components/cliente/controles';
 import { useAvisos } from '@/components/ui/useAvisos';
 import { useGuardiaCambios } from '@/components/ui/useGuardiaCambios';
 import { subirArchivo, subirMedio, medirImagen } from '@/components/ui/subida';
+import { SelectorIconos } from '@/components/ui/SelectorIconos';
 import {
   AJUSTES_POR_DEFECTO,
   ANIMACIONES,
   COLOR_PUNTO,
+  ESTILOS_FOTO,
   ETIQUETA_ANIMACION,
   ETIQUETA_FONDO,
   ETIQUETA_FORMA,
+  ETIQUETA_NADIR,
   ETIQUETA_PUNTO,
   FLECHAS_AUTOMATICAS,
   FONDOS,
   FORMAS_3D,
   FORMAS_ROTULO,
+  TIPOS_NADIR,
   TIPOS_PUNTO,
+  curvaTonos,
   estiloPorDefecto,
+  huellaPixeles,
   fondoDe,
   inclinacionSuelo,
   type Ajustes,
@@ -74,7 +81,7 @@ import {
 } from '@/lib/tipos';
 import type { Audiencia } from '@/lib/audiencia';
 import { aparienciaDe, conApariencia, conForma, formasDe, limpiarEstilo, type Apariencia } from '@/lib/estiloPunto';
-import { ETIQUETA_ICONO, ICONOS_PUNTO, type IconoPunto } from '@/lib/iconosPunto.generado';
+import { ETIQUETA_ICONO, type IconoPunto } from '@/lib/iconosPunto.generado';
 import { estiloDe, flechaVecina, marcadorDe, tintaSobre, type CacheCapas } from './capas';
 import { aFoto, aVista, type Posicion } from './correccion';
 import { grados, normalizar, rad, urlMedio } from './medio';
@@ -810,9 +817,7 @@ export function EditorPanoramica({
 
   async function guardarAjustes() {
     if (!panoSucia) return true;
-    const pixeles =
-      ['exposicion', 'contraste', 'saturacion', 'temperatura', 'nadir'].some((k) => ajustes[k as keyof Ajustes] !== pano.ajustes[k as keyof Ajustes]) ||
-      !iguales(ajustes.difuminados, pano.ajustes.difuminados);
+    const pixeles = huellaPixeles(ajustes) !== huellaPixeles(pano.ajustes);
     setGuardando(pixeles ? 'Generando las versiones para la app…' : 'Guardando…');
     try {
       const r = await api<Panoramica>(`/api/panoramicas/${pano.id}`, 'PATCH', { titulo, rumbo_inicial: rumbo, ajustes });
@@ -865,15 +870,12 @@ export function EditorPanoramica({
     }
   }
 
-  const filtro = previa
-    ? undefined
-    : [
-        `brightness(${(2 ** ajustes.exposicion).toFixed(3)})`,
-        `contrast(${(1 + ajustes.contraste * 0.6).toFixed(3)})`,
-        `saturate(${(1 + ajustes.saturacion).toFixed(3)})`,
-        ajustes.temperatura > 0 ? `sepia(${(ajustes.temperatura * 0.28).toFixed(3)})` : '',
-        ajustes.temperatura < 0 ? `hue-rotate(${(ajustes.temperatura * 14).toFixed(1)}deg)` : '',
-      ].join(' ');
+  // Vista previa en vivo de la luz y el color: en el mismo orden que el servidor (imagen.ts). La
+  // temperatura, el tinte, las sombras, las luces y la nitidez van en un filtro SVG con las mismas
+  // cuentas; la reducción de ruido solo se ve al guardar.
+  const filtro = previa ? undefined : `${filtroBasico(ajustes)} url(#${ID_FILTRO_FOTO})`;
+  // Sin ajustes horneados (la de edición), para que cada muestra enseñe solo su estilo.
+  const urlMuestra = urlMedio(pano.lods.edicion?.clave ?? pano.lods.rapida?.clave);
   const textoGuardar = !hayCambios ? 'Todo guardado' : puntoSucio && !panoSucia ? (edicion?.id ? 'Guardar punto' : 'Crear punto') : 'Guardar cambios';
   const buscado = sinTildes(busqueda.trim());
   const listaPuntos = buscado ? puntos.filter((p) => sinTildes(`${p.titulo} ${ETIQUETA_PUNTO[p.tipo]} ${p.id}`).includes(buscado)) : puntos;
@@ -882,7 +884,13 @@ export function EditorPanoramica({
     <div className="flex h-full min-h-0">
       {/* Visor */}
       <div className="relative min-w-0 flex-1 overflow-hidden rounded-l-[24px] bg-riel">
-        <div ref={contenedor} className="absolute inset-0 transition-opacity duration-500" style={{ filter: filtro, opacity: listo ? 1 : 0 }} />
+        {!previa && <FiltroFoto ajustes={ajustes} />}
+        {/* El filtro va solo a la foto (`.psv-canvas`): los puntos se ven como en la app, sin teñir. */}
+        <div
+          ref={contenedor}
+          className="psv-filtrable absolute inset-0 transition-opacity duration-500"
+          style={{ '--filtro-foto': filtro ?? 'none', opacity: listo ? 1 : 0 } as React.CSSProperties}
+        />
         {guias && !previa && listo && (
           // El centro de la vista: «Al centro» deja el punto justo aquí.
           <div className="pointer-events-none absolute left-1/2 top-1/2 z-[5] h-7 w-7 -translate-x-1/2 -translate-y-1/2" aria-hidden>
@@ -1149,13 +1157,67 @@ export function EditorPanoramica({
                   <Compass size={15} /> Marcar el norte en la foto
                 </button>
               </Grupo>
-              <Grupo titulo="Luz y color" ayuda="Vista aproximada en vivo; al guardar se generan las versiones para la app.">
+              <Grupo titulo="Estilos rápidos" ayuda="Un toque pone varios ajustes de luz y color; después puedes afinarlos.">
+                <div className="grid grid-cols-4 gap-1.5">
+                  {ESTILOS_FOTO.map((s) => {
+                    const activo = Object.entries(s.ajustes).every(([k, v]) => ajustes[k as keyof Ajustes] === v);
+                    return (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => setAjustes((a) => ({ ...a, ...s.ajustes }))}
+                        aria-pressed={activo}
+                        className={`flex flex-col items-center gap-1 rounded-xl p-1 text-[11px] transition ${activo ? 'bg-riel text-white' : 'bg-white/70 text-tinta-suave hover:bg-white'}`}
+                      >
+                        <span
+                          aria-hidden
+                          className="block h-9 w-full rounded-lg bg-black/10 bg-cover bg-center"
+                          style={{ backgroundImage: urlMuestra ? `url("${urlMuestra}")` : undefined, filter: filtroBasico({ ...ajustes, ...s.ajustes }, true) }}
+                        />
+                        {s.etiqueta}
+                      </button>
+                    );
+                  })}
+                </div>
+              </Grupo>
+              <Grupo titulo="Luz y color" ayuda="Vista en vivo; al guardar se generan las versiones para la app.">
                 <Deslizador etiqueta="Exposición" valor={ajustes.exposicion} min={-1} max={1} paso={0.05} alCambiar={(v) => setAjustes((a) => ({ ...a, exposicion: v }))} />
                 <Deslizador etiqueta="Contraste" valor={ajustes.contraste} min={-1} max={1} paso={0.05} alCambiar={(v) => setAjustes((a) => ({ ...a, contraste: v }))} />
+                <Deslizador etiqueta="Sombras" valor={ajustes.sombras} min={-1} max={1} paso={0.05} alCambiar={(v) => setAjustes((a) => ({ ...a, sombras: v }))} />
+                <Deslizador etiqueta="Luces" valor={ajustes.luces} min={-1} max={1} paso={0.05} alCambiar={(v) => setAjustes((a) => ({ ...a, luces: v }))} />
                 <Deslizador etiqueta="Saturación" valor={ajustes.saturacion} min={-1} max={1} paso={0.05} alCambiar={(v) => setAjustes((a) => ({ ...a, saturacion: v }))} />
                 <Deslizador etiqueta="Temperatura" valor={ajustes.temperatura} min={-1} max={1} paso={0.05} alCambiar={(v) => setAjustes((a) => ({ ...a, temperatura: v }))} />
+                <Deslizador etiqueta="Tinte" valor={ajustes.tinte} min={-1} max={1} paso={0.05} alCambiar={(v) => setAjustes((a) => ({ ...a, tinte: v }))} />
               </Grupo>
-              <Grupo titulo="Suelo (nadir)" ayuda="Tapa el trípode con el logo de UniPaz360. Míralo en la Vista previa después de guardar.">
+              <Grupo titulo="Detalle" ayuda="La nitidez se ve en vivo; la reducción de ruido (para fotos con poca luz), al guardar.">
+                <Deslizador etiqueta="Nitidez" valor={ajustes.nitidez} min={0} max={1} paso={0.05} formato={(v) => `${Math.round(v * 100)} %`} alCambiar={(v) => setAjustes((a) => ({ ...a, nitidez: v }))} />
+                <Deslizador etiqueta="Reducir ruido" valor={ajustes.ruido} min={0} max={1} paso={0.05} formato={(v) => `${Math.round(v * 100)} %`} alCambiar={(v) => setAjustes((a) => ({ ...a, ruido: v }))} />
+              </Grupo>
+              <Grupo titulo="Suelo (nadir)" ayuda="Tapa el trípode: con el logo de UNIPAZ, difuminando el suelo o con un disco de color. Míralo en la Vista previa después de guardar.">
+                <div className="grid grid-cols-3 gap-1.5" role="group" aria-label="Cómo se tapa el suelo">
+                  {TIPOS_NADIR.map((tn) => (
+                    <button
+                      key={tn}
+                      type="button"
+                      onClick={() => setAjustes((a) => ({ ...a, nadirTipo: tn, nadir: a.nadir || 18 }))}
+                      aria-pressed={ajustes.nadirTipo === tn}
+                      className={`h-9 rounded-lg text-[12px] transition ${ajustes.nadirTipo === tn ? 'bg-riel text-white' : 'bg-white/70 text-tinta-suave hover:bg-white'}`}
+                    >
+                      {ETIQUETA_NADIR[tn]}
+                    </button>
+                  ))}
+                </div>
+                {ajustes.nadirTipo === 'color' && (
+                  <label className="flex items-center justify-between gap-3 text-[14px]">
+                    <span>Color del disco</span>
+                    <input
+                      type="color"
+                      value={ajustes.nadirColor}
+                      onChange={(e) => setAjustes((a) => ({ ...a, nadirColor: e.target.value.toLowerCase() }))}
+                      className="h-9 w-14 cursor-pointer rounded-lg border-0 bg-transparent"
+                    />
+                  </label>
+                )}
                 <Deslizador etiqueta="Tamaño del parche" valor={ajustes.nadir} min={0} max={30} paso={1} unidad="°" alCambiar={(v) => setAjustes((a) => ({ ...a, nadir: v }))} cero="Sin parche" />
               </Grupo>
               <Grupo titulo="Privacidad" ayuda="Difumina rostros y placas (Ley 1581). Se hornea en las versiones publicadas.">
@@ -1344,6 +1406,13 @@ function MuestraForma({ forma, color, icono }: { forma: Forma; color: string; ic
           <span className="pz-cuerpo">
             <span className="pz-foto">{ico}</span>
           </span>
+        </span>
+      );
+    case 'recorte':
+      // Una figura sin caja ni marco, con la sombra siguiendo su silueta (como un PNG recortado).
+      return (
+        <span className="pointer-events-none grid place-items-center" style={{ color, filter: 'drop-shadow(0 2px 2px rgb(0 0 0 / 0.45))' }}>
+          <Star size={24} strokeWidth={2.2} fill="currentColor" />
         </span>
       );
     case 'flecha':
@@ -1703,6 +1772,11 @@ function FormPunto({
             </button>
           ))}
         </div>
+        {f.tipo === 'imagen' && (
+          <p className="text-[11px] leading-relaxed text-tinta-tenue">
+            ¿Un logo o una señal en PNG con fondo transparente? «Imagen sin marco» la deja flotando sin caja; «Dentro de la imagen» la pega a la foto.
+          </p>
+        )}
 
         {conRotulo && <Interruptor etiqueta="Mostrar el nombre debajo" ayuda="Se lee sin pasar el mouse: útil en el celular." valor={e.rotulo} alCambiar={(v) => setEstilo({ rotulo: v })} />}
 
@@ -1799,31 +1873,22 @@ function FormPunto({
               <span>Ícono</span>
               <span className="truncate text-[12px] text-tinta-tenue">{e.icono ? ETIQUETA_ICONO[e.icono] : `El del tipo (${ETIQUETA_ICONO[icono]})`}</span>
             </div>
-            <div className="grid grid-cols-8 gap-1">
-              <button
-                type="button"
-                onClick={() => setEstilo({ icono: '' })}
-                title="El ícono del tipo de punto"
-                aria-pressed={!e.icono}
-                className={`col-span-2 flex h-8 items-center justify-center rounded-lg text-[11px] transition ${!e.icono ? 'bg-riel text-white' : 'bg-white/70 text-tinta-suave hover:bg-white'}`}
-              >
-                Del tipo
-              </button>
-              {ICONOS_PUNTO.map((ic) => (
+            <SelectorIconos
+              valor={e.icono}
+              alElegir={(ic) => setEstilo({ icono: ic })}
+              antes={
                 <button
                   type="button"
-                  key={ic}
-                  onClick={() => setEstilo({ icono: ic })}
-                  title={ETIQUETA_ICONO[ic]}
-                  aria-label={ETIQUETA_ICONO[ic]}
-                  aria-pressed={e.icono === ic}
-                  className={`grid h-8 place-items-center rounded-lg transition ${e.icono === ic ? 'bg-riel text-white' : 'bg-white/70 text-tinta-suave hover:bg-white'}`}
+                  onClick={() => setEstilo({ icono: '' })}
+                  title="El ícono del tipo de punto"
+                  aria-pressed={!e.icono}
+                  className={`col-span-2 flex h-8 items-center justify-center rounded-lg text-[11px] transition ${!e.icono ? 'bg-riel text-white' : 'bg-white/70 text-tinta-suave hover:bg-white'}`}
                 >
-                  <IconoSvg icono={ic} tamano={15} />
+                  Del tipo
                 </button>
-              ))}
-            </div>
-            {(e.forma === 'miniatura' || e.forma === 'capa3d') && <p className="mt-1.5 text-[11px] text-tinta-tenue">Se ve cuando el punto no tiene foto.</p>}
+              }
+            />
+            {(e.forma === 'miniatura' || e.forma === 'capa3d' || e.forma === 'recorte') && <p className="mt-1.5 text-[11px] text-tinta-tenue">Se ve cuando el punto no tiene foto.</p>}
           </div>
         )}
 
@@ -1955,5 +2020,48 @@ function FormPunto({
         )}
       </div>
     </form>
+  );
+}
+
+/** El filtro SVG de la vista previa (uno por página: el editor 360° es único). */
+const ID_FILTRO_FOTO = 'filtro-ajustes-foto';
+
+/** Exposición, saturación y contraste con filtros CSS (como `modulate` y `linear` de sharp). */
+function filtroBasico(a: Ajustes, conColor = false) {
+  const partes = [
+    `brightness(${(2 ** a.exposicion).toFixed(3)})`,
+    `saturate(${Math.max(0, 1 + a.saturacion).toFixed(3)})`,
+    `contrast(${(1 + a.contraste * 0.6).toFixed(3)})`,
+  ];
+  // En las muestras pequeñas de los estilos, la temperatura va aproximada (sin el filtro SVG).
+  if (conColor && a.temperatura > 0) partes.push(`sepia(${(a.temperatura * 0.28).toFixed(3)})`);
+  if (conColor && a.temperatura < 0) partes.push(`hue-rotate(${(a.temperatura * 14).toFixed(1)}deg)`);
+  return partes.join(' ');
+}
+
+/**
+ * Temperatura y tinte (la misma matriz que `recomb` en imagen.ts), la curva de sombras y luces
+ * (`curvaTonos`, la misma del servidor) y la nitidez, para la vista previa en vivo.
+ */
+function FiltroFoto({ ajustes: a }: { ajustes: Ajustes }) {
+  const t = a.temperatura * 0.12;
+  const g = a.tinte * 0.12;
+  const conTonos = a.sombras !== 0 || a.luces !== 0;
+  const tabla = Array.from({ length: 17 }, (_, i) => curvaTonos(i / 16, a.sombras, a.luces).toFixed(4)).join(' ');
+  const k = (0.35 * a.nitidez).toFixed(3);
+  return (
+    <svg width="0" height="0" className="pointer-events-none absolute" aria-hidden focusable="false">
+      <filter id={ID_FILTRO_FOTO} colorInterpolationFilters="sRGB">
+        <feColorMatrix type="matrix" values={`${(1 + t).toFixed(4)} 0 0 0 0  0 ${(1 - g).toFixed(4)} 0 0 0  0 0 ${(1 - t).toFixed(4)} 0 0  0 0 0 1 0`} />
+        {conTonos && (
+          <feComponentTransfer>
+            <feFuncR type="table" tableValues={tabla} />
+            <feFuncG type="table" tableValues={tabla} />
+            <feFuncB type="table" tableValues={tabla} />
+          </feComponentTransfer>
+        )}
+        {a.nitidez > 0 && <feConvolveMatrix order="3" kernelMatrix={`0 -${k} 0 -${k} ${(1 + 4 * Number(k)).toFixed(3)} -${k} 0 -${k} 0`} preserveAlpha="true" />}
+      </filter>
+    </svg>
   );
 }

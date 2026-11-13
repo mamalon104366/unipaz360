@@ -29,6 +29,7 @@ const List<String> formasPunto = <String>[
   'pin',
   'burbuja',
   'miniatura',
+  'recorte',
   'flecha',
   'capa3d',
 ];
@@ -48,7 +49,12 @@ const List<String> animacionesPunto = <String>[
 const List<String> fondosPunto = <String>['oscuro', 'claro', 'color'];
 
 /// Formas que pueden llevar el título siempre visible debajo (`FORMAS_ROTULO`).
-const List<String> formasRotulo = <String>['icono', 'circulo', 'pin'];
+const List<String> formasRotulo = <String>[
+  'icono',
+  'circulo',
+  'pin',
+  'recorte',
+];
 
 /// Redondeo de la capa dentro de la imagen cuando no se cambia, en px de la capa.
 const double esquinasPorDefecto = 14;

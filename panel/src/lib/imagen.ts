@@ -1,7 +1,7 @@
 import 'server-only';
 import sharp, { type OverlayOptions } from 'sharp';
 import { ErrorDatos } from './errores';
-import type { Ajustes, Difuminado } from './tipos';
+import { curvaTonos, huellaPixeles, type Ajustes, type Difuminado } from './tipos';
 import { NADIR_SVG } from './marca.generado';
 
 /**
@@ -109,34 +109,122 @@ async function difuminado(raw: Buffer, W: number, H: number, d: Difuminado) {
   return { input: region, left, top };
 }
 
+/**
+ * Suelo difuminado: la franja de abajo (donde queda el trípode) muy desenfocada, con el borde de
+ * arriba fundido con la foto.
+ */
+async function nadirDifuminado(raw: Buffer, W: number, H: number, radio: number) {
+  const h = Math.max(2, Math.round((radio / 180) * H));
+  const borde = Math.max(2, Math.round(h * 0.35));
+  const top = Math.max(0, H - h - borde);
+  const alto = H - top;
+  const mascara = Buffer.from(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${alto}">
+      <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#fff" stop-opacity="0"/>
+        <stop offset="${(borde / alto).toFixed(4)}" stop-color="#fff" stop-opacity="1"/>
+        <stop offset="1" stop-color="#fff" stop-opacity="1"/>
+      </linearGradient></defs>
+      <rect width="100%" height="100%" fill="url(#g)"/>
+    </svg>`,
+  );
+  const region = await sharp(raw, { raw: { width: W, height: H, channels: 3 } })
+    .extract({ left: 0, top, width: W, height: alto })
+    .blur(Math.max(6, alto / 4))
+    .ensureAlpha()
+    .composite([{ input: mascara, blend: 'dest-in' }])
+    .png()
+    .toBuffer();
+  return { input: region, left: 0, top };
+}
+
+/** Suelo de un color: un disco liso (en la equirrectangular, la franja de abajo) con el borde suave. */
+function nadirColor(W: number, H: number, radio: number, color: string) {
+  const h = Math.max(2, Math.round((radio / 180) * H));
+  const borde = Math.max(2, Math.round(h * 0.12));
+  const alto = h + borde;
+  // El color ya llega validado (#rrggbb).
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${alto}">
+    <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="${color}" stop-opacity="0"/>
+      <stop offset="${(borde / alto).toFixed(4)}" stop-color="${color}" stop-opacity="1"/>
+      <stop offset="1" stop-color="${color}" stop-opacity="1"/>
+    </linearGradient></defs>
+    <rect width="100%" height="100%" fill="url(#g)"/>
+  </svg>`;
+  return { input: Buffer.from(svg), left: 0, top: H - alto };
+}
+
+/** La curva de sombras y luces como tabla de 256 valores (`curvaTonos`, igual que en el editor). */
+function tablaTonos(sombras: number, luces: number) {
+  const tabla = new Uint8Array(256);
+  for (let i = 0; i < 256; i++) tabla[i] = Math.round(curvaTonos(i / 255, sombras, luces) * 255);
+  return tabla;
+}
+
+/**
+ * Reducción de ruido: un filtro de mediana de 3×3 mezclado con la foto según [cantidad] (0 a 1).
+ * La mediana sola borra el detalle (la foto parece acuarela); mezclada se dosifica.
+ */
+async function sinRuido(raw: Buffer, W: number, H: number, cantidad: number) {
+  const limpia = await sharp(raw, { raw: { width: W, height: H, channels: 3 } })
+    .median(3)
+    .raw()
+    .toBuffer();
+  const k = Math.min(1, Math.max(0, cantidad));
+  for (let i = 0; i < raw.length; i++) raw[i] = Math.round(raw[i] + (limpia[i] - raw[i]) * k);
+  return raw;
+}
+
 async function version(original: Buffer, ancho: number, a: Ajustes | null, calidad: number): Promise<Version> {
   const alto = Math.round(ancho / 2);
   let img = sharp(original, { limitInputPixels: LIMITE_PIXELES }).resize(ancho, alto, { fit: 'fill' }).removeAlpha();
   if (a) {
+    // El ruido se quita antes de subir el contraste o la nitidez, que lo harían más visible.
+    if (a.ruido > 0) {
+      const raw = await sinRuido(await img.raw().toBuffer(), ancho, alto, a.ruido);
+      img = sharp(raw, { raw: { width: ancho, height: alto, channels: 3 } });
+    }
     if (a.exposicion || a.saturacion) img = img.modulate({ brightness: 2 ** a.exposicion, saturation: Math.max(0, 1 + a.saturacion) });
     if (a.contraste) {
       const k = 1 + a.contraste * 0.6;
       img = img.linear(k, 128 * (1 - k));
     }
-    if (a.temperatura) {
+    if (a.temperatura || a.tinte) {
       const t = a.temperatura * 0.12;
+      const g = a.tinte * 0.12;
       img = img.recomb([
         [1 + t, 0, 0],
-        [0, 1, 0],
+        [0, 1 - g, 0],
         [0, 0, 1 - t],
       ]);
     }
   }
   const capas: OverlayOptions[] = [];
-  if (a && (a.difuminados.length || a.nadir > 0)) {
+  const conTonos = !!a && (a.sombras !== 0 || a.luces !== 0);
+  if (a && (conTonos || a.difuminados.length || a.nadir > 0)) {
     const raw = await img.raw().toBuffer();
+    if (conTonos) {
+      const tabla = tablaTonos(a.sombras, a.luces);
+      for (let i = 0; i < raw.length; i++) raw[i] = tabla[raw[i]];
+    }
     for (const d of a.difuminados) {
       const c = await difuminado(raw, ancho, alto, d);
       if (c) capas.push(c);
     }
-    if (a.nadir > 0) capas.push(await parcheNadir(ancho, alto, a.nadir));
+    if (a.nadir > 0) {
+      capas.push(
+        a.nadirTipo === 'difuminado'
+          ? await nadirDifuminado(raw, ancho, alto, a.nadir)
+          : a.nadirTipo === 'color'
+            ? nadirColor(ancho, alto, a.nadir, a.nadirColor)
+            : await parcheNadir(ancho, alto, a.nadir),
+      );
+    }
     img = sharp(raw, { raw: { width: ancho, height: alto, channels: 3 } });
   }
+  // La nitidez va antes de las capas: lo difuminado y el parche no se afilan.
+  if (a && a.nitidez > 0) img = img.sharpen({ sigma: 0.5 + a.nitidez * 1.2 });
   const buffer = await img.composite(capas).jpeg({ quality: calidad, mozjpeg: true, progressive: true }).toBuffer();
   return { buffer, ancho, alto };
 }
@@ -156,6 +244,5 @@ export async function versionesPublicables(original: Buffer, anchoOriginal: numb
 
 /** ¿El cambio de ajustes obliga a regenerar las imágenes? */
 export function cambianPixeles(antes: Ajustes, despues: Ajustes) {
-  const k = ['exposicion', 'contraste', 'saturacion', 'temperatura', 'nadir'] as const;
-  return k.some((c) => antes[c] !== despues[c]) || JSON.stringify(antes.difuminados) !== JSON.stringify(despues.difuminados);
+  return huellaPixeles(antes) !== huellaPixeles(despues);
 }

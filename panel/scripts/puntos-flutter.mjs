@@ -22,52 +22,220 @@ import { runInNewContext } from 'node:vm';
 
 const raiz = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 
-// clave → [ícono de Lucide (kebab-case), nombre en LucideIcons de Flutter, etiqueta]
+// Grupos del selector de íconos (en el panel se filtran con estas pestañas).
+const CATEGORIAS = [
+  ['lugares', 'Lugares'],
+  ['academico', 'Académico'],
+  ['servicios', 'Servicios'],
+  ['transporte', 'Transporte'],
+  ['bienestar', 'Salud y deporte'],
+  ['cultura', 'Cultura'],
+  ['naturaleza', 'Naturaleza y campo'],
+  ['senales', 'Señales y seguridad'],
+  ['informacion', 'Información'],
+];
+
+// clave → [ícono de Lucide (kebab-case), nombre en LucideIcons de Flutter, etiqueta, grupo]
+// Las claves ya guardadas no cambian nunca (los estilos de los puntos las citan); lo nuevo va al final.
 const ICONOS = [
-  ['info', 'info', 'info', 'Información'],
-  ['anuncio', 'megaphone', 'megaphone', 'Anuncio'],
-  ['imagen', 'image', 'image', 'Imagen'],
-  ['video', 'video', 'video', 'Video'],
-  ['ir', 'navigation', 'navigation', 'Ir a'],
-  ['edificio', 'building-2', 'building2', 'Edificio'],
-  ['accesibilidad', 'accessibility', 'accessibility', 'Accesibilidad'],
-  ['biblioteca', 'book-open', 'bookOpen', 'Biblioteca'],
-  ['aula', 'presentation', 'presentation', 'Aula'],
-  ['graduacion', 'graduation-cap', 'graduationCap', 'Graduación'],
-  ['laboratorio', 'flask-conical', 'flaskConical', 'Laboratorio'],
-  ['microscopio', 'microscope', 'microscope', 'Investigación'],
-  ['computo', 'monitor', 'monitor', 'Sala de cómputo'],
-  ['cafeteria', 'coffee', 'coffee', 'Cafetería'],
-  ['restaurante', 'utensils', 'utensils', 'Restaurante'],
-  ['gimnasio', 'dumbbell', 'dumbbell', 'Gimnasio'],
-  ['deportes', 'trophy', 'trophy', 'Deportes'],
-  ['musica', 'music', 'music', 'Música'],
-  ['arte', 'palette', 'palette', 'Arte'],
-  ['teatro', 'drama', 'drama', 'Teatro'],
-  ['salud', 'heart-pulse', 'heartPulse', 'Salud'],
-  ['enfermeria', 'stethoscope', 'stethoscope', 'Enfermería'],
-  ['banos', 'toilet', 'toilet', 'Baños'],
-  ['parqueadero', 'car', 'car', 'Parqueadero'],
-  ['bus', 'bus', 'bus', 'Bus'],
-  ['bicicletas', 'bike', 'bike', 'Bicicletas'],
-  ['wifi', 'wifi', 'wifi', 'Wi-Fi'],
-  ['entrada', 'door-open', 'doorOpen', 'Entrada'],
-  ['ubicacion', 'map-pin', 'mapPin', 'Ubicación'],
-  ['calendario', 'calendar-days', 'calendarDays', 'Calendario'],
-  ['horario', 'clock', 'clock', 'Horario'],
-  ['telefono', 'phone', 'phone', 'Teléfono'],
-  ['correo', 'mail', 'mail', 'Correo'],
-  ['seguridad', 'shield-check', 'shieldCheck', 'Seguridad'],
-  ['precaucion', 'triangle-alert', 'triangleAlert', 'Precaución'],
-  ['ayuda', 'circle-question-mark', 'circleQuestionMark', 'Ayuda'],
-  ['naturaleza', 'trees', 'trees', 'Naturaleza'],
-  ['destacado', 'star', 'star', 'Destacado'],
-  ['favorito', 'heart', 'heart', 'Favorito'],
-  ['foto', 'camera', 'camera', 'Foto'],
-  ['idea', 'lightbulb', 'lightbulb', 'Idea'],
-  ['personas', 'users', 'users', 'Personas'],
-  ['tienda', 'store', 'store', 'Tienda'],
-  ['historia', 'landmark', 'landmark', 'Historia'],
+  ['info', 'info', 'info', 'Información', 'informacion'],
+  ['anuncio', 'megaphone', 'megaphone', 'Anuncio', 'informacion'],
+  ['imagen', 'image', 'image', 'Imagen', 'informacion'],
+  ['video', 'video', 'video', 'Video', 'informacion'],
+  ['ir', 'navigation', 'navigation', 'Ir a', 'informacion'],
+  ['edificio', 'building-2', 'building2', 'Edificio', 'lugares'],
+  ['accesibilidad', 'accessibility', 'accessibility', 'Accesibilidad', 'senales'],
+  ['biblioteca', 'book-open', 'bookOpen', 'Biblioteca', 'academico'],
+  ['aula', 'presentation', 'presentation', 'Aula', 'academico'],
+  ['graduacion', 'graduation-cap', 'graduationCap', 'Graduación', 'academico'],
+  ['laboratorio', 'flask-conical', 'flaskConical', 'Laboratorio', 'academico'],
+  ['microscopio', 'microscope', 'microscope', 'Investigación', 'academico'],
+  ['computo', 'monitor', 'monitor', 'Sala de cómputo', 'academico'],
+  ['cafeteria', 'coffee', 'coffee', 'Cafetería', 'servicios'],
+  ['restaurante', 'utensils', 'utensils', 'Restaurante', 'servicios'],
+  ['gimnasio', 'dumbbell', 'dumbbell', 'Gimnasio', 'bienestar'],
+  ['deportes', 'trophy', 'trophy', 'Deportes', 'bienestar'],
+  ['musica', 'music', 'music', 'Música', 'cultura'],
+  ['arte', 'palette', 'palette', 'Arte', 'cultura'],
+  ['teatro', 'drama', 'drama', 'Teatro', 'cultura'],
+  ['salud', 'heart-pulse', 'heartPulse', 'Salud', 'bienestar'],
+  ['enfermeria', 'stethoscope', 'stethoscope', 'Enfermería', 'bienestar'],
+  ['banos', 'toilet', 'toilet', 'Baños', 'servicios'],
+  ['parqueadero', 'car', 'car', 'Parqueadero', 'transporte'],
+  ['bus', 'bus', 'bus', 'Bus', 'transporte'],
+  ['bicicletas', 'bike', 'bike', 'Bicicletas', 'transporte'],
+  ['wifi', 'wifi', 'wifi', 'Wi-Fi', 'servicios'],
+  ['entrada', 'door-open', 'doorOpen', 'Entrada', 'lugares'],
+  ['ubicacion', 'map-pin', 'mapPin', 'Ubicación', 'informacion'],
+  ['calendario', 'calendar-days', 'calendarDays', 'Calendario', 'informacion'],
+  ['horario', 'clock', 'clock', 'Horario', 'informacion'],
+  ['telefono', 'phone', 'phone', 'Teléfono', 'informacion'],
+  ['correo', 'mail', 'mail', 'Correo', 'informacion'],
+  ['seguridad', 'shield-check', 'shieldCheck', 'Seguridad', 'senales'],
+  ['precaucion', 'triangle-alert', 'triangleAlert', 'Precaución', 'senales'],
+  ['ayuda', 'circle-question-mark', 'circleQuestionMark', 'Ayuda', 'informacion'],
+  ['naturaleza', 'trees', 'trees', 'Naturaleza', 'naturaleza'],
+  ['destacado', 'star', 'star', 'Destacado', 'informacion'],
+  ['favorito', 'heart', 'heart', 'Favorito', 'informacion'],
+  ['foto', 'camera', 'camera', 'Foto', 'cultura'],
+  ['idea', 'lightbulb', 'lightbulb', 'Idea', 'academico'],
+  ['personas', 'users', 'users', 'Personas', 'informacion'],
+  ['tienda', 'store', 'store', 'Tienda', 'servicios'],
+  ['historia', 'landmark', 'landmark', 'Historia', 'cultura'],
+  // ---- Nuevos (13 de noviembre de 2026).
+  // Lugares
+  ['universidad', 'university', 'university', 'Universidad', 'lugares'],
+  ['bloque', 'building', 'building', 'Bloque', 'lugares'],
+  ['colegio', 'school', 'school', 'Colegio', 'lugares'],
+  ['oficina', 'briefcase', 'briefcase', 'Oficina', 'lugares'],
+  ['auditorio', 'armchair', 'armchair', 'Auditorio', 'lugares'],
+  ['capilla', 'church', 'church', 'Capilla', 'lugares'],
+  ['hospital', 'hospital', 'hospital', 'Hospital', 'lugares'],
+  ['taller', 'factory', 'factory', 'Planta o taller', 'lugares'],
+  ['bodega', 'warehouse', 'warehouse', 'Bodega', 'lugares'],
+  ['hospedaje', 'hotel', 'hotel', 'Hospedaje', 'lugares'],
+  ['casa', 'house', 'house', 'Casa', 'lugares'],
+  ['puerta', 'door-closed', 'doorClosed', 'Puerta', 'lugares'],
+  ['cerca', 'fence', 'fence', 'Cerca', 'lugares'],
+  ['mirador', 'binoculars', 'binoculars', 'Mirador', 'lugares'],
+  // Académico
+  ['libro', 'book', 'book', 'Libro', 'academico'],
+  ['apuntes', 'notebook-pen', 'notebookPen', 'Apuntes', 'academico'],
+  ['escritura', 'pencil', 'pencil', 'Escritura', 'academico'],
+  ['matematicas', 'calculator', 'calculator', 'Matemáticas', 'academico'],
+  ['idiomas', 'languages', 'languages', 'Idiomas', 'academico'],
+  ['ingenieria', 'cog', 'cog', 'Ingeniería', 'academico'],
+  ['ciencias', 'atom', 'atom', 'Ciencias', 'academico'],
+  ['biologia', 'dna', 'dna', 'Biología', 'academico'],
+  ['robotica', 'bot', 'bot', 'Robótica', 'academico'],
+  ['electricidad', 'zap', 'zap', 'Electricidad', 'academico'],
+  ['programacion', 'code', 'code', 'Programación', 'academico'],
+  ['electronica', 'microchip', 'microchip', 'Electrónica', 'academico'],
+  ['servidores', 'server', 'server', 'Servidores', 'academico'],
+  ['datos', 'database', 'database', 'Datos', 'academico'],
+  ['portatil', 'laptop', 'laptop', 'Portátiles', 'academico'],
+  ['proyector', 'projector', 'projector', 'Proyector', 'academico'],
+  ['astronomia', 'telescope', 'telescope', 'Astronomía', 'academico'],
+  ['diseno', 'pen-tool', 'penTool', 'Diseño', 'academico'],
+  ['dibujo', 'ruler', 'ruler', 'Dibujo técnico', 'academico'],
+  ['herramientas', 'wrench', 'wrench', 'Herramientas', 'academico'],
+  ['construccion', 'hammer', 'hammer', 'Construcción', 'academico'],
+  ['innovacion', 'rocket', 'rocket', 'Innovación', 'academico'],
+  ['premio', 'award', 'award', 'Reconocimiento', 'academico'],
+  ['medalla', 'medal', 'medal', 'Medalla', 'academico'],
+  // Servicios
+  ['comidas', 'sandwich', 'sandwich', 'Comidas rápidas', 'servicios'],
+  ['pizzeria', 'pizza', 'pizza', 'Pizzería', 'servicios'],
+  ['almuerzos', 'soup', 'soup', 'Almuerzos', 'servicios'],
+  ['heladeria', 'ice-cream-cone', 'iceCreamCone', 'Heladería', 'servicios'],
+  ['frutas', 'apple', 'apple', 'Frutas', 'servicios'],
+  ['microondas', 'microwave', 'microwave', 'Microondas', 'servicios'],
+  ['agua', 'glass-water', 'glassWater', 'Agua potable', 'servicios'],
+  ['cajero', 'banknote', 'banknote', 'Cajero', 'servicios'],
+  ['pagos', 'credit-card', 'creditCard', 'Pagos', 'servicios'],
+  ['impresion', 'printer', 'printer', 'Impresión', 'servicios'],
+  ['carga', 'plug-zap', 'plugZap', 'Carga de celulares', 'servicios'],
+  ['compras', 'shopping-bag', 'shoppingBag', 'Compras', 'servicios'],
+  ['paquetes', 'package', 'package', 'Paquetes', 'servicios'],
+  ['lavanderia', 'washing-machine', 'washingMachine', 'Lavandería', 'servicios'],
+  ['duchas', 'shower-head', 'showerHead', 'Duchas', 'servicios'],
+  ['basura', 'trash-2', 'trash2', 'Basura', 'servicios'],
+  ['reciclaje', 'recycle', 'recycle', 'Reciclaje', 'servicios'],
+  ['celulares', 'smartphone', 'smartphone', 'Celulares', 'servicios'],
+  ['antena', 'antenna', 'antenna', 'Antena', 'servicios'],
+  ['llaves', 'key', 'key', 'Llaves', 'servicios'],
+  ['lactancia', 'baby', 'baby', 'Sala de lactancia', 'servicios'],
+  ['descanso', 'bed-double', 'bedDouble', 'Descanso', 'servicios'],
+  // Transporte
+  ['carros', 'car-front', 'carFront', 'Carros', 'transporte'],
+  ['transporte', 'bus-front', 'busFront', 'Transporte', 'transporte'],
+  ['tren', 'train-front', 'trainFront', 'Tren', 'transporte'],
+  ['avion', 'plane', 'plane', 'Avión', 'transporte'],
+  ['muelle', 'ship', 'ship', 'Muelle', 'transporte'],
+  ['patinetas', 'scooter', 'scooter', 'Patinetas', 'transporte'],
+  ['sendero', 'footprints', 'footprints', 'Sendero peatonal', 'transporte'],
+  ['estacionamiento', 'circle-parking', 'circleParking', 'Estacionamiento', 'transporte'],
+  ['zonapago', 'parking-meter', 'parkingMeter', 'Zona de pago', 'transporte'],
+  ['escaleras', 'arrow-up-down', 'arrowUpDown', 'Escaleras o ascensor', 'transporte'],
+  // Salud y deporte
+  ['canchas', 'volleyball', 'volleyball', 'Canchas', 'bienestar'],
+  ['piscina', 'waves', 'waves', 'Piscina', 'bienestar'],
+  ['bienestar', 'heart-handshake', 'heartHandshake', 'Bienestar', 'bienestar'],
+  ['voluntariado', 'hand-heart', 'handHeart', 'Voluntariado', 'bienestar'],
+  ['farmacia', 'pill', 'pill', 'Farmacia', 'bienestar'],
+  ['vacunas', 'syringe', 'syringe', 'Vacunación', 'bienestar'],
+  ['temperatura', 'thermometer', 'thermometer', 'Temperatura', 'bienestar'],
+  ['pausaactiva', 'flower-2', 'flower2', 'Pausa activa', 'bienestar'],
+  ['videojuegos', 'gamepad-2', 'gamepad2', 'Videojuegos', 'bienestar'],
+  ['ajedrez', 'chess-knight', 'chessKnight', 'Ajedrez', 'bienestar'],
+  ['juegos', 'puzzle', 'puzzle', 'Juegos de mesa', 'bienestar'],
+  ['camping', 'tent', 'tent', 'Camping', 'bienestar'],
+  // Cultura
+  ['cine', 'clapperboard', 'clapperboard', 'Cine', 'cultura'],
+  ['emisora', 'radio', 'radio', 'Emisora', 'cultura'],
+  ['podcast', 'mic', 'mic', 'Micrófono', 'cultura'],
+  ['audio', 'headphones', 'headphones', 'Audio', 'cultura'],
+  ['television', 'tv', 'tv', 'Televisión', 'cultura'],
+  ['galeria', 'images', 'images', 'Galería', 'cultura'],
+  ['pintura', 'paintbrush', 'paintbrush', 'Pintura', 'cultura'],
+  ['manualidades', 'scissors', 'scissors', 'Manualidades', 'cultura'],
+  ['ropa', 'shirt', 'shirt', 'Ropa', 'cultura'],
+  ['eventos', 'party-popper', 'partyPopper', 'Eventos', 'cultura'],
+  // Naturaleza y campo
+  ['arbol', 'tree-pine', 'treePine', 'Árbol', 'naturaleza'],
+  ['flores', 'flower', 'flower', 'Flores', 'naturaleza'],
+  ['ecologia', 'leaf', 'leaf', 'Ecología', 'naturaleza'],
+  ['vivero', 'sprout', 'sprout', 'Vivero', 'naturaleza'],
+  ['cultivos', 'wheat', 'wheat', 'Cultivos', 'naturaleza'],
+  ['huerta', 'carrot', 'carrot', 'Huerta', 'naturaleza'],
+  ['frutales', 'grape', 'grape', 'Frutales', 'naturaleza'],
+  ['citricos', 'citrus', 'citrus', 'Cítricos', 'naturaleza'],
+  ['maquinaria', 'tractor', 'tractor', 'Maquinaria agrícola', 'naturaleza'],
+  ['lacteos', 'milk', 'milk', 'Lácteos', 'naturaleza'],
+  ['avicultura', 'egg', 'egg', 'Avicultura', 'naturaleza'],
+  ['piscicultura', 'fish', 'fish', 'Piscicultura', 'naturaleza'],
+  ['aves', 'bird', 'bird', 'Aves', 'naturaleza'],
+  ['especiesmenores', 'rabbit', 'rabbit', 'Especies menores', 'naturaleza'],
+  ['fauna', 'turtle', 'turtle', 'Fauna', 'naturaleza'],
+  ['mascotas', 'paw-print', 'pawPrint', 'Mascotas', 'naturaleza'],
+  ['perros', 'dog', 'dog', 'Perros', 'naturaleza'],
+  ['gatos', 'cat', 'cat', 'Gatos', 'naturaleza'],
+  ['insectos', 'bug', 'bug', 'Insectos', 'naturaleza'],
+  ['riego', 'droplets', 'droplets', 'Agua y riego', 'naturaleza'],
+  ['lluvia', 'cloud-rain', 'cloudRain', 'Lluvia', 'naturaleza'],
+  ['sol', 'sun', 'sun', 'Sol', 'naturaleza'],
+  ['montana', 'mountain', 'mountain', 'Montaña', 'naturaleza'],
+  ['planeta', 'earth', 'earth', 'Planeta', 'naturaleza'],
+  // Señales y seguridad
+  ['emergencias', 'siren', 'siren', 'Emergencias', 'senales'],
+  ['extintor', 'fire-extinguisher', 'fireExtinguisher', 'Extintor', 'senales'],
+  ['salida', 'log-out', 'logOut', 'Salida', 'senales'],
+  ['encuentro', 'users-round', 'usersRound', 'Punto de encuentro', 'senales'],
+  ['prohibido', 'ban', 'ban', 'Prohibido', 'senales'],
+  ['nofumar', 'cigarette-off', 'cigaretteOff', 'No fumar', 'senales'],
+  ['silencio', 'volume-x', 'volumeX', 'Silencio', 'senales'],
+  ['camaras', 'cctv', 'cctv', 'Cámaras de seguridad', 'senales'],
+  ['restringido', 'lock', 'lock', 'Acceso restringido', 'senales'],
+  ['cubierta', 'umbrella', 'umbrella', 'Zona cubierta', 'senales'],
+  ['hito', 'milestone', 'milestone', 'Señal', 'senales'],
+  ['bandera', 'flag', 'flag', 'Bandera', 'senales'],
+  // Información
+  ['mapa', 'map', 'map', 'Mapa', 'informacion'],
+  ['ruta', 'route', 'route', 'Ruta', 'informacion'],
+  ['orbita', 'orbit', 'orbit', '360°', 'informacion'],
+  ['brujula', 'compass', 'compass', 'Brújula', 'informacion'],
+  ['punto', 'map-pinned', 'mapPinned', 'Punto marcado', 'informacion'],
+  ['aqui', 'locate', 'locate', 'Estás aquí', 'informacion'],
+  ['direccion', 'navigation-2', 'navigation2', 'Dirección', 'informacion'],
+  ['noticias', 'newspaper', 'newspaper', 'Noticias', 'informacion'],
+  ['web', 'globe', 'globe', 'Sitio web', 'informacion'],
+  ['descargas', 'download', 'download', 'Descargas', 'informacion'],
+  ['documento', 'file-text', 'fileText', 'Documento', 'informacion'],
+  ['qr', 'qr-code', 'qrCode', 'Código QR', 'informacion'],
+  ['vinculo', 'link', 'link', 'Enlace', 'informacion'],
+  ['compartir', 'share-2', 'share2', 'Compartir', 'informacion'],
+  ['persona', 'user-round', 'userRound', 'Persona', 'informacion'],
+  ['meta', 'target', 'target', 'Meta', 'informacion'],
 ];
 
 // El ícono de cada tipo de punto cuando no se elige otro.
@@ -80,6 +248,17 @@ const ICONO_TIPO = {
   espacio: 'edificio',
   accesibilidad: 'accesibilidad',
 };
+
+{
+  const grupos = new Set(CATEGORIAS.map(([g]) => g));
+  const vistas = new Set();
+  for (const [clave, , , , grupo] of ICONOS) {
+    if (!/^[a-z0-9]+$/.test(clave)) throw new Error(`Clave de ícono no válida: «${clave}».`);
+    if (vistas.has(clave)) throw new Error(`Clave de ícono repetida: «${clave}».`);
+    if (!grupos.has(grupo)) throw new Error(`«${clave}» tiene un grupo que no existe: «${grupo}».`);
+    vistas.add(clave);
+  }
+}
 
 const escribir = (ruta, texto) => {
   const destino = path.join(raiz, ruta);
@@ -125,6 +304,17 @@ export type IconoPunto = (typeof ICONOS_PUNTO)[number];
 
 export const ETIQUETA_ICONO: Record<IconoPunto, string> = {
 ${ICONOS.map(([c, , , e]) => `  ${c}: '${e}',`).join('\n')}
+};
+
+/** Grupos del selector de íconos, en orden. */
+export const CATEGORIAS_ICONO = [
+${CATEGORIAS.map(([g, e]) => `  { id: '${g}', etiqueta: '${e}' },`).join('\n')}
+] as const;
+export type CategoriaIcono = (typeof CATEGORIAS_ICONO)[number]['id'];
+
+/** El grupo de cada ícono. */
+export const CATEGORIA_ICONO: Record<IconoPunto, CategoriaIcono> = {
+${ICONOS.map(([c, , , , g]) => `  ${c}: '${g}',`).join('\n')}
 };
 
 /** El ícono de cada tipo de punto cuando no se elige otro. */
@@ -178,6 +368,9 @@ const casos = [
   ['enlace', {}],
   ['video', {}],
   ['imagen', { forma: 'capa3d' }],
+  // La imagen sin marco (PNG con transparencia) y un ícono de los nuevos.
+  ['imagen', { forma: 'recorte', rotulo: true, escala: 1.6 }],
+  ['informacion', { forma: 'pin', icono: 'piscicultura' }],
   // Forma y animación: fuera de la lista vuelven a lo del tipo y a «ninguna».
   ['enlace', { forma: 'triangulo', animacion: 'bailar' }],
   ['anuncio', { forma: 'pin', animacion: 'rebote', color: '#ABCDEF', escala: 9 }],

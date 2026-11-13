@@ -9,7 +9,6 @@ import type { MarkersPlugin } from '@photo-sphere-viewer/markers-plugin';
 import {
   ArrowDown,
   ArrowUp,
-  CalendarDays,
   ChevronLeft,
   ChevronRight,
   Circle,
@@ -19,25 +18,20 @@ import {
   GraduationCap,
   House,
   ImageUp,
-  Info,
-  Map as MapIcon,
   MapPinned,
   Monitor,
   MousePointer2,
   MousePointerClick,
-  Orbit,
   Pencil,
   MessageCircle,
   Plus,
   Redo2,
   RotateCcw,
-  Route,
   Save,
   ScanQrCode,
   SlidersHorizontal,
   Smartphone,
   Square,
-  Star,
   Trash2,
   Type,
   Undo2,
@@ -46,7 +40,6 @@ import {
   X,
   Image as ImageIcon,
   Minus,
-  type LucideIcon,
 } from 'lucide-react';
 import { api } from '@/components/ui/api';
 import { useAvisos } from '@/components/ui/useAvisos';
@@ -61,13 +54,12 @@ import {
   CONFIG_POR_DEFECTO,
   ESTADOS_MINIMAPA,
   ETIQUETA_TIPO_SECCION,
-  ICONOS_SECCION,
   IMAGEN_DRON,
   TIPOS_SECCION,
+  iconoDeSeccion,
   type Capa,
   type ConfigApp,
   type EstadoMinimapa,
-  type IconoSeccion,
   type PestanaPagina,
   type SeccionApp,
   type TipoElemento,
@@ -84,27 +76,8 @@ import { PropiedadesPagina } from './PropiedadesPagina';
 import { MinimapaVista } from './Minimapa';
 import { EditorMinimapa, type VerticeMapa } from './EditorMinimapa';
 import { alinear, copiar, crearElemento, distribuir, nuevoId, ordenar, type ModoAlinear } from './operaciones';
-
-const ICONO: Record<IconoSeccion, LucideIcon> = {
-  info: Info,
-  video: Video,
-  escuela: GraduationCap,
-  orbita: Orbit,
-  mapa: MapIcon,
-  ruta: Route,
-  calendario: CalendarDays,
-  estrella: Star,
-};
-const NOMBRE_ICONO: Record<IconoSeccion, string> = {
-  info: 'Información',
-  video: 'Video',
-  escuela: 'Escuela',
-  orbita: '360°',
-  mapa: 'Mapa',
-  ruta: 'Ruta',
-  calendario: 'Calendario',
-  estrella: 'Estrella',
-};
+import { IconoCatalogo, SelectorIconos } from '@/components/ui/SelectorIconos';
+import { ETIQUETA_ICONO } from '@/lib/iconosPunto.generado';
 
 /** Ancho de pantalla (dp) que representa cada marco de la vista previa. */
 const ANCHO_REAL = { movil: 915, escritorio: 1440 } as const;
@@ -185,6 +158,8 @@ export function EditorCliente({
 
   // ---------------------------------------------------------------- estado de la vista previa
   const [dispositivo, setDispositivo] = useState<'movil' | 'escritorio'>('movil');
+  /** La sección que está eligiendo ícono (se abre el catálogo debajo de ella). */
+  const [iconoSeccionAbierto, setIconoSeccionAbierto] = useState<string | null>(null);
   const [barraPlegada, setBarraPlegada] = useState(inicial.barraLateral.iniciaPlegada);
   const [estadoMapa, setEstadoMapa] = useState<EstadoMinimapa>(inicial.minimapa.estadoInicial);
   // Igual que en la app: sin tocar nada un rato, los botones se atenúan para dejar ver la foto.
@@ -705,7 +680,6 @@ export function EditorCliente({
                   : conLogo && <div className="shrink-0" style={{ height: altoLogo + (compacta ? 10 : 18) * e * u }} />}
                 <div className="min-h-0 flex-1 overflow-y-auto [scrollbar-width:none]">
                   {secciones.map((s, i) => {
-                    const Icono = ICONO[s.icono];
                     const activa = seccionAbierta ? seccionAbierta.id === s.id : s.tipo === 'recorrido';
                     return (
                       <button
@@ -729,7 +703,7 @@ export function EditorCliente({
                         {activa && (
                           <span className="absolute" style={{ ...(derecha ? { right: 0 } : { left: 0 }), top: filaV - 2 * e * u, bottom: filaV - 2 * e * u, width: 3 * e * u, borderRadius: 3 * e * u, background: 'var(--acento)' }} />
                         )}
-                        <Icono size={16 * e * u} className="shrink-0" />
+                        <IconoCatalogo icono={iconoDeSeccion(s.icono)} tamano={16 * e * u} />
                         {!riel && <span className="truncate">{s.titulo}</span>}
                       </button>
                     );
@@ -1162,22 +1136,33 @@ export function EditorCliente({
                         const paginas = p.tipo === 'pagina' && !x.paginas[s.id] ? { ...x.paginas, [s.id]: paginaInicial(s.id, s.titulo) } : x.paginas;
                         return { ...x, barraLateral: { ...x.barraLateral, secciones }, paginas };
                       }, grupo);
-                    const Icono = ICONO[s.icono];
+                    const eligiendo = iconoSeccionAbierto === s.id;
                     return (
                       <li key={s.id} className={`hundido space-y-1.5 rounded-xl p-2 ${s.visible ? '' : 'opacity-55'}`}>
                         <div className="flex items-center gap-1.5">
-                          <label className="relative grid h-9 w-9 shrink-0 cursor-pointer place-items-center rounded-lg bg-white/70" title="Cambiar ícono">
-                            <Icono size={16} />
-                            <select value={s.icono} onChange={(e) => cambiar({ icono: e.target.value as IconoSeccion })} className="absolute inset-0 cursor-pointer opacity-0">
-                              {ICONOS_SECCION.map((ic) => (
-                                <option key={ic} value={ic}>
-                                  {NOMBRE_ICONO[ic]}
-                                </option>
-                              ))}
-                            </select>
-                          </label>
+                          <button
+                            type="button"
+                            onClick={() => setIconoSeccionAbierto(eligiendo ? null : s.id)}
+                            title={`Cambiar el ícono (${ETIQUETA_ICONO[iconoDeSeccion(s.icono)]})`}
+                            aria-expanded={eligiendo}
+                            className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg transition ${eligiendo ? 'bg-riel text-white' : 'bg-white/70 hover:bg-white'}`}
+                          >
+                            <IconoCatalogo icono={iconoDeSeccion(s.icono)} tamano={16} />
+                          </button>
                           <input value={s.titulo} onChange={(e) => cambiar({ titulo: e.target.value }, `seccion-${s.id}`)} className="campo !px-2 !py-1.5 !text-[13px]" />
                         </div>
+                        {eligiendo && (
+                          <div className="rounded-xl bg-white/60 p-2">
+                            <SelectorIconos
+                              valor={iconoDeSeccion(s.icono)}
+                              columnas={7}
+                              alElegir={(ic) => {
+                                cambiar({ icono: ic });
+                                setIconoSeccionAbierto(null);
+                              }}
+                            />
+                          </div>
+                        )}
                         <div className="flex items-center gap-1">
                           <select value={s.tipo} onChange={(e) => cambiar({ tipo: e.target.value as SeccionApp['tipo'] })} className="campo !w-auto min-w-0 flex-1 !px-2 !py-1 !text-[12px]">
                             {TIPOS_SECCION.map((t) => (

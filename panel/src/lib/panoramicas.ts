@@ -9,6 +9,7 @@ import { normalizarGrados, rumbo } from './geo';
 import {
   AJUSTES_POR_DEFECTO,
   FLECHAS_AUTOMATICAS,
+  TIPOS_NADIR,
   TIPOS_PUNTO,
   type Estilo,
   type Ajustes,
@@ -92,7 +93,15 @@ export function normalizarAjustes(a: Partial<Ajustes> | undefined, base: Ajustes
     contraste: clamp(x.contraste, -1, 1),
     saturacion: clamp(x.saturacion, -1, 1),
     temperatura: clamp(x.temperatura, -1, 1),
+    // Lo nuevo puede faltar en lo guardado antes: vale lo de por defecto.
+    tinte: clamp(x.tinte, -1, 1),
+    sombras: clamp(x.sombras, -1, 1),
+    luces: clamp(x.luces, -1, 1),
+    nitidez: clamp(x.nitidez, 0, 1),
+    ruido: clamp(x.ruido, 0, 1),
     nadir: clamp(x.nadir, 0, 40),
+    nadirTipo: (TIPOS_NADIR as readonly string[]).includes(x.nadirTipo) ? x.nadirTipo : AJUSTES_POR_DEFECTO.nadirTipo,
+    nadirColor: typeof x.nadirColor === 'string' && /^#[0-9a-f]{6}$/i.test(x.nadirColor) ? x.nadirColor.toLowerCase() : AJUSTES_POR_DEFECTO.nadirColor,
     difuminados: (Array.isArray(x.difuminados) ? x.difuminados : []).slice(0, 60).map((d) => ({
       yaw: normalizarGrados(clamp(d.yaw, -360, 360)),
       pitch: clamp(d.pitch, -90, 90),

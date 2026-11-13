@@ -83,6 +83,9 @@ const casos = [
         { id: 'Nosotros', titulo: 'Quiénes somos', icono: 'info' },
         { id: 'nosotros', titulo: 'Repetida', icono: 'cohete', tipo: 'otra' },
         { id: 'Eventos 2027!', titulo: '', visible: false, tipo: 'pagina', icono: 'estrella' },
+        // Las secciones usan todo el catálogo de íconos de los puntos.
+        { id: 'granja', titulo: 'Granja', icono: 'maquinaria' },
+        { id: 'admisiones', titulo: 'Admisiones', icono: 'escuela' },
         { id: 'vistas', titulo: 'Recorrido' },
         { id: 'rutas', tipo: 'pagina' },
         { titulo: 'Sin id' },

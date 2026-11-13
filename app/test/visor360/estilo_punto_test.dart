@@ -5,6 +5,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -170,6 +171,73 @@ void main() {
     );
     expect(find.byIcon(LucideIcons.bookOpen), findsOneWidget);
     expect(find.byIcon(LucideIcons.info), findsNothing);
+  });
+
+  test('el catálogo nuevo: más íconos, del campus al campo', () {
+    expect(iconosPunto.length, greaterThanOrEqualTo(180));
+    // Las claves de antes siguen en su lugar (los estilos guardados las citan).
+    expect(iconosPunto.take(3), <String>['info', 'anuncio', 'imagen']);
+    expect(iconoPunto('informacion', 'maquinaria'), LucideIcons.tractor);
+    expect(iconoPunto('informacion', 'piscicultura'), LucideIcons.fish);
+    expect(iconoPunto('informacion', 'extintor'), LucideIcons.fireExtinguisher);
+  });
+
+  test('las secciones usan el mismo catálogo y las claves viejas siguen', () {
+    expect(iconoSeccion('biblioteca'), LucideIcons.bookOpen);
+    expect(iconoSeccion('maquinaria'), LucideIcons.tractor);
+    // Las de antes de las secciones.
+    expect(iconoSeccion('escuela'), LucideIcons.graduationCap);
+    expect(iconoSeccion('estrella'), LucideIcons.star);
+    expect(iconoSeccion('orbita'), LucideIcons.orbit);
+    expect(iconoSeccion('mapa'), LucideIcons.map);
+    expect(iconoSeccion('ruta'), LucideIcons.route);
+    expect(iconoSeccion('no-existe'), LucideIcons.info);
+  });
+
+  test('la imagen sin marco puede llevar el nombre debajo', () {
+    final e = EstiloPunto.de('imagen', '{"forma":"recorte","rotulo":true}');
+    expect(e.forma, 'recorte');
+    expect(e.conRotulo, isTrue);
+  });
+
+  testWidgets(
+    'imagen sin marco: la imagen entera, sin caja, con sombra de silueta',
+    (tester) async {
+      await _mostrar(
+        tester,
+        MarcadorPunto2D(
+          punto: _punto('imagen', <String, Object?>{'forma': 'recorte'}),
+          miniatura: MemoryImage(_png1x1),
+        ),
+      );
+      expect(find.byType(SiluetaConSombra), findsOneWidget);
+      final imagenes = tester.widgetList<Image>(find.byType(Image)).toList();
+      // La imagen y su sombra (la misma imagen teñida y desenfocada), enteras.
+      expect(imagenes, hasLength(2));
+      expect(imagenes.every((i) => i.fit == BoxFit.contain), isTrue);
+      expect(find.byType(ImageFiltered), findsOneWidget);
+      // Ni círculo ni fondo de color detrás.
+      expect(
+        find.byWidgetPredicate(
+          (w) =>
+              w is Container &&
+              w.decoration is BoxDecoration &&
+              (w.decoration! as BoxDecoration).shape == BoxShape.circle,
+        ),
+        findsNothing,
+      );
+    },
+  );
+
+  testWidgets('imagen sin marco sin foto muestra el ícono', (tester) async {
+    await _mostrar(
+      tester,
+      MarcadorPunto2D(
+        punto: _punto('imagen', <String, Object?>{'forma': 'recorte'}),
+      ),
+    );
+    expect(find.byType(SiluetaConSombra), findsNothing);
+    expect(find.byIcon(LucideIcons.image), findsOneWidget);
   });
 
   testWidgets(
@@ -338,3 +406,8 @@ void main() {
     );
   });
 }
+
+/// Un PNG transparente de 1×1 (para la imagen sin marco).
+final Uint8List _png1x1 = base64Decode(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+);

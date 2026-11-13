@@ -146,6 +146,61 @@
   }
  },
  {
+  "tipo": "imagen",
+  "estilo": {
+   "forma": "recorte",
+   "rotulo": true,
+   "escala": 1.6
+  },
+  "esperado": {
+   "forma": "recorte",
+   "ancho": 320,
+   "alto": 320,
+   "rotacion": {
+    "yaw": 0,
+    "pitch": 0,
+    "roll": 0
+   },
+   "animacion": "ninguna",
+   "color": "#7c3aed",
+   "escala": 1.6,
+   "icono": "",
+   "fondo": "",
+   "rotulo": true,
+   "opacidad": 1,
+   "velocidad": 1,
+   "esquinas": 14,
+   "marco": 0
+  }
+ },
+ {
+  "tipo": "informacion",
+  "estilo": {
+   "forma": "pin",
+   "icono": "piscicultura"
+  },
+  "esperado": {
+   "forma": "pin",
+   "ancho": 0,
+   "alto": 0,
+   "rotacion": {
+    "yaw": 0,
+    "pitch": 0,
+    "roll": 0
+   },
+   "animacion": "ninguna",
+   "color": "#2563eb",
+   "escala": 1,
+   "icono": "piscicultura",
+   "fondo": "",
+   "rotulo": false,
+   "opacidad": 1,
+   "velocidad": 1,
+   "esquinas": 14,
+   "marco": 0
+  }
+ },
+ {
   "tipo": "enlace",
   "estilo": {
    "forma": "triangulo",

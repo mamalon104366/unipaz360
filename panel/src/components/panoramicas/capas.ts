@@ -171,6 +171,12 @@ export function marcadorDe(
       cuerpo = `<span class="pz-foto"${foto ? ` style="background-image:url('${urlCss(foto)}')"` : ''}>${foto ? '' : icono}</span><span class="pz-rotulo">${titulo}</span>`;
       break;
     }
+    case 'recorte': {
+      // La imagen entera y sin caja: un PNG con fondo transparente se ve recortado sobre la foto.
+      const foto = p.tipo === 'imagen' && fuente && esImagen(fuente) ? fuente : '';
+      cuerpo = (foto ? `<img class="pz-recorte-img" src="${esc(foto)}" alt="" draggable="false">` : icono) + textoRotulo;
+      break;
+    }
     default:
       cuerpo = `${icono}<span class="pz-texto">${titulo}</span>`;
   }

@@ -180,6 +180,14 @@ export interface Difuminado {
   radio: number;
 }
 
+/**
+ * Cómo se tapa el trípode en el suelo: con el logo de UNIPAZ, difuminando el suelo o con un
+ * disco de color.
+ */
+export const TIPOS_NADIR = ['logo', 'difuminado', 'color'] as const;
+export type TipoNadir = (typeof TIPOS_NADIR)[number];
+export const ETIQUETA_NADIR: Record<TipoNadir, string> = { logo: 'Logo', difuminado: 'Difuminado', color: 'Color' };
+
 /** Edición no destructiva: el original nunca se modifica. */
 export interface Ajustes {
   /** Grados donde queda el norte en la foto (para orientar las flechas). */
@@ -192,8 +200,21 @@ export interface Ajustes {
   contraste: number;
   saturacion: number;
   temperatura: number;
-  /** Parche del suelo con el logo, radio en grados (0 = sin parche). */
+  /** Verde (−1) a magenta (1), el complemento de la temperatura. */
+  tinte: number;
+  /** Aclara (+) u oscurece (−) las zonas oscuras, de -1 a 1. */
+  sombras: number;
+  /** Aclara (+) o recupera (−) las zonas claras, de -1 a 1. */
+  luces: number;
+  /** Detalle, de 0 a 1. */
+  nitidez: number;
+  /** Reducción de ruido (fotos con poca luz), de 0 a 1. */
+  ruido: number;
+  /** Parche del suelo, radio en grados (0 = sin parche). */
   nadir: number;
+  nadirTipo: TipoNadir;
+  /** Color del disco cuando `nadirTipo` es `color`. */
+  nadirColor: string;
   difuminados: Difuminado[];
 }
 
@@ -205,9 +226,63 @@ export const AJUSTES_POR_DEFECTO: Ajustes = {
   contraste: 0,
   saturacion: 0,
   temperatura: 0,
+  tinte: 0,
+  sombras: 0,
+  luces: 0,
+  nitidez: 0,
+  ruido: 0,
   nadir: 0,
+  nadirTipo: 'logo',
+  nadirColor: '#233671',
   difuminados: [],
 };
+
+/**
+ * Lo que define los píxeles de las versiones publicadas (lo geométrico se aplica al mostrar). Si
+ * cambia, hay que volver a generarlas. El tipo y el color del parche solo cuentan si hay parche.
+ */
+export function huellaPixeles(a: Ajustes) {
+  const conNadir = a.nadir > 0;
+  return JSON.stringify([
+    a.exposicion,
+    a.contraste,
+    a.saturacion,
+    a.temperatura,
+    a.tinte,
+    a.sombras,
+    a.luces,
+    a.nitidez,
+    a.ruido,
+    a.nadir,
+    conNadir ? a.nadirTipo : '',
+    conNadir && a.nadirTipo === 'color' ? a.nadirColor : '',
+    a.difuminados,
+  ]);
+}
+
+/**
+ * Estilos rápidos: un toque pone varios ajustes de luz y color a la vez (después se pueden
+ * afinar). «Natural» los deja en cero.
+ */
+export const ESTILOS_FOTO = [
+  { id: 'natural', etiqueta: 'Natural', ajustes: { exposicion: 0, contraste: 0, saturacion: 0, temperatura: 0, tinte: 0, sombras: 0, luces: 0, nitidez: 0 } },
+  { id: 'vivo', etiqueta: 'Vivo', ajustes: { exposicion: 0.05, contraste: 0.2, saturacion: 0.3, temperatura: 0.05, tinte: 0, sombras: 0.2, luces: -0.15, nitidez: 0.35 } },
+  { id: 'soleado', etiqueta: 'Soleado', ajustes: { exposicion: 0.15, contraste: 0.1, saturacion: 0.2, temperatura: 0.35, tinte: 0.05, sombras: 0.25, luces: -0.1, nitidez: 0.2 } },
+  { id: 'fresco', etiqueta: 'Fresco', ajustes: { exposicion: 0.05, contraste: 0.1, saturacion: 0.1, temperatura: -0.3, tinte: -0.05, sombras: 0.1, luces: -0.1, nitidez: 0.2 } },
+  { id: 'dramatico', etiqueta: 'Dramático', ajustes: { exposicion: -0.1, contraste: 0.45, saturacion: -0.1, temperatura: 0, tinte: 0, sombras: -0.2, luces: -0.4, nitidez: 0.5 } },
+  { id: 'interior', etiqueta: 'Interior', ajustes: { exposicion: 0.25, contraste: 0.05, saturacion: 0.1, temperatura: -0.1, tinte: 0.05, sombras: 0.5, luces: -0.3, nitidez: 0.25 } },
+  { id: 'byn', etiqueta: 'Blanco y negro', ajustes: { exposicion: 0, contraste: 0.3, saturacion: -1, temperatura: 0, tinte: 0, sombras: 0.15, luces: -0.15, nitidez: 0.3 } },
+] as const satisfies readonly { id: string; etiqueta: string; ajustes: Partial<Ajustes> }[];
+
+/**
+ * La curva de tonos de «sombras» y «luces» (0 a 1 → 0 a 1). La misma en el servidor (`imagen.ts`)
+ * y en la vista previa del editor: no se cruza nunca (siempre sube), así no hay bandas raras.
+ */
+export function curvaTonos(x: number, sombras: number, luces: number) {
+  const A = 0.14;
+  const y = x + A * sombras * 6.75 * x * (1 - x) * (1 - x) + A * luces * 6.75 * x * x * (1 - x);
+  return Math.min(1, Math.max(0, y));
+}
 
 export interface VersionMedio {
   clave: string;
@@ -248,7 +323,7 @@ export const ETIQUETA_PUNTO: Record<TipoPunto, string> = {
  * Cómo se dibuja un punto dentro de la panorámica (lo mismo en el editor y en Flutter;
  * el contrato está en docs/datos/puntos-360.md).
  */
-export const FORMAS = ['etiqueta', 'icono', 'circulo', 'pin', 'burbuja', 'miniatura', 'flecha', 'capa3d'] as const;
+export const FORMAS = ['etiqueta', 'icono', 'circulo', 'pin', 'burbuja', 'miniatura', 'recorte', 'flecha', 'capa3d'] as const;
 export type Forma = (typeof FORMAS)[number];
 export const ETIQUETA_FORMA: Record<Forma, string> = {
   etiqueta: 'Etiqueta',
@@ -257,6 +332,8 @@ export const ETIQUETA_FORMA: Record<Forma, string> = {
   pin: 'Pin',
   burbuja: 'Tarjeta',
   miniatura: 'Miniatura',
+  // La imagen entera, sin marco ni caja: un PNG con fondo transparente se ve recortado.
+  recorte: 'Imagen sin marco',
   flecha: 'Flecha en el piso',
   capa3d: 'Dentro de la imagen',
 };
@@ -298,7 +375,7 @@ export const ETIQUETA_FONDO: Record<Fondo, string> = { oscuro: 'Oscuro', claro: 
 /** El fondo que usa cada forma cuando no se elige otro. */
 export const fondoDe = (e: Pick<Estilo, 'forma' | 'fondo'>): Fondo => e.fondo || (e.forma === 'burbuja' ? 'claro' : 'oscuro');
 /** Formas que pueden llevar el título siempre visible debajo (las demás ya lo muestran o no lo tienen). */
-export const FORMAS_ROTULO: readonly Forma[] = ['icono', 'circulo', 'pin'];
+export const FORMAS_ROTULO: readonly Forma[] = ['icono', 'circulo', 'pin', 'recorte'];
 /** Redondeo de la capa dentro de la imagen cuando no se cambia, en px de la capa. */
 export const ESQUINAS_POR_DEFECTO = 14;
 
