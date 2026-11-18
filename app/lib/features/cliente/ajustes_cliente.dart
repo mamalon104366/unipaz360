@@ -52,6 +52,13 @@ class _HojaAjustes extends StatelessWidget {
     final mapa =
         p.mapaAbierto ?? plataforma.minimapa.estadoInicial != 'minimizado';
     final menu = p.menuAbierto ?? !plataforma.barraLateral.iniciaPlegada;
+    // El tamaño que rige mientras la persona no elija: el más cercano al de su celular.
+    final escalador = MediaQuery.maybeTextScalerOf(context);
+    final sistema = escalador == null ? 1.0 : escalador.scale(100) / 100;
+    final efectivo = const Preferencias().factorLetra(sistema: sistema);
+    final letraActual = tamanosLetra.reduce(
+      (a, b) => (a - efectivo).abs() <= (b - efectivo).abs() ? a : b,
+    );
 
     return Dialog(
       backgroundColor: Colors.transparent,
@@ -143,6 +150,27 @@ class _HojaAjustes extends StatelessWidget {
                               ),
                             ],
                           ],
+                        ),
+                        const SizedBox(height: 20),
+                        const _Titulo('Tamaño de la letra'),
+                        _Segmentos<double>(
+                          valor: p.letra ?? letraActual,
+                          acento: acento,
+                          opciones: const <(double, IconData, String)>[
+                            (1, LucideIcons.type, 'Normal'),
+                            (1.15, LucideIcons.aLargeSmall, 'Grande'),
+                            (1.3, LucideIcons.aArrowUp, 'Muy grande'),
+                          ],
+                          alCambiar: (v) => vm.cambiar(p.con(letra: v)),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6, left: 2),
+                          child: Text(
+                            p.letra == null && letraActual > 1
+                                ? 'Sigue la letra grande de tu celular. También agranda los botones.'
+                                : 'Agranda los textos y los botones de la app.',
+                            style: _t(12, color: _tenue),
+                          ),
                         ),
                         const SizedBox(height: 20),
                         const _Titulo('Al abrir la app'),

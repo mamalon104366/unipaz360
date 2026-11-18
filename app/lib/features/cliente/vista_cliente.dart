@@ -205,6 +205,24 @@ class _VistaClienteState extends State<VistaCliente> {
     }
   }
 
+  /// Tamaño de la letra del celular: si la persona lo tiene agrandado, la app también se
+  /// agranda (salvo que haya elegido otro tamaño en «Tu experiencia»).
+  double _letraSistema = 1;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final escalador = MediaQuery.maybeTextScalerOf(context);
+    final letra = escalador == null ? 1.0 : escalador.scale(100) / 100;
+    if (letra != _letraSistema) {
+      _letraSistema = letra;
+      _config = widget.preferencias.aplicar(
+        widget.paquete.config,
+        letraSistema: letra,
+      );
+    }
+  }
+
   @override
   void didUpdateWidget(VistaCliente vieja) {
     super.didUpdateWidget(vieja);
@@ -218,7 +236,7 @@ class _VistaClienteState extends State<VistaCliente> {
     final p = widget.preferencias;
     final antes = vieja.preferencias;
     if (identical(p, antes) && identical(widget.paquete, vieja.paquete)) return;
-    _config = p.aplicar(widget.paquete.config);
+    _config = p.aplicar(widget.paquete.config, letraSistema: _letraSistema);
     // Lo que la persona cambia en «Tu experiencia» se ve de una vez.
     if (p.menuAbierto != antes.menuAbierto && p.menuAbierto != null) {
       _barraPlegada = !p.menuAbierto!;

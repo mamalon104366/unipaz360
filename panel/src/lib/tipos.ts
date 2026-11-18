@@ -71,6 +71,19 @@ export interface Resumen {
   listaPanoramicas: { id: string; titulo: string; puntos: number }[];
   /** Secciones de la app que tienen página editable (apartado Cliente). */
   paginasApp: { id: string; titulo: string }[];
+  /** Lugares a los que el asistente puede guiar: espacios con su nodo y nodos con nombre. */
+  lugares: number;
+  /** Fotos 360° sin nombre: ni la foto ni su nodo lo tienen (la app muestra el código del nodo). */
+  fotosSinNombre: number;
+  /** Fotos 360° con el norte sin calibrar (en el recorrido guiado solo se orientan con sus «Ir a»). */
+  fotosSinNorte: number;
+  /** Flechas «Ir a» entre fotos (pares sin repetir) y cuántas no tienen una de vuelta. */
+  flechas: number;
+  flechasSinRegreso: number;
+  /** Minimapa: si la app lo muestra, cuántos nodos tiene ubicados y cuántos nodos con foto faltan. */
+  minimapaVisible: boolean;
+  nodosEnMinimapa: number;
+  fotosFueraDelMinimapa: number;
 }
 
 // ------------------------------------------------------------------ cuentas

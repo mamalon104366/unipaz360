@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 import Link from 'next/link';
 import { ArrowRight, Check, CircleAlert, Send } from 'lucide-react';
 import { leerResumen } from '@/lib/grafo';
+import { revisionesInicio } from '@/lib/revisiones';
 import { leerAuditoria } from '@/lib/auditoria';
 import { sesionPagina } from '@/lib/pagina';
 import { Cargando, Pagina } from '@/components/ui/Pagina';
@@ -39,21 +40,7 @@ async function ContenidoInicio() {
   }
 
   const pctAccesible = r.tramos ? Math.round((r.accesibles / r.tramos) * 100) : 0;
-  const revisiones = [
-    {
-      ok: r.vertices > 0 && r.componentes <= 1,
-      texto: r.vertices === 0 ? 'Aún no hay nodos en el mapa' : r.componentes <= 1 ? 'El grafo está conectado' : `El grafo tiene ${r.componentes} partes separadas`,
-      href: '/mapa?ver=aislados',
-    },
-    {
-      ok: r.porVerificar === 0 && r.tramos > 0,
-      texto: r.tramos === 0 ? 'Aún no hay rutas trazadas' : r.porVerificar ? `${r.porVerificar} tramos sin verificar en campo` : 'Todos los tramos están verificados',
-      href: '/mapa?ver=por-verificar',
-    },
-    { ok: r.accesibles > 0, texto: r.accesibles ? `${r.accesibles} tramos aptos para la ruta accesible` : 'Ningún tramo marcado como accesible', href: '/mapa?ver=accesibles' },
-    { ok: r.espacios > 0, texto: r.espacios ? `${r.espacios} espacios con su nodo de acceso` : 'Sin espacios registrados', href: '/espacios' },
-    { ok: r.panoramicas > 0, texto: r.panoramicas ? `${r.panoramicas} panorámicas 360° cargadas` : 'Sin panorámicas 360°', href: '/panoramicas' },
-  ];
+  const revisiones = revisionesInicio(r);
 
   return (
     <Pagina titulo={`${saludo()}, ${nombre}`} subtitulo="El campus, sus rutas y lo que falta antes de publicar.">

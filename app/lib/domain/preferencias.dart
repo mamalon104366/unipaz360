@@ -16,6 +16,13 @@ enum Orientacion {
 
 const List<String> estilosInterfaz = <String>['vidrio', 'oscuro', 'claro'];
 
+/// Los tamaños de letra que se ofrecen: normal, grande y muy grande. Agrandan también los
+/// botones, porque todo se dibuja con la misma escala.
+const List<double> tamanosLetra = <double>[1, 1.15, 1.3];
+
+/// El tamaño más grande que se aplica, aunque el celular tenga la letra aún más grande.
+const double letraMaxima = 1.3;
+
 class Preferencias {
   const Preferencias({
     this.bienvenida = true,
@@ -25,6 +32,7 @@ class Preferencias {
     this.atenuarOpacidad,
     this.estilo,
     this.orientacion = Orientacion.automatica,
+    this.letra,
   });
 
   /// La animación de bienvenida al abrir la app.
@@ -45,6 +53,9 @@ class Preferencias {
 
   final Orientacion orientacion;
 
+  /// Tamaño de la letra (uno de [tamanosLetra]). `null`: el del celular, si lo tiene agrandado.
+  final double? letra;
+
   /// ¿La persona cambió algo?
   bool get personalizada =>
       !bienvenida ||
@@ -53,15 +64,29 @@ class Preferencias {
       atenuar != null ||
       atenuarOpacidad != null ||
       estilo != null ||
-      orientacion != Orientacion.automatica;
+      orientacion != Orientacion.automatica ||
+      letra != null;
 
-  /// La configuración de la plataforma con los gustos de la persona encima.
-  ConfigApp aplicar(ConfigApp c) {
-    if (atenuar == null && atenuarOpacidad == null && estilo == null) return c;
+  /// El tamaño que se aplica: el que eligió la persona o, si no eligió, el del sistema
+  /// ([sistema], cuando el celular tiene la letra agrandada), sin pasar de [letraMaxima].
+  double factorLetra({double sistema = 1}) =>
+      (letra ?? (sistema > 1.05 ? sistema : 1.0)).clamp(1.0, letraMaxima);
+
+  /// La configuración de la plataforma con los gustos de la persona encima. [letraSistema] es
+  /// el tamaño de letra del celular (1 si no está agrandada).
+  ConfigApp aplicar(ConfigApp c, {double letraSistema = 1}) {
+    final factor = factorLetra(sistema: letraSistema);
+    if (atenuar == null &&
+        atenuarOpacidad == null &&
+        estilo == null &&
+        factor == 1) {
+      return c;
+    }
     final b = c.barraLateral;
     return ConfigApp(
       marca: c.marca,
-      escala: c.escala,
+      // La misma escala de la plataforma, agrandada; nunca más allá de lo que ella permite.
+      escala: (c.escala * factor).clamp(0.7, 1.5),
       atenuar: atenuar ?? c.atenuar,
       atenuarTras: c.atenuarTras,
       atenuarOpacidad: atenuarOpacidad ?? c.atenuarOpacidad,
@@ -92,6 +117,7 @@ class Preferencias {
     double? atenuarOpacidad,
     String? estilo,
     Orientacion? orientacion,
+    double? letra,
   }) => Preferencias(
     bienvenida: bienvenida ?? this.bienvenida,
     mapaAbierto: mapaAbierto ?? this.mapaAbierto,
@@ -100,6 +126,7 @@ class Preferencias {
     atenuarOpacidad: atenuarOpacidad ?? this.atenuarOpacidad,
     estilo: estilo ?? this.estilo,
     orientacion: orientacion ?? this.orientacion,
+    letra: letra ?? this.letra,
   );
 
   Map<String, Object?> aJson() => <String, Object?>{
@@ -110,6 +137,7 @@ class Preferencias {
     if (atenuarOpacidad != null) 'atenuarOpacidad': atenuarOpacidad,
     if (estilo != null) 'estilo': estilo,
     'orientacion': orientacion.name,
+    if (letra != null) 'letra': letra,
   };
 
   /// Lee lo guardado. Lo que no se entiende se ignora: nunca deja a la app sin abrir.
@@ -118,6 +146,7 @@ class Preferencias {
     bool? logico(String k) => crudo[k] is bool ? crudo[k] as bool : null;
     final op = crudo['atenuarOpacidad'];
     final estilo = crudo['estilo'];
+    final letra = crudo['letra'];
     var orientacion = Orientacion.automatica;
     for (final o in Orientacion.values) {
       if (o.name == crudo['orientacion']) orientacion = o;
@@ -132,6 +161,9 @@ class Preferencias {
           : null,
       estilo: estilosInterfaz.contains(estilo) ? estilo as String : null,
       orientacion: orientacion,
+      letra: letra is num && tamanosLetra.contains(letra.toDouble())
+          ? letra.toDouble()
+          : null,
     );
   }
 }

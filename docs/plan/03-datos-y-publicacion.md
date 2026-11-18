@@ -63,6 +63,7 @@ erDiagram
 5. **Medios completos:** fotos y panorámicas referenciadas existen en R2 con hash.
 6. **QR estables:** los `uri` de anclajes publicados no cambian ni se reutilizan (¡están impresos en placas físicas!).
 7. **Horarios sin choques:** mismo espacio, mismo día, franjas que no se solapan (advertencia).
+8. **Lo que se nota en la app (avisos, solo en la plataforma):** el asistente sin lugares (ni espacios ni nodos con nombre), fotos 360° sin nombre (la app mostraría el código del nodo) o con el norte sin calibrar, flechas «Ir a» sin regreso y fotos sin su punto en el minimapa. El inicio del panel los resume en «Antes de publicar» (`panel/src/lib/revisiones.ts`).
 
 ## 3.3 Paquete offline v2 (decisión D4)
 

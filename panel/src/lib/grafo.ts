@@ -6,6 +6,7 @@ import { auditar, cambiosDesde } from './auditoria';
 import { siguienteId } from './ids';
 import { SUPERFICIES, TIPOS_VERTICE, type Grafo, type Resumen, type Tramo, type Usuario, type Vertice } from './tipos';
 import { normalizarConfig, type ConfigApp } from './configApp';
+import { contarLugares, flechasSinRegreso, norteCalibrado } from './paquete/reglas';
 
 export { ErrorDatos, respuestaError } from './errores';
 
@@ -62,35 +63,53 @@ export async function ultimaPublicacion(): Promise<string | null> {
 
 export async function leerResumen(): Promise<Resumen> {
   const g = await leerGrafo();
-  const [pan, esp, anc, ultima, app] = await Promise.all([
-    pool.query<{ id: string; titulo: string; puntos: number }>(
-      `SELECT p.id, coalesce(p.titulo, v.descripcion, p.vertice_id) AS titulo,
-              (SELECT count(*)::int FROM punto_informacion h WHERE h.panoramica_id = p.id) AS puntos
+  const [pan, esp, anc, ultima, app, fle] = await Promise.all([
+    pool.query<{ id: string; vertice_id: string; titulo: string; puntos: number; sin_nombre: boolean; norte: unknown }>(
+      `SELECT p.id, p.vertice_id, coalesce(p.titulo, v.descripcion, p.vertice_id) AS titulo,
+              (SELECT count(*)::int FROM punto_informacion h WHERE h.panoramica_id = p.id) AS puntos,
+              (nullif(trim(p.titulo), '') IS NULL AND nullif(trim(v.descripcion), '') IS NULL) AS sin_nombre,
+              p.ajustes -> 'norte' AS norte
          FROM panoramica p JOIN vertice v ON v.id = p.vertice_id WHERE p.campus_id = $1 ORDER BY p.id`,
       [CAMPUS_ID],
     ),
-    pool.query('SELECT count(*)::int AS n FROM espacio WHERE campus_id = $1', [CAMPUS_ID]),
+    pool.query<{ vertice_id: string | null }>('SELECT vertice_id FROM espacio WHERE campus_id = $1', [CAMPUS_ID]),
     pool.query('SELECT count(*)::int AS n FROM anclaje WHERE campus_id = $1 AND retirado_en IS NULL', [CAMPUS_ID]),
     ultimaPublicacion(),
     pool.query<{ config: Partial<ConfigApp> }>('SELECT config FROM configuracion_app WHERE campus_id = $1', [CAMPUS_ID]),
+    pool.query<{ origen: string; destino: string }>(
+      `SELECT panoramica_id AS origen, destino_panoramica_id AS destino FROM punto_informacion
+        WHERE campus_id = $1 AND tipo = 'enlace' AND destino_panoramica_id IS NOT NULL`,
+      [CAMPUS_ID],
+    ),
   ]);
   const cambios = await cambiosDesde(ultima);
   const config = normalizarConfig(app.rows[0]?.config);
   const grupos = componentes(g.vertices, g.tramos);
+  const ids = new Set(g.vertices.map((v) => v.id));
+  const enMinimapa = new Set(config.minimapa.nodos.map((n) => n.vertice_id).filter((id) => ids.has(id)));
   return {
     vertices: g.vertices.length,
     tramos: g.tramos.length,
     accesibles: g.tramos.filter((t) => t.accesible).length,
     porVerificar: g.tramos.filter((t) => !t.verificado).length,
     panoramicas: pan.rows.length,
-    espacios: esp.rows[0].n,
+    espacios: esp.rows.length,
     anclajes: anc.rows[0].n,
     componentes: grupos.length,
     aislados: grupos.slice(1).flat().length,
     ultimaPublicacion: ultima,
     cambiosPendientes: cambios.reduce((s, c) => s + c.n, 0),
-    listaPanoramicas: pan.rows,
+    listaPanoramicas: pan.rows.map(({ id, titulo, puntos }) => ({ id, titulo, puntos })),
     paginasApp: config.barraLateral.secciones.filter((s) => s.tipo === 'pagina').map((s) => ({ id: s.id, titulo: s.titulo })),
+    // Lo mismo que avisa el empaquetador (paquete/reglas.ts), contado para el inicio.
+    lugares: contarLugares(g.vertices, esp.rows),
+    fotosSinNombre: pan.rows.filter((p) => p.sin_nombre).length,
+    fotosSinNorte: pan.rows.filter((p) => !norteCalibrado(p.norte)).length,
+    flechas: new Set(fle.rows.map((f) => `${f.origen}\n${f.destino}`)).size,
+    flechasSinRegreso: flechasSinRegreso(fle.rows).length,
+    minimapaVisible: config.minimapa.visible,
+    nodosEnMinimapa: enMinimapa.size,
+    fotosFueraDelMinimapa: pan.rows.filter((p) => !enMinimapa.has(p.vertice_id)).length,
   };
 }
 

@@ -88,6 +88,81 @@ Future<void> _mostrar(
 }
 
 void main() {
+  group('letra grande (accesibilidad, HU-14)', () {
+    test('agranda la escala de la plataforma, sin pasar el máximo', () {
+      final c = _config();
+      expect(const Preferencias().aplicar(c).escala, c.escala);
+      expect(
+        const Preferencias(letra: 1.3).aplicar(c).escala,
+        closeTo(c.escala * 1.3, 1e-9),
+      );
+      // Sin elegir nada, sigue la letra grande del celular, hasta 1,3.
+      expect(
+        const Preferencias().aplicar(c, letraSistema: 2).escala,
+        closeTo(c.escala * 1.3, 1e-9),
+      );
+      expect(
+        const Preferencias().aplicar(c, letraSistema: 1.15).escala,
+        closeTo(c.escala * 1.15, 1e-9),
+      );
+      // Lo que la persona elige manda sobre el celular.
+      expect(
+        const Preferencias(letra: 1).aplicar(c, letraSistema: 2).escala,
+        c.escala,
+      );
+      // Nunca más allá de lo que la plataforma permite (1,5).
+      final crudo = jsonDecode(
+        File('assets/config/por_defecto.json').readAsStringSync(),
+      ) as Map<String, dynamic>;
+      (crudo['interfaz'] as Map<String, dynamic>)['escala'] = 1.3;
+      final grande = normalizarConfig(crudo);
+      expect(const Preferencias(letra: 1.3).aplicar(grande).escala, 1.5);
+    });
+
+    test('se guarda en el dispositivo y un valor raro se ignora', () {
+      final p = Preferencias.desdeJson(const Preferencias(letra: 1.15).aJson());
+      expect(p.letra, 1.15);
+      expect(p.personalizada, isTrue);
+      expect(const Preferencias().personalizada, isFalse);
+      expect(
+        Preferencias.desdeJson(const <String, Object?>{'letra': 7}).letra,
+        isNull,
+      );
+      expect(
+        Preferencias.desdeJson(const <String, Object?>{'letra': 'grande'})
+            .letra,
+        isNull,
+      );
+    });
+
+    testWidgets('«Muy grande» cabe en celulares acostados y de pie', (
+      tester,
+    ) async {
+      for (final t in const <Size>[
+        Size(640, 360),
+        Size(844, 390),
+        Size(390, 844),
+        Size(1440, 900),
+      ]) {
+        await _mostrar(tester, t, preferencias: const Preferencias(letra: 1.3));
+        expect(tester.takeException(), isNull, reason: '$t');
+      }
+    });
+
+    testWidgets('con la letra del celular agrandada, la app también crece', (
+      tester,
+    ) async {
+      await _mostrar(tester, const Size(1440, 900));
+      final normal = tester.getSize(find.byType(BotonChat)).width;
+      tester.platformDispatcher.textScaleFactorTestValue = 2;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await tester.pump();
+      final grande = tester.getSize(find.byType(BotonChat)).width;
+      expect(grande, closeTo(normal * 1.3, 0.5));
+      expect(tester.takeException(), isNull);
+    });
+  });
+
   testWidgets(
     'en escritorio se ven el logo, las secciones, el pie, el minimapa y los botones',
     (tester) async {

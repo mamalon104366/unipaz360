@@ -26,6 +26,26 @@ function alcanzables(mapa: Map<string, string[]>, inicio: string | undefined) {
   return vistos;
 }
 
+/** Lugares a los que el asistente puede guiar: los espacios con su nodo y los nodos con nombre (como la app). */
+export function contarLugares(vertices: { id: string; descripcion: string | null }[], espacios: { vertice_id: string | null }[]) {
+  const ids = new Set(vertices.map((v) => v.id));
+  return espacios.filter((e) => e.vertice_id && ids.has(e.vertice_id)).length + vertices.filter((v) => v.descripcion?.trim()).length;
+}
+
+/** La app da por calibrado el norte de una foto si no es 0; si no, solo se orienta con sus «Ir a». */
+export function norteCalibrado(norte: unknown) {
+  const n = Number(norte ?? 0);
+  return Number.isFinite(n) && n !== 0;
+}
+
+/** Flechas «Ir a» (de una foto a otra, sin repetir) a las que les falta la de vuelta desde el destino. */
+export function flechasSinRegreso(flechas: { origen: string; destino: string }[]) {
+  const pares = new Map(flechas.map((f) => [`${f.origen}\n${f.destino}`, f]));
+  return [...pares.values()].filter((f) => !pares.has(`${f.destino}\n${f.origen}`));
+}
+
+const primeros = (lista: string[]) => `${lista.slice(0, 5).join(', ')}${lista.length > 5 ? '…' : ''}`;
+
 function adyacencia(d: DatosPaquete, soloAccesibles = false, comoNoDirigido = false) {
   const mapa = new Map(d.vertices.map((v) => [v.id, [] as string[]]));
   for (const t of d.tramos) {
@@ -106,6 +126,25 @@ export function validarPaquete(d: DatosPaquete) {
   }
   const perdidos = app.minimapa.nodos.filter((n) => !ids.has(n.vertice_id)).map((n) => n.vertice_id);
   if (perdidos.length) avisos.push(`minimapa: ${perdidos.length} nodo(s) ubicados ya no existen (${perdidos.slice(0, 5).join(', ')}); la app no los mostrará`);
+
+  // Lo que la persona nota en la app aunque el paquete sea válido.
+  if (!contarLugares(d.vertices, d.espacios)) avisos.push('el asistente no tiene lugares a dónde guiar: registra espacios o ponle nombre a los nodos');
+  const nombreNodo = new Map(d.vertices.map((v) => [v.id, v.descripcion]));
+  const sinNombre = d.panoramicas.filter((p) => !p.titulo?.trim() && !nombreNodo.get(p.vertice_id)?.trim()).map((p) => p.id);
+  if (sinNombre.length) avisos.push(`${sinNombre.length} foto(s) 360° sin nombre (ni la foto ni su nodo lo tienen): la app las muestra con el código del nodo (${primeros(sinNombre)})`);
+  const sinNorte = d.panoramicas.filter((p) => !norteCalibrado(p.ajustes.norte)).map((p) => p.id);
+  if (sinNorte.length) avisos.push(`${sinNorte.length} foto(s) 360° sin el norte calibrado: en el recorrido guiado solo señalan el camino con sus «Ir a» (${primeros(sinNorte)})`);
+  const solas = flechasSinRegreso([
+    ...d.puntos.flatMap((h) => (h.tipo === 'enlace' && h.destino_panoramica_id ? [{ origen: h.panoramica_id, destino: h.destino_panoramica_id }] : [])),
+    ...d.enlaces.map((e) => ({ origen: e.origen_id, destino: e.destino_id })),
+  ]);
+  if (solas.length) avisos.push(`${solas.length} flecha(s) «Ir a» sin regreso desde la foto de destino (${primeros(solas.map((f) => `${f.origen} → ${f.destino}`))})`);
+  if (app.minimapa.visible && d.panoramicas.length) {
+    const ubicados = new Set(app.minimapa.nodos.map((n) => n.vertice_id).filter((id) => ids.has(id)));
+    const fuera = d.panoramicas.filter((p) => !ubicados.has(p.vertice_id)).map((p) => p.vertice_id);
+    if (!ubicados.size) avisos.push('minimapa: no tiene nodos ubicados; en él la app no marcará dónde está la persona ni la ruta');
+    else if (fuera.length) avisos.push(`minimapa: ${fuera.length} nodo(s) con foto 360° sin ubicar (${primeros(fuera)}); en esas fotos la app no marca dónde está la persona`);
+  }
 
   // Grafo conexo
   if (d.vertices.length > 1) {
