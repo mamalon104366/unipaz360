@@ -355,6 +355,63 @@ class NodoMinimapa {
   };
 }
 
+/// Un piso de un edificio con su plano (`PisoEdificio` del panel). Cuando la persona está en uno
+/// de sus nodos, el minimapa muestra este plano: el edificio por dentro.
+class PisoEdificio {
+  const PisoEdificio({
+    required this.id,
+    required this.nombre,
+    required this.nivel,
+    required this.imagen,
+    required this.nodos,
+  });
+
+  final String id;
+
+  /// «Planta baja», «Segundo piso».
+  final String nombre;
+
+  /// El nivel de los nodos de ese piso en el mapa (0 = planta baja).
+  final int nivel;
+
+  /// El plano. Vacío mientras no hay: ese piso no se muestra.
+  final String imagen;
+
+  /// Los nodos de ese piso ubicados sobre el plano.
+  final List<NodoMinimapa> nodos;
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'id': id,
+    'nombre': nombre,
+    'nivel': nivel,
+    'imagen': imagen,
+    'nodos': <Object?>[for (final n in nodos) n.toJson()],
+  };
+}
+
+/// Un edificio con sus pisos (`EdificioMinimapa` del panel).
+class EdificioMinimapa {
+  const EdificioMinimapa({
+    required this.id,
+    required this.nombre,
+    required this.pisos,
+  });
+
+  final String id;
+  final String nombre;
+  final List<PisoEdificio> pisos;
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'id': id,
+    'nombre': nombre,
+    'pisos': <Object?>[for (final p in pisos) p.toJson()],
+  };
+}
+
+const int maxEdificios = 20;
+const int maxPisos = 12;
+const int maxNodosPiso = 300;
+
 /// Colores del logo de UNIPAZ (`marca/LEEME.md`), los mismos de `configApp.ts`.
 const String azulUnipaz = '#233671';
 const String verdeUnipaz = '#0a9640';
@@ -441,6 +498,7 @@ class MinimapaApp {
     required this.centrarEnActual,
     required this.mostrarNombres,
     required this.nodos,
+    this.edificios = const <EdificioMinimapa>[],
   });
 
   final bool visible;
@@ -465,6 +523,9 @@ class MinimapaApp {
   final bool mostrarNombres;
   final List<NodoMinimapa> nodos;
 
+  /// Los edificios por dentro: un plano por piso.
+  final List<EdificioMinimapa> edificios;
+
   Map<String, Object?> toJson() => <String, Object?>{
     'visible': visible,
     'posicion': posicion,
@@ -481,6 +542,7 @@ class MinimapaApp {
     'centrarEnActual': centrarEnActual,
     'mostrarNombres': mostrarNombres,
     'nodos': <Object?>[for (final n in nodos) n.toJson()],
+    'edificios': <Object?>[for (final e in edificios) e.toJson()],
   };
 }
 

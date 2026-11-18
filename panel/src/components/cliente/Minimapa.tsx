@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Map as MapIcon, Maximize2, Minimize2, Minus, RotateCcw } from 'lucide-react';
+import { Building2, Map as MapIcon, Maximize2, Minimize2, Minus, RotateCcw } from 'lucide-react';
 import type { ConfigApp, EstadoMinimapa, NodoMinimapa } from '@/lib/configApp';
 import { urlRecurso } from './recursos';
 
@@ -107,6 +107,7 @@ export function MinimapaVista({
   areaMaxima,
   seleccionado,
   alSeleccionar,
+  edificio,
 }: {
   m: ConfigApp['minimapa'];
   nodos: NodoInfo[];
@@ -121,6 +122,8 @@ export function MinimapaVista({
   areaMaxima: React.CSSProperties;
   seleccionado: boolean;
   alSeleccionar: () => void;
+  /** Dentro de un edificio, [m] ya trae su plano: esto es para los letreros (como en la app). */
+  edificio?: { nombre: string; piso: string };
 }) {
   const proporcion = useProporcion(m.imagen);
   const info = new Map(nodos.map((n) => [n.id, n]));
@@ -163,6 +166,7 @@ export function MinimapaVista({
           alIr(id);
           alCambiarEstado('normal');
         }}
+        edificio={edificio}
       />
     );
   }
@@ -189,7 +193,7 @@ export function MinimapaVista({
         ))}
       </div>
       <div className="absolute inset-x-0 top-0 flex items-center justify-between bg-gradient-to-b from-black/65 to-transparent text-white" style={{ padding: `${4 * u}px ${6 * u}px`, fontSize: 10 * u }}>
-        <span className="font-semibold tracking-[0.08em]">MAPA</span>
+        <span className="truncate font-semibold tracking-[0.08em]">{edificio ? `${edificio.nombre} · ${edificio.piso}`.toUpperCase() : 'MAPA'}</span>
         <span className="flex gap-[0.3em]">
           {m.permitirMaximizar && (
             <button
@@ -242,6 +246,7 @@ function MapaMaximizado({
   alSeleccionar,
   alCambiarEstado,
   alIr,
+  edificio,
 }: {
   m: ConfigApp['minimapa'];
   proporcion: number;
@@ -254,6 +259,7 @@ function MapaMaximizado({
   alSeleccionar: () => void;
   alCambiarEstado: (e: EstadoMinimapa) => void;
   alIr: (id: string) => void;
+  edificio?: { nombre: string; piso: string };
 }) {
   const cuerpo = useRef<HTMLDivElement>(null);
   const [tam, setTam] = useState({ w: 0, h: 0 });
@@ -293,7 +299,15 @@ function MapaMaximizado({
     >
       <div className="flex items-center justify-between border-b border-white/10" style={{ padding: `${8 * u}px ${12 * u}px`, fontSize: 13 * u }}>
         <span className="flex items-center gap-[0.5em] font-semibold">
-          <MapIcon size={15 * u} /> Mapa del campus
+          {edificio ? (
+            <>
+              <Building2 size={15 * u} /> {edificio.nombre} · {edificio.piso}
+            </>
+          ) : (
+            <>
+              <MapIcon size={15 * u} /> Mapa del campus
+            </>
+          )}
         </span>
         <span className="flex items-center gap-[0.4em]">
           {vista.z > 1 && (

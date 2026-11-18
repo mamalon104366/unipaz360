@@ -151,3 +151,10 @@ App (offline) → reporte en SQLite local (enviado=0)
    → al resolver: se corrige el dato → nueva publicación
 ```
 El panel muestra cada reporte **sobre el mapa** (clic para ver el punto). Los reportes con foto del usuario valen oro para validar el levantamiento.
+
+**Hecho (noviembre de 2026):** la app guarda los que no salen en sus preferencias (no en el
+SQLite del paquete, que se reemplaza al actualizar) y los manda a `POST /api/app/reportes`. La tabla
+`reporte` de la migración 0001 alcanza: no hubo que migrar. La bandeja **Reportes de la app** cambia
+el estado (nuevo, en proceso, resuelto, descartado) y queda en la auditoría, sin contar como cambio
+por publicar. Cada reporte muestra el lugar, la foto (con enlace), a dónde iba la persona, en qué usaba
+la app y sus coordenadas. Pendiente: la foto del usuario y los comentarios.

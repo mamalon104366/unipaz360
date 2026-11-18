@@ -82,7 +82,7 @@ export async function cambiosDesde(fecha: string | null) {
     `SELECT entidad, accion, count(*)::int AS n
        FROM auditoria
       WHERE accion IN ('crear','actualizar','borrar')
-        AND entidad IS NOT NULL AND entidad NOT IN ('usuario','sesion')
+        AND entidad IS NOT NULL AND entidad NOT IN ('usuario','sesion','reporte')
         AND ($1::timestamptz IS NULL OR creado_en > $1)
       GROUP BY entidad, accion
       ORDER BY entidad, accion`,

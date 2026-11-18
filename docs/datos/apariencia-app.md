@@ -284,6 +284,38 @@ En el panel, **Ubicar nodos en el mapa** permite arrastrarlos sobre la foto. Con
 o más ubicados, el resto se calcula con un ajuste afín por mínimos cuadrados de
 (lat, lon) a (x, y).
 
+Cerca de un borde (el 20 % de cada lado), el nombre de un nodo se corre hacia adentro: empieza o
+termina en el punto en vez de quedar centrado, para que no se corte.
+
+### Edificios por dentro (`minimapa.edificios`)
+
+Un plano por piso. Cuando la persona está en un nodo ubicado sobre el plano de un piso, el minimapa
+cambia por ese plano: el edificio por dentro.
+
+| Campo | Qué es |
+| ----- | ------ |
+| `edificios[]` | Hasta 20: `{ id, nombre, pisos[] }`. |
+| `pisos[]` | Hasta 12 por edificio: `{ id, nombre, nivel, imagen, nodos[] }`. `nivel` va de −5 a 20 (0 = planta baja) y es el de los nodos de ese piso. `imagen` es el plano (`https://` subido a la plataforma o `app://imagenes/…`); vacío mientras no hay, y entonces ese piso no se muestra. `nodos[]` igual que los del minimapa (hasta 300). |
+
+En la app:
+
+- **Al entrar** a otro edificio (la foto, la placa o el punto marcado quedan en un nodo de su plano),
+  el minimapa muestra el piso de ese nodo y, si estaba recogido, se abre. Si la app abre ya dentro de un
+  edificio, respeta lo que la persona eligió en «Tu experiencia».
+- La franja dice el edificio y el piso («BLOQUE 1 · PLANTA BAJA»). Con más de un piso con plano, abajo
+  van sus botones cortos («PB», «1», «S1» para un sótano); maximizado, con su nombre completo.
+- Un botón con el mapa vuelve al **mapa del campus**; ahí, un botón con el edificio vuelve al plano.
+- «Ver en el mapa» de una ruta que sale del piso muestra el campus.
+- Con el mapa maximizado no se ven los avisos de arriba («Estás en…»), que taparían el título y los pisos.
+
+En el panel, capa **Minimapa → Edificios por dentro**: se agrega el edificio y sus pisos, se sube el
+plano de cada uno y **Nodos** abre el mismo editor del minimapa sobre ese plano. Ahí los nodos del nivel
+del piso van primero y «Ubicar los que faltan» solo pone los de ese nivel que caen dentro del plano. La
+vista previa también muestra el plano cuando la foto abierta está dentro del edificio. El empaquetador
+avisa de los pisos sin plano, sin nodos o con nodos que ya no existen, y lleva los planos en el paquete
+para que se vean sin internet. Código: `normalizarEdificios` y `planoDe` en `panel/src/lib/configApp.ts`;
+`app/lib/features/cliente/edificios.dart` y `minimapa_cliente.dart`.
+
 ## Cómo lo hace la app Flutter
 
 La vista del visitante está en `app/lib/features/cliente/` (`vista_cliente.dart` arma todo) y el
@@ -331,6 +363,44 @@ entendió y ofrece lo que sí sabe hacer. Código: `panel/src/lib/configApp.ts`
 
 El asistente solo guía a **lugares con nombre**: los espacios del paquete y los nodos con
 descripción. Un paquete sin ninguno no tiene a dónde llevar a nadie.
+
+### Qué entiende (sin internet)
+
+- **Errores que suenan igual**: compara cómo suena cada palabra (b/v, c/s/z, c/k/qu, g/j, ll/y, la h
+  muda, la y que suena i y las letras dobles), así «vivlioteca», «ofisina», «cordinacion», «kiero ir» o
+  «komo yego» se entienden. Además tolera 1 o 2 letras cambiadas, palabras partidas («biblio teca») o
+  pegadas. Los códigos («B2-201») solo valen exactos.
+- **Palabras de chat**: «q», «dnd», «xfa», «pa», «tmb»… se cambian por las completas (no junto a un
+  número: «pa 101» puede ser un código). El nombre del asistente al empezar o terminar no cuenta («hola Paz»).
+- **Lo que se le puede pedir**, además de ir a un lugar o saber dónde queda:
+  - horario, servicios y nota de un espacio («¿a qué hora abre la biblioteca?», «¿y a qué hora cierra?»);
+  - lugares por sus servicios («¿dónde hay wifi?», «¿dónde puedo imprimir?»), el más cercano primero;
+  - seguir la conversación: «¿cuánto me demoro?», «¿cómo vuelvo?», «repítelo»;
+  - «me perdí» / «¿dónde estoy?»: lo dice si la app lo sabe; si no, ofrece ubicarse;
+  - reportar algo («la puerta del bloque 2 está cerrada»): ofrece el formulario con el texto ya escrito;
+  - «¿quién eres?», «¿cómo estás?».
+- **Si no encuentra el lugar**, sugiere los que más se parecen («¿Quisiste decir…?») sin elegir por la
+  persona. Sin pedir nada, una categoría sola («baño») lleva al más cercano, pero «¿cuánto vale el
+  almuerzo?» no se toma como «la cafetería más cercana».
+- **Rápido**: lo que se compara de cada lugar se calcula una sola vez y la distancia entre palabras deja
+  de contar apenas se pasa del tope.
+
+Pruebas: `app/test/asistente/asistente_test.dart` (diálogos de siempre) y
+`asistente_inteligente_test.dart` (lo nuevo).
+
+### Reportar un problema (HU-13)
+
+En el chat, el botón de la bandera de arriba abre «Reportar un problema»; también Paz lo ofrece cuando
+la persona cuenta algo que está mal, cuando no encuentra un camino o un lugar, o cuando falta un horario.
+El formulario (con los colores del chat) pide qué pasa (un camino, un lugar, un horario u otra cosa) y
+lo que pasó, y muestra dónde estaba la persona y, si había pedido una ruta, a dónde iba. Se manda con
+el nodo, la foto, las coordenadas, la versión de los datos y en qué se usa la app.
+
+Sin internet queda guardado en el dispositivo (hasta 30) y sale solo cuando vuelve la conexión o la
+próxima vez que se abra la app. La plataforma lo recibe en `POST /api/app/reportes` (sin cuenta, con
+límite por dirección y para todo el campus, y sin repetir un reenvío) y lo muestra en **Reportes de la
+app** (Inicio). Código: `panel/src/lib/reportes.ts`, `app/lib/features/cliente/reportar_cliente.dart` y
+`app/lib/ui/reportes/reportes_viewmodel.dart`.
 
 ### Cómo se ve el chat (al estilo de ChatGPT)
 

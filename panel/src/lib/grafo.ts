@@ -7,6 +7,7 @@ import { siguienteId } from './ids';
 import { SUPERFICIES, TIPOS_VERTICE, type Grafo, type Resumen, type Tramo, type Usuario, type Vertice } from './tipos';
 import { normalizarConfig, type ConfigApp } from './configApp';
 import { contarLugares, flechasSinRegreso, norteCalibrado } from './paquete/reglas';
+import { contarReportesNuevos } from './reportes';
 
 export { ErrorDatos, respuestaError } from './errores';
 
@@ -63,7 +64,7 @@ export async function ultimaPublicacion(): Promise<string | null> {
 
 export async function leerResumen(): Promise<Resumen> {
   const g = await leerGrafo();
-  const [pan, esp, anc, ultima, app, fle] = await Promise.all([
+  const [pan, esp, anc, ultima, app, fle, reportesNuevos] = await Promise.all([
     pool.query<{ id: string; vertice_id: string; titulo: string; puntos: number; sin_nombre: boolean; norte: unknown }>(
       `SELECT p.id, p.vertice_id, coalesce(p.titulo, v.descripcion, p.vertice_id) AS titulo,
               (SELECT count(*)::int FROM punto_informacion h WHERE h.panoramica_id = p.id) AS puntos,
@@ -81,6 +82,8 @@ export async function leerResumen(): Promise<Resumen> {
         WHERE campus_id = $1 AND tipo = 'enlace' AND destino_panoramica_id IS NOT NULL`,
       [CAMPUS_ID],
     ),
+    // Si algo falla con los reportes, el resumen se muestra igual.
+    contarReportesNuevos().catch(() => 0),
   ]);
   const cambios = await cambiosDesde(ultima);
   const config = normalizarConfig(app.rows[0]?.config);
@@ -110,6 +113,7 @@ export async function leerResumen(): Promise<Resumen> {
     minimapaVisible: config.minimapa.visible,
     nodosEnMinimapa: enMinimapa.size,
     fotosFueraDelMinimapa: pan.rows.filter((p) => !enMinimapa.has(p.vertice_id)).length,
+    reportesNuevos,
   };
 }
 

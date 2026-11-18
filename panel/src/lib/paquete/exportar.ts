@@ -122,6 +122,8 @@ export async function exportarDatos(): Promise<DatosPaquete> {
   const configApp = await leerConfigApp();
   const urlsApp = [
     configApp.minimapa.imagen,
+    // Los planos de los edificios por dentro: también se ven sin conexión.
+    ...configApp.minimapa.edificios.flatMap((e) => e.pisos.map((p) => p.imagen)),
     ...Object.values(configApp.paginas).flatMap((pg) => pg.pestanas.flatMap((t) => t.elementos.map((e) => e.src ?? ''))),
   ].filter((u) => u.startsWith('https://'));
   if (idsPuntos.length || urlsApp.length) {

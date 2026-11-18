@@ -71,7 +71,8 @@
   "permitirMaximizar": true,
   "centrarEnActual": false,
   "mostrarNombres": false,
-  "nodos": []
+  "nodos": [],
+  "edificios": []
  },
  "inicio": {
   "pantalla": "tour",

@@ -11,6 +11,8 @@ export interface VerticeMapa {
   nombre: string;
   lat: number;
   lon: number;
+  /** El piso del nodo (0 = planta baja). */
+  nivel?: number;
   panoramica_id: string | null;
 }
 
@@ -76,6 +78,9 @@ export function EditorMinimapa({
   alCambiar,
   alCerrar,
   avisar,
+  titulo = 'Nodos del minimapa',
+  descripcion = 'Arrastra cada nodo a su lugar en la foto. Con 3 o más ubicados, el resto se calcula solo con sus coordenadas. Los que tienen foto 360° se pueden tocar en la app para ir allí.',
+  nivel,
 }: {
   imagen: string;
   nodos: NodoMinimapa[];
@@ -84,6 +89,13 @@ export function EditorMinimapa({
   alCambiar: (nodos: NodoMinimapa[], grupo?: string) => void;
   alCerrar: () => void;
   avisar: (t: string, tipo?: 'ok' | 'error') => void;
+  titulo?: string;
+  descripcion?: string;
+  /**
+   * El plano de un piso: los nodos de este nivel van primero en la lista, y «Ubicar los que
+   * faltan» solo pone los de este nivel que caen dentro del plano.
+   */
+  nivel?: number;
 }) {
   const proporcion = useProporcion(imagen);
   const lienzo = useRef<HTMLDivElement>(null);
@@ -163,19 +175,22 @@ export function EditorMinimapa({
     const ajuste = ajustarAfin(pares);
     if (!ajuste) return avisar('Ubica a mano al menos 3 nodos separados (que no estén en línea recta) para calcular el resto.');
     const nuevos = vertices
-      .filter((v) => !ubicados.has(v.id))
-      .map((v) => {
+      .filter((v) => !ubicados.has(v.id) && (nivel === undefined || v.nivel === nivel))
+      .flatMap((v) => {
         const p = ajuste.f(v);
-        return { vertice_id: v.id, x: Math.round(dentro(p.x) * 10000) / 10000, y: Math.round(dentro(p.y) * 10000) / 10000 };
+        // En un plano solo entran los que caen dentro del dibujo (los demás son de otro edificio).
+        if (nivel !== undefined && (p.x < -0.02 || p.x > 1.02 || p.y < -0.02 || p.y > 1.02)) return [];
+        return [{ vertice_id: v.id, x: Math.round(dentro(p.x) * 10000) / 10000, y: Math.round(dentro(p.y) * 10000) / 10000 }];
       });
     if (!nuevos.length) return avisar('Todos los nodos ya están en el mapa.', 'ok');
     alCambiar([...nodos, ...nuevos]);
     avisar(`Se ubicaron ${nuevos.length} nodo(s). Error medio del ajuste: ${(ajuste.error * 100).toFixed(1)} % del ancho de la imagen.`, 'ok');
   }
 
+  const delPiso = (v: VerticeMapa) => nivel === undefined || v.nivel === nivel;
   const lista = vertices
     .filter((v) => (!solo360 || v.panoramica_id) && (!filtro || `${v.id} ${v.nombre}`.toLowerCase().includes(filtro.toLowerCase())))
-    .sort((a, b) => Number(!!b.panoramica_id) - Number(!!a.panoramica_id) || a.id.localeCompare(b.id));
+    .sort((a, b) => Number(delPiso(b)) - Number(delPiso(a)) || Number(!!b.panoramica_id) - Number(!!a.panoramica_id) || a.id.localeCompare(b.id));
   const contra = `scale(${1 / vista.z})`;
 
   return (
@@ -183,10 +198,8 @@ export function EditorMinimapa({
       <div className="relieve flex h-full max-h-[860px] w-full max-w-[1320px] flex-col overflow-hidden rounded-[28px] bg-superficie" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between gap-4 border-b border-black/5 px-6 py-4">
           <div>
-            <div className="text-[20px] font-medium">Nodos del minimapa</div>
-            <div className="text-[13px] text-tinta-tenue">
-              Arrastra cada nodo a su lugar en la foto. Con 3 o más ubicados, el resto se calcula solo con sus coordenadas. Los que tienen foto 360° se pueden tocar en la app para ir allí.
-            </div>
+            <div className="text-[20px] font-medium">{titulo}</div>
+            <div className="text-[13px] text-tinta-tenue">{descripcion}</div>
           </div>
           <button onClick={alCerrar} className="boton-primario !h-10 shrink-0 !px-5">
             <Check size={16} /> Listo
@@ -303,7 +316,7 @@ export function EditorMinimapa({
                 </button>
               )}
               <span className="ml-auto text-[12px] text-white/60">
-                {nodos.length} de {vertices.length} nodos en el mapa · rueda para acercar, arrastra para mover la foto
+                {nodos.length} de {vertices.length} nodos en {nivel === undefined ? 'el mapa' : 'el plano'} · rueda para acercar, arrastra para mover la imagen
               </span>
             </div>
           </div>
@@ -336,6 +349,7 @@ export function EditorMinimapa({
                         <span className="font-mono text-[11px] text-tinta-tenue">
                           {v.id}
                           {v.panoramica_id ? ` · 360° ${v.panoramica_id}` : ''}
+                          {nivel !== undefined && v.nivel !== nivel ? ` · otro nivel (${v.nivel ?? 0})` : ''}
                         </span>
                       </span>
                       {en ? (

@@ -11,6 +11,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../core/modelo/config_app.dart';
 import '../visor360/animacion_punto.dart';
+import 'edificios.dart';
 import 'estilo_cliente.dart';
 import 'medidas_cliente.dart' show anchoMinimoMapa;
 
@@ -79,6 +80,8 @@ class MinimapaCliente extends StatefulWidget {
     this.ruta = const <String>[],
     required this.anchoPantalla,
     this.elegirPunto = false,
+    this.plano,
+    this.alVerEdificio,
   });
 
   final ConfigApp config;
@@ -98,6 +101,13 @@ class MinimapaCliente extends StatefulWidget {
   /// La persona está eligiendo un punto (dónde está o desde dónde sale): todos se pueden
   /// tocar, también los que no tienen foto 360°.
   final bool elegirPunto;
+
+  /// Dentro de un edificio: [config] ya trae el plano del piso; esto dice cuál es, deja cambiar
+  /// de piso y volver al campus.
+  final InfoPlano? plano;
+
+  /// En el mapa del campus estando dentro de un edificio: volver a su plano.
+  final VoidCallback? alVerEdificio;
 
   @override
   State<MinimapaCliente> createState() => _MinimapaClienteState();
@@ -131,10 +141,28 @@ class _MinimapaClienteState extends State<MinimapaCliente> {
     final primario = colorHex(widget.config.marca.colorPrimario);
     final acento = colorHex(widget.config.marca.colorAcento);
     final proporcion = _Proporcion.de(widget.imagen);
+    final plano = widget.plano;
+    // Dentro de un edificio: un botón para volver al campus; en el campus estando dentro, uno
+    // para volver al edificio.
+    final cambiarVista = plano != null
+        ? (
+            icono: LucideIcons.map,
+            ayuda: 'Ver el mapa del campus',
+            alTocar: plano.alVerCampus,
+          )
+        : widget.alVerEdificio == null
+        ? null
+        : (
+            icono: LucideIcons.building2,
+            ayuda: 'Ver el edificio por dentro',
+            alTocar: widget.alVerEdificio!,
+          );
     switch (widget.estado) {
       case 'minimizado':
         return Tooltip(
-          message: 'Mostrar el mapa',
+          message: plano == null
+              ? 'Mostrar el mapa'
+              : 'Mostrar el plano de ${plano.edificio}',
           child: MouseRegion(
             cursor: SystemMouseCursors.click,
             child: GestureDetector(
@@ -160,8 +188,8 @@ class _MinimapaClienteState extends State<MinimapaCliente> {
                     ),
                   ],
                 ),
-                child: const Icon(
-                  LucideIcons.map,
+                child: Icon(
+                  plano == null ? LucideIcons.map : LucideIcons.building2,
                   size: 20,
                   color: Colors.white,
                 ),
@@ -171,6 +199,8 @@ class _MinimapaClienteState extends State<MinimapaCliente> {
         );
       case 'maximizado':
         return _MapaMaximizado(
+          // Otro piso es otra lámina: el acercamiento empieza de nuevo.
+          key: ValueKey<String>(plano?.piso.id ?? 'campus'),
           m: m,
           imagen: widget.imagen,
           proporcion: proporcion,
@@ -185,6 +215,8 @@ class _MinimapaClienteState extends State<MinimapaCliente> {
             widget.alCambiarEstado('normal');
           },
           elegirPunto: widget.elegirPunto,
+          plano: plano,
+          cambiarVista: cambiarVista,
         );
       default:
         final ancho = math.max(
@@ -271,8 +303,20 @@ class _MinimapaClienteState extends State<MinimapaCliente> {
                         child: _FranjaMapa(
                           m: m,
                           alCambiarEstado: widget.alCambiarEstado,
+                          titulo: plano == null
+                              ? 'MAPA'
+                              : '${plano.edificio} · ${plano.piso.nombre}'
+                                    .toUpperCase(),
+                          cambiarVista: cambiarVista,
                         ),
                       ),
+                      if (plano != null && plano.pisos.length > 1)
+                        Positioned(
+                          left: 6,
+                          bottom: 6,
+                          right: 6,
+                          child: _BotonesPiso(plano: plano, compacto: true),
+                        ),
                     ],
                   ),
                 ),
@@ -284,12 +328,26 @@ class _MinimapaClienteState extends State<MinimapaCliente> {
   }
 }
 
-/// La franja de arriba del minimapa: «MAPA» y los botones de maximizar y minimizar.
+/// Un botón para cambiar entre el campus y el edificio por dentro.
+typedef CambioVistaMapa = ({
+  IconData icono,
+  String ayuda,
+  VoidCallback alTocar,
+});
+
+/// La franja de arriba del minimapa: «MAPA» (o el edificio y el piso) y los botones.
 class _FranjaMapa extends StatelessWidget {
-  const _FranjaMapa({required this.m, required this.alCambiarEstado});
+  const _FranjaMapa({
+    required this.m,
+    required this.alCambiarEstado,
+    this.titulo = 'MAPA',
+    this.cambiarVista,
+  });
 
   final MinimapaApp m;
   final ValueChanged<String> alCambiarEstado;
+  final String titulo;
+  final CambioVistaMapa? cambiarVista;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -302,15 +360,35 @@ class _FranjaMapa extends StatelessWidget {
       ),
     ),
     child: Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: <Widget>[
-        Text(
-          'MAPA',
-          style: estiloTexto(tamano: 10, peso: 600, alto: 1.5, espaciado: 0.08),
+        Expanded(
+          child: Text(
+            titulo,
+            maxLines: 1,
+            softWrap: false,
+            overflow: TextOverflow.ellipsis,
+            style: estiloTexto(
+              tamano: 10,
+              peso: 600,
+              alto: 1.5,
+              espaciado: 0.08,
+            ),
+          ),
         ),
         Row(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
+            if (cambiarVista != null) ...<Widget>[
+              _BotonMapa(
+                lado: 26,
+                radio: 6,
+                icono: cambiarVista!.icono,
+                tamano: 13,
+                ayuda: cambiarVista!.ayuda,
+                alTocar: cambiarVista!.alTocar,
+              ),
+              const SizedBox(width: 3),
+            ],
             if (m.permitirMaximizar)
               _BotonMapa(
                 lado: 26,
@@ -386,6 +464,66 @@ class _BotonMapaState extends State<_BotonMapa> {
         ),
       ),
     ),
+  );
+}
+
+/// Los pisos del edificio: tocar uno muestra su plano.
+class _BotonesPiso extends StatelessWidget {
+  const _BotonesPiso({required this.plano, this.compacto = false});
+
+  final InfoPlano plano;
+
+  /// En el minimapa pequeño: «PB», «1», «2»; maximizado, el nombre completo.
+  final bool compacto;
+
+  @override
+  Widget build(BuildContext context) => Wrap(
+    spacing: 4,
+    runSpacing: 4,
+    children: <Widget>[
+      for (final p in plano.pisos)
+        Semantics(
+          button: true,
+          selected: p.id == plano.piso.id,
+          label: 'Piso: ${p.nombre}',
+          excludeSemantics: true,
+          child: Tooltip(
+            message: p.nombre,
+            child: MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: GestureDetector(
+                onTap: () => plano.alCambiarPiso(p.id),
+                child: Container(
+                  constraints: BoxConstraints(minWidth: compacto ? 24 : 0),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: compacto ? 6 : 10,
+                    vertical: compacto ? 3 : 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: p.id == plano.piso.id
+                        ? Colors.white
+                        : const Color(0x8C000000),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: const Color(0x33FFFFFF)),
+                  ),
+                  child: Text(
+                    compacto ? pisoCorto(p) : p.nombre,
+                    textAlign: TextAlign.center,
+                    style: estiloTexto(
+                      tamano: compacto ? 10 : 12,
+                      peso: 600,
+                      alto: 1.3,
+                      color: p.id == plano.piso.id
+                          ? const Color(0xFF1C1C1F)
+                          : Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+    ],
   );
 }
 
@@ -611,22 +749,35 @@ class _Marcador extends StatelessWidget {
             ),
             if (nombre)
               Padding(
-                padding: const EdgeInsets.only(top: 0.35 * 11),
-                child: Opacity(
-                  opacity: con360 ? 1 : 0.7,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 0.6 * 11,
-                      vertical: 0.15 * 11,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xA6000000),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Text(
-                      info?.nombre ?? nodo.verticeId,
-                      softWrap: false,
-                      style: estiloTexto(tamano: 11, peso: 500, alto: 1.5),
+                padding: EdgeInsets.only(
+                  top: 0.35 * 11,
+                  // Cerca de un borde, el nombre se corre hacia adentro para que no se corte:
+                  // empieza (o termina) en el punto en vez de quedar centrado.
+                  left: nodo.x < 0.2 ? _caja / 2 - 8 : 0,
+                  right: nodo.x > 0.8 ? _caja / 2 - 8 : 0,
+                ),
+                child: Align(
+                  alignment: nodo.x < 0.2
+                      ? Alignment.centerLeft
+                      : nodo.x > 0.8
+                      ? Alignment.centerRight
+                      : Alignment.center,
+                  child: Opacity(
+                    opacity: con360 ? 1 : 0.7,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 0.6 * 11,
+                        vertical: 0.15 * 11,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xA6000000),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        info?.nombre ?? nodo.verticeId,
+                        softWrap: false,
+                        style: estiloTexto(tamano: 11, peso: 500, alto: 1.5),
+                      ),
                     ),
                   ),
                 ),
@@ -640,6 +791,7 @@ class _Marcador extends StatelessWidget {
 
 class _MapaMaximizado extends StatefulWidget {
   const _MapaMaximizado({
+    super.key,
     required this.m,
     required this.imagen,
     required this.proporcion,
@@ -651,6 +803,8 @@ class _MapaMaximizado extends StatefulWidget {
     required this.alIr,
     this.ruta = const <String>[],
     this.elegirPunto = false,
+    this.plano,
+    this.cambiarVista,
   });
 
   final MinimapaApp m;
@@ -668,6 +822,10 @@ class _MapaMaximizado extends StatefulWidget {
 
   /// Todos los puntos se pueden tocar (ver [MinimapaCliente.elegirPunto]).
   final bool elegirPunto;
+
+  /// Dentro de un edificio (ver [MinimapaCliente.plano]).
+  final InfoPlano? plano;
+  final CambioVistaMapa? cambiarVista;
 
   @override
   State<_MapaMaximizado> createState() => _MapaMaximizadoState();
@@ -716,20 +874,37 @@ class _MapaMaximizadoState extends State<_MapaMaximizado> {
                   ),
                   child: Row(
                     children: <Widget>[
-                      const Icon(
-                        LucideIcons.map,
+                      Icon(
+                        widget.plano == null
+                            ? LucideIcons.map
+                            : LucideIcons.building2,
                         size: 15,
                         color: Colors.white,
                       ),
                       const SizedBox(width: 0.5 * 13),
                       Expanded(
                         child: Text(
-                          'Mapa del campus',
+                          widget.plano == null
+                              ? 'Mapa del campus'
+                              : '${widget.plano!.edificio} · ${widget.plano!.piso.nombre}',
                           softWrap: false,
                           overflow: TextOverflow.ellipsis,
                           style: estiloTexto(tamano: 13, peso: 600, alto: 1.5),
                         ),
                       ),
+                      if (widget.cambiarVista != null) ...<Widget>[
+                        _BotonMapa(
+                          lado: 30,
+                          radio: 8,
+                          icono: widget.cambiarVista!.icono,
+                          tamano: 14,
+                          ayuda: widget.cambiarVista!.ayuda,
+                          fondo: const Color(0x1AFFFFFF),
+                          fondoEncima: const Color(0x40FFFFFF),
+                          alTocar: widget.cambiarVista!.alTocar,
+                        ),
+                        const SizedBox(width: 0.4 * 13),
+                      ],
                       if (_z > 1) ...<Widget>[
                         _BotonMapa(
                           lado: 30,
@@ -772,6 +947,14 @@ class _MapaMaximizadoState extends State<_MapaMaximizado> {
                     ],
                   ),
                 ),
+                if (widget.plano != null && widget.plano!.pisos.length > 1)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: _BotonesPiso(plano: widget.plano!),
+                    ),
+                  ),
                 Expanded(
                   child: LayoutBuilder(
                     builder: (context, c) {

@@ -113,6 +113,27 @@ const casos = [
     },
   },
   { minimapa: { imagen: 'app://videos/BienvenidosUNIPAZ.mp4', estadoInicial: 'maximizado', centrarEnActual: true, mostrarNombres: true, permitirMaximizar: false } },
+  // Los edificios por dentro: ids repetidos o raros, pisos sin plano o con un video, niveles
+  // fuera de rango o con decimales, nodos repetidos y lo que no es un objeto.
+  {
+    minimapa: {
+      edificios: [
+        {
+          id: 'Bloque 1',
+          nombre: '  Bloque 1 — Aulas  ',
+          pisos: [
+            { id: 'pb', nombre: 'Planta baja', nivel: 0, imagen: 'https://datos.ejemplo/b1-pb.png', nodos: [{ vertice_id: 'V-003', x: 0.25, y: 0.5 }, { vertice_id: 'V-003', x: 0.9, y: 0.9 }, { vertice_id: ' V-007 ', x: '0.123456', y: 7 }] },
+            { id: 'pb', nombre: '', nivel: 1.6, imagen: 'app://videos/BienvenidosUNIPAZ.mp4' },
+            { nombre: 'Terraza', nivel: 99, imagen: 'http://inseguro/plano.jpg', nodos: 'nada' },
+            'no soy un piso',
+          ],
+        },
+        { id: 'bloque-1', nombre: 7, pisos: 'nada' },
+        { nombre: 'Laboratorios', pisos: [{ id: 'P1', nivel: '2', imagen: 'app://imagenes/mapa-dron.jpg', nodos: [{ vertice_id: 'V-010', x: -1, y: 0.5 }] }] },
+        null,
+      ],
+    },
+  },
   { minimapa: { imagen: 'https://datos.ejemplo/mapa.jpg', estadoInicial: 'oculto' } },
   {
     barraLateral: { secciones: [{ id: 'nosotros', tipo: 'pagina' }, { id: 'ubicacion', tipo: 'recorrido' }, { id: 'nueva', titulo: 'Agenda académica', tipo: 'pagina' }] },

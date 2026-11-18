@@ -14,6 +14,7 @@ import '../../domain/insignias.dart';
 import '../../domain/preferencias.dart';
 import '../../ui/insignias/insignias_viewmodel.dart';
 import '../../ui/preferencias/preferencias_viewmodel.dart';
+import '../../ui/reportes/reportes_viewmodel.dart';
 import '../../ui/sesion/dialogo_cuenta.dart';
 import '../../ui/sesion/sesion_viewmodel.dart';
 import 'ajustes_cliente.dart';
@@ -169,6 +170,12 @@ class _PantallaClienteState extends State<PantallaCliente> {
           } on ProviderNotFoundException {
             insignias = null;
           }
+          ReportesViewModel? reportes;
+          try {
+            reportes = context.read<ReportesViewModel>();
+          } on ProviderNotFoundException {
+            reportes = null;
+          }
           final paquete = s.data!;
           final nodos = paquete.datos.grafo.nodos;
           final nueva = _nueva;
@@ -204,6 +211,7 @@ class _PantallaClienteState extends State<PantallaCliente> {
                   alGanarInsignia: insignias == null
                       ? null
                       : (id) => insignias!.ganar(id),
+                  alReportar: reportes?.enviar,
                 ),
               ),
               if (nueva != null)

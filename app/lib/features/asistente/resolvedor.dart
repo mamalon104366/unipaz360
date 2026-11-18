@@ -1,4 +1,5 @@
-/// Encuentra a qué lugar se refiere la persona: tolera errores de escritura, abreviaturas
+/// Encuentra a qué lugar se refiere la persona: tolera errores de escritura (también los que
+/// suenan igual, como «vivlioteca»), abreviaturas, palabras partidas o pegadas («biblio teca»)
 /// y códigos escritos de varias formas («B2-201», «b2 201»), y sabe cuándo hay que preguntar.
 library;
 
@@ -16,6 +17,9 @@ class Candidato {
 /// Mínimo para tomar en cuenta un lugar.
 const double umbralCandidato = 0.6;
 
+/// Mínimo para sugerirlo cuando nada alcanza el umbral («¿quisiste decir…?»).
+const double umbralSugerencia = 0.42;
+
 /// Si el segundo mejor está a menos de esto del primero, se pregunta cuál.
 const double margenDuda = 0.06;
 
@@ -32,14 +36,14 @@ class Resolucion {
 /// Lugares que se parecen a [consulta], del más probable al menos probable.
 /// Un punto del mapa que coincide con el nodo de un espacio encontrado se descarta
 /// («Portería» y «Portería principal» son el mismo sitio).
-List<Candidato> buscarLugares(FuenteGuia fuente, String consulta, {Iterable<Lugar>? entre}) {
+List<Candidato> buscarLugares(FuenteGuia fuente, String consulta, {Iterable<Lugar>? entre, double umbral = umbralCandidato}) {
   final q = fuente.claves(consulta);
   if (q.isEmpty) return const <Candidato>[];
   final codigo = q.join();
   final lista = <Candidato>[];
   for (final l in entre ?? fuente.lugares) {
-    final p = _puntaje(fuente, l, q, codigo);
-    if (p >= umbralCandidato) lista.add(Candidato(l, p));
+    final p = _puntaje(fuente.indice(l), q, codigo);
+    if (p >= umbral) lista.add(Candidato(l, p));
   }
   final nodosDeEspacios = <String>{for (final c in lista) if (c.lugar.esEspacio) c.lugar.nodoId};
   lista.removeWhere((c) => !c.lugar.esEspacio && nodosDeEspacios.contains(c.lugar.nodoId));
@@ -61,20 +65,25 @@ Resolucion resolver(FuenteGuia fuente, String consulta, {Iterable<Lugar>? entre}
   return Resolucion._(null, parecidos);
 }
 
-double _puntaje(FuenteGuia f, Lugar l, List<String> q, String codigoConsulta) {
-  final codigo = l.codigo == null ? '' : palabras(normalizar(l.codigo!)).join();
+/// Cuando nada se parece lo suficiente: hasta [cuantos] lugares que se parecen un poco, para
+/// preguntar «¿quisiste decir…?». Nunca se elige por la persona.
+List<Lugar> sugerirLugares(FuenteGuia fuente, String consulta, {int cuantos = 3}) =>
+    buscarLugares(fuente, consulta, umbral: umbralSugerencia).take(cuantos).map((c) => c.lugar).toList();
+
+/// Qué tan bien nombra la consulta [q] al lugar del índice [l].
+double _puntaje(IndiceLugar l, List<String> q, String codigoConsulta) {
   // El código escrito de cualquier forma («B2-201», «b2 201»), solo o dentro de la frase.
+  final codigo = l.codigo;
   if (codigo.isNotEmpty && (codigo == codigoConsulta || (codigo.length >= 4 && codigoConsulta.contains(codigo)))) return 1;
-  final nombre = f.claves(l.nombre);
+  final nombre = l.nombre;
   if (nombre.isEmpty) return 0;
   // Lo que ayuda sin ser parte del nombre: el bloque y la categoría («el laboratorio del bloque 2»).
-  final extra = <String>[
-    ...f.claves(l.bloque ?? ''),
-    if (l.categoria != null) ...(f.categorias[l.categoria] ?? const <String>[]).take(1),
-  ];
+  final extra = l.extra;
   var suma = 0.0;
   final usados = <int>{};
-  for (final w in q) {
+
+  /// La palabra del nombre (aún sin usar) que más se parece a [w].
+  (double, int) mejorEnNombre(String w) {
     var mejor = 0.0;
     var indice = -1;
     for (var i = 0; i < nombre.length; i++) {
@@ -83,6 +92,22 @@ double _puntaje(FuenteGuia f, Lugar l, List<String> q, String codigoConsulta) {
       if (s > mejor) {
         mejor = s;
         indice = i;
+      }
+    }
+    return (mejor, indice);
+  }
+
+  for (var k = 0; k < q.length; k++) {
+    final w = q[k];
+    var (mejor, indice) = mejorEnNombre(w);
+    // Una palabra partida en dos («biblio teca», «labo ratorio»): se prueban juntas.
+    if (mejor < 0.85 && k + 1 < q.length) {
+      final (juntas, i2) = mejorEnNombre('$w${q[k + 1]}');
+      if (juntas > mejor + 0.1 && juntas >= umbralCandidato) {
+        if (i2 >= 0) usados.add(i2);
+        suma += juntas * 2;
+        k++;
+        continue;
       }
     }
     var mejorExtra = 0.0;
@@ -97,7 +122,19 @@ double _puntaje(FuenteGuia f, Lugar l, List<String> q, String codigoConsulta) {
       suma += mejor;
     }
   }
+  // Dos palabras del nombre pegadas en la consulta («salasistemas», «laboratorioredes»).
+  if (q.length == 1 && nombre.length >= 2 && suma < 0.6) {
+    for (var i = 0; i + 1 < nombre.length; i++) {
+      final s = parecido(q.first, '${nombre[i]}${nombre[i + 1]}');
+      if (s > suma) {
+        suma = s;
+        usados
+          ..clear()
+          ..addAll(<int>[i, i + 1]);
+      }
+    }
+  }
   final cobertura = suma / q.length;
   final completitud = usados.length / nombre.length;
-  return cobertura * (0.8 + 0.2 * completitud);
+  return (cobertura * (0.8 + 0.2 * completitud)).clamp(0.0, 1.0);
 }

@@ -27,16 +27,24 @@ enum TipoOpcion {
   /// Ubica a la persona: en el celular abre el lector de QR; en el computador y en la web,
   /// la lista de lugares para elegir dónde está.
   ubicarme,
+
+  /// Abre «Reportar un problema». [Opcion.enviar] lleva el tipo sugerido: `ruta`, `ficha`,
+  /// `horario` u `otro`.
+  reportar,
 }
 
 /// Un botón de respuesta rápida.
 class Opcion {
-  const Opcion(this.etiqueta, {this.tipo = TipoOpcion.texto, String? enviar, this.lugarId}) : enviar = enviar ?? etiqueta;
+  const Opcion(this.etiqueta, {this.tipo = TipoOpcion.texto, String? enviar, this.lugarId, this.detalle}) : enviar = enviar ?? etiqueta;
 
   final String etiqueta;
   final TipoOpcion tipo;
   final String enviar;
   final String? lugarId;
+
+  /// Para [TipoOpcion.reportar]: lo que la persona ya contó en el chat («la puerta del bloque 2
+  /// está cerrada»), para que el formulario lo traiga escrito.
+  final String? detalle;
 }
 
 /// La respuesta del asistente a un mensaje.

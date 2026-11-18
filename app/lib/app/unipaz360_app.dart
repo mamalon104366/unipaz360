@@ -10,6 +10,7 @@ import '../data/insignias_repositorio.dart';
 import '../data/mapa_dron_repositorio.dart';
 import '../data/preferencias_repositorio.dart';
 import '../data/recientes_repositorio.dart';
+import '../data/reportes_servicio.dart';
 import '../data/repositorio_simulado.dart';
 import '../data/sesion_repositorio.dart';
 import '../features/cliente/pantalla_cliente.dart';
@@ -19,6 +20,7 @@ import '../ui/espacios/espacios_viewmodel.dart';
 import '../ui/insignias/insignias_viewmodel.dart';
 import '../ui/preferencias/preferencias_viewmodel.dart';
 import '../ui/recientes/recientes_viewmodel.dart';
+import '../ui/reportes/reportes_viewmodel.dart';
 import '../ui/sesion/sesion_viewmodel.dart';
 import 'enlaces_entrantes.dart';
 import 'tema.dart';
@@ -56,7 +58,15 @@ class UniPaz360App extends StatelessWidget {
                       child: ChangeNotifierProvider<InsigniasViewModel>(
                         create: (_) =>
                             InsigniasViewModel(InsigniasEnDispositivo()),
-                        child: const _RaizUniPaz(),
+                        // Los reportes que esperan internet salen solos cuando vuelve.
+                        child: ChangeNotifierProvider<ReportesViewModel>(
+                          create: (_) => ReportesViewModel(
+                            ColaReportesEnDispositivo(),
+                            ServicioReportesHttp(),
+                            escucharRed: true,
+                          ),
+                          child: const _RaizUniPaz(),
+                        ),
                       ),
                     ),
                   ),
@@ -135,6 +145,7 @@ class _RaizUniPazState extends State<_RaizUniPaz> {
       unawaited(_sesion.cargar());
       unawaited(context.read<PreferenciasViewModel>().cargar());
       unawaited(context.read<InsigniasViewModel>().cargar());
+      unawaited(context.read<ReportesViewModel>().cargar());
     });
   }
 

@@ -114,6 +114,20 @@ export function validarPaquete(d: DatosPaquete) {
     }
   };
   recurso(app.minimapa.imagen, 'minimapa');
+  // Los edificios por dentro: cada piso necesita su plano y sus nodos para que la app lo abra.
+  for (const e of app.minimapa.edificios) {
+    for (const p of e.pisos) {
+      const donde = `plano «${e.nombre} › ${p.nombre}»`;
+      if (!p.imagen) {
+        avisos.push(`${donde}: no tiene imagen; la app no lo mostrará`);
+        continue;
+      }
+      recurso(p.imagen, donde);
+      const perdidosPlano = p.nodos.filter((n) => !ids.has(n.vertice_id)).map((n) => n.vertice_id);
+      if (perdidosPlano.length) avisos.push(`${donde}: ${perdidosPlano.length} nodo(s) ubicados ya no existen (${primeros(perdidosPlano)}); la app no los mostrará`);
+      if (!p.nodos.length) avisos.push(`${donde}: no tiene nodos ubicados; la app nunca lo abrirá`);
+    }
+  }
   for (const [seccion, pagina] of Object.entries(app.paginas)) {
     for (const t of pagina.pestanas) {
       for (const e of t.elementos) {

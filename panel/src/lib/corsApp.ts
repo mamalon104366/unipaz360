@@ -19,10 +19,10 @@ export const preflightApp = () => new Response(null, { status: 204, headers: COR
 
 export const jsonApp = (cuerpo: unknown, status = 200) => Response.json(cuerpo, { status, headers: CORS_APP });
 
-/** Lee el cuerpo JSON (pequeño) de una petición de la app. */
-export async function cuerpoApp(request: Request): Promise<Record<string, unknown>> {
+/** Lee el cuerpo JSON (pequeño: hasta [max] letras) de una petición de la app. */
+export async function cuerpoApp(request: Request, max = 2000): Promise<Record<string, unknown>> {
   const texto = await request.text();
-  if (texto.length > 2000) return {};
+  if (texto.length > max) return {};
   try {
     const v: unknown = JSON.parse(texto);
     return v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {};

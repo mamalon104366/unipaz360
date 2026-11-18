@@ -84,6 +84,8 @@ export interface Resumen {
   minimapaVisible: boolean;
   nodosEnMinimapa: number;
   fotosFueraDelMinimapa: number;
+  /** Reportes que mandaron desde la app y nadie ha revisado. */
+  reportesNuevos: number;
 }
 
 // ------------------------------------------------------------------ cuentas
@@ -501,4 +503,52 @@ export interface Validacion {
   errores: string[];
   avisos: string[];
   conteos: Record<string, number>;
+}
+
+// ------------------------------------------------------------------ reportes de la app (HU-13)
+/** Los tipos que acepta la tabla `reporte` (CHECK de la migración 0001). */
+export const TIPOS_REPORTE = ['ruta', 'ficha', 'horario', 'otro'] as const;
+export type TipoReporte = (typeof TIPOS_REPORTE)[number];
+export const ETIQUETA_REPORTE: Record<TipoReporte, string> = {
+  ruta: 'Un camino o una ruta',
+  ficha: 'Un lugar',
+  horario: 'Un horario',
+  otro: 'Otra cosa',
+};
+
+export const ESTADOS_REPORTE = ['nuevo', 'en_proceso', 'resuelto', 'descartado'] as const;
+export type EstadoReporte = (typeof ESTADOS_REPORTE)[number];
+export const ETIQUETA_ESTADO_REPORTE: Record<EstadoReporte, string> = {
+  nuevo: 'Nuevo',
+  en_proceso: 'En proceso',
+  resuelto: 'Resuelto',
+  descartado: 'Descartado',
+};
+
+/** Dónde estaba la persona al reportar (lo arma la app; todo es opcional). */
+export interface ReferenciaReporte {
+  /** Nodo del mapa y su nombre. */
+  nodo?: string;
+  lugar?: string;
+  /** Foto 360° que estaba viendo. */
+  foto?: string;
+  /** A dónde iba (si pidió una ruta). */
+  destino?: string;
+  /** Versión de los datos de la app y en qué la usaba (android, windows, web…). */
+  paquete?: string;
+  plataforma?: string;
+}
+
+export interface Reporte {
+  /** BIGSERIAL: llega como texto. */
+  id: string;
+  tipo: TipoReporte;
+  descripcion: string;
+  /** Lo que mandó la app, ya leído (null si no mandó nada). */
+  referencia: ReferenciaReporte | null;
+  estado: EstadoReporte;
+  lat: number | null;
+  lon: number | null;
+  creado_en: string;
+  resuelto_en: string | null;
 }

@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import Link from 'next/link';
-import { ArrowRight, Check, CircleAlert, Send } from 'lucide-react';
+import { ArrowRight, Check, CircleAlert, Flag, Send } from 'lucide-react';
 import { leerResumen } from '@/lib/grafo';
 import { revisionesInicio } from '@/lib/revisiones';
 import { leerAuditoria } from '@/lib/auditoria';
@@ -66,6 +66,19 @@ async function ContenidoInicio() {
           <Dato titulo="Placas QR" valor={r.anclajes} nota="instaladas o por instalar" />
         </section>
       </div>
+
+      {r.reportesNuevos > 0 && (
+        <Link href="/reportes" className="relieve mt-5 flex items-center gap-4 rounded-[22px] px-6 py-4 transition hover:bg-black/[0.02]">
+          <span className="grid h-9 w-9 place-items-center rounded-full bg-alerta-suave text-alerta">
+            <Flag size={17} />
+          </span>
+          <span className="flex-1 text-[15px]">
+            {r.reportesNuevos === 1 ? '1 reporte nuevo desde la app' : `${r.reportesNuevos} reportes nuevos desde la app`}
+            <span className="block text-[13px] text-tinta-tenue">Lo que la gente encontró mal en el campus o en el recorrido.</span>
+          </span>
+          <ArrowRight size={18} />
+        </Link>
+      )}
 
       <div className="mt-6 grid gap-5 lg:grid-cols-[1.4fr_1fr]">
         <section>

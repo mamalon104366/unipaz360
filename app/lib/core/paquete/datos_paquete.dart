@@ -192,6 +192,13 @@ class DatosPaquete {
             categoria: e.categoria,
             bloque: e.bloque,
             nivel: e.nivel,
+            // Para «¿a qué hora abre?» y «¿dónde hay wifi?». Los servicios llegan separados por comas.
+            horario: e.horario,
+            servicios: <String>[
+              for (final s in (e.servicios ?? '').split(','))
+                if (s.trim().isNotEmpty) s.trim(),
+            ],
+            descripcion: e.descripcion,
           ),
     ],
     // Los sinónimos que el equipo escribió en la plataforma («biblio» = «biblioteca»).

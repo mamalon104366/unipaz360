@@ -22,6 +22,7 @@ import '../../cliente/estilo_cliente.dart';
 import '../../rutas/rutas.dart' show Paso, PerfilRuta, Ruta, TipoPaso;
 import '../../visor360/animacion_punto.dart';
 import '../asistente.dart';
+import '../resolvedor.dart' show buscarLugares;
 import '../texto.dart' show normalizar, palabras;
 
 /// Un mensaje de la conversación.
@@ -45,12 +46,14 @@ class ConversacionAsistente {
     String saludo = '',
     List<(String, String)> respuestas = const <(String, String)>[],
     bool puedeEscanear = false,
+    bool puedeReportar = false,
   }) : asistente = Asistente(
          fuente,
          nombre: nombre,
          saludoPropio: saludo,
          respuestasFrecuentes: respuestas,
          puedeEscanear: puedeEscanear,
+         puedeReportar: puedeReportar,
        ) {
     mensajes.add(MensajeChat.asistente(_saludo()));
   }
@@ -147,6 +150,7 @@ class ChatAsistente extends StatefulWidget {
     this.insignias = 0,
     this.lugares = 0,
     this.alVerInsignias,
+    this.alReportar,
   });
 
   final ConfigApp config;
@@ -180,6 +184,10 @@ class ChatAsistente extends StatefulWidget {
   final int insignias;
   final int lugares;
   final VoidCallback? alVerInsignias;
+
+  /// Abre «Reportar un problema» con el tipo sugerido (`ruta`, `ficha`, `horario` u `otro`) y,
+  /// si la persona ya lo contó en el chat, el texto. Sin él no se ofrece reportar.
+  final void Function(String tipo, String? detalle)? alReportar;
 
   @override
   State<ChatAsistente> createState() => _ChatAsistenteState();
@@ -376,6 +384,8 @@ class _ChatAsistenteState extends State<ChatAsistente>
       case TipoOpcion.ubicarme:
         // Sin quien ubique a la persona, se elige en el mapa.
         (widget.alUbicarme ?? widget.alElegirEnMapa)();
+      case TipoOpcion.reportar:
+        widget.alReportar?.call(o.enviar, o.detalle);
     }
   }
 
@@ -401,6 +411,13 @@ class _ChatAsistenteState extends State<ChatAsistente>
       final nombre = normalizar('${l.nombre} ${l.codigo ?? ''}');
       if (buscadas.every((p) => nombre.contains(p))) r.add(l);
       if (r.length == 3) break;
+    }
+    // Con errores de escritura («vivlio», «cordinacion»): los que más se parecen.
+    if (r.isEmpty && t.length >= 4) {
+      for (final candidato in buscarLugares(fuente, t)) {
+        r.add(candidato.lugar);
+        if (r.length == 3) break;
+      }
     }
     return r;
   }
@@ -447,6 +464,9 @@ class _ChatAsistenteState extends State<ChatAsistente>
               lugares: widget.lugares,
               alUbicarme: widget.alUbicarme,
               alVerInsignias: widget.alVerInsignias,
+              alReportar: widget.alReportar == null
+                  ? null
+                  : () => widget.alReportar!('otro', null),
               alNueva: inicio ? null : _nueva,
               alCerrar: widget.alCerrar,
             ),
@@ -787,6 +807,7 @@ class _Cabecera extends StatelessWidget {
     required this.alVerInsignias,
     required this.alNueva,
     required this.alCerrar,
+    this.alReportar,
   });
 
   final String nombre;
@@ -803,6 +824,9 @@ class _Cabecera extends StatelessWidget {
   /// «Nueva conversación» (apagado si todavía no se ha dicho nada).
   final VoidCallback? alNueva;
   final VoidCallback alCerrar;
+
+  /// «Reportar un problema» (no se muestra si la app no puede reportar).
+  final VoidCallback? alReportar;
 
   @override
   Widget build(BuildContext context) {
@@ -895,6 +919,14 @@ class _Cabecera extends StatelessWidget {
               f: f,
               alTocar: alVerInsignias,
               cuenta: insignias,
+            ),
+          if (alReportar != null)
+            _IconoCabecera(
+              icono: LucideIcons.flag,
+              ayuda: 'Reportar un problema',
+              tema: tema,
+              f: f,
+              alTocar: alReportar,
             ),
           _IconoCabecera(
             icono: LucideIcons.squarePen,
@@ -1115,6 +1147,7 @@ IconData? _iconoOpcion(Opcion o, bool puedeEscanear) => switch (o.tipo) {
   TipoOpcion.irA => LucideIcons.route,
   TipoOpcion.ubicarme =>
     puedeEscanear ? LucideIcons.scanQrCode : LucideIcons.locateFixed,
+  TipoOpcion.reportar => LucideIcons.flag,
   TipoOpcion.texto => null,
 };
 

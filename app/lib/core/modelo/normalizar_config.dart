@@ -490,6 +490,76 @@ PaginaApp paginaGenerica(String id, String titulo) {
   ]);
 }
 
+/// Nodos ubicados sobre una imagen: sin repetir y con la posición entre 0 y 1
+/// (`normalizarNodos` del panel).
+List<NodoMinimapa> _nodos(Object? crudo, int max) {
+  final lista = crudo is List ? crudo : const <Object?>[];
+  final nodos = <NodoMinimapa>[];
+  for (var i = 0; i < lista.length && i < max; i++) {
+    final n = _mapa(lista[i]);
+    final id = n['vertice_id'] is String
+        ? _cortar((n['vertice_id']! as String).trim(), 20)
+        : '';
+    if (id.isEmpty || nodos.any((o) => o.verticeId == id)) continue;
+    nodos.add(
+      NodoMinimapa(
+        verticeId: id,
+        x: _red(_num(n['x'], 0, 1, 0.5), 4),
+        y: _red(_num(n['y'], 0, 1, 0.5), 4),
+      ),
+    );
+  }
+  return List<NodoMinimapa>.unmodifiable(nodos);
+}
+
+/// Los edificios con sus pisos (`normalizarEdificios` del panel).
+List<EdificioMinimapa> _edificios(Object? crudo) {
+  final lista = crudo is List ? crudo : const <Object?>[];
+  final ids = <String>{};
+  final edificios = <EdificioMinimapa>[];
+  for (var i = 0; i < lista.length && i < maxEdificios; i++) {
+    final e = _mapa(lista[i]);
+    var id = _ident(e['id'], 'edificio-${i + 1}');
+    while (ids.contains(id)) {
+      id = '$id-${i + 1}';
+    }
+    ids.add(id);
+    final crudos = e['pisos'] is List ? e['pisos']! as List : const <Object?>[];
+    final idsPisos = <String>{};
+    final pisos = <PisoEdificio>[];
+    for (var k = 0; k < crudos.length && k < maxPisos; k++) {
+      final p = _mapa(crudos[k]);
+      var pid = _ident(p['id'], 'piso-${k + 1}');
+      while (idsPisos.contains(pid)) {
+        pid = '$pid-${k + 1}';
+      }
+      idsPisos.add(pid);
+      final imagen = p['imagen'];
+      pisos.add(
+        PisoEdificio(
+          id: pid,
+          nombre: _texto(p['nombre'], 'Piso ${k + 1}', 40),
+          nivel: _redondear(_num(p['nivel'], -5, 20, k.toDouble())),
+          imagen:
+              recursoValido(imagen) &&
+                  !(imagen! as String).startsWith('app://videos/')
+              ? imagen as String
+              : '',
+          nodos: _nodos(p['nodos'], maxNodosPiso),
+        ),
+      );
+    }
+    edificios.add(
+      EdificioMinimapa(
+        id: id,
+        nombre: _texto(e['nombre'], 'Edificio ${i + 1}', 40),
+        pisos: List<PisoEdificio>.unmodifiable(pisos),
+      ),
+    );
+  }
+  return List<EdificioMinimapa>.unmodifiable(edificios);
+}
+
 /// Normaliza la configuración que llega del paquete.
 ///
 /// - [base]: de dónde salen los valores por defecto (`CONFIG_POR_DEFECTO`).
@@ -539,24 +609,7 @@ ConfigApp normalizarConfig(
   }
 
   final m = _mapa(x['minimapa']);
-  final nodos = <NodoMinimapa>[];
-  final crudosNodos = m['nodos'] is List
-      ? m['nodos']! as List
-      : const <Object?>[];
-  for (var i = 0; i < crudosNodos.length && i < 500; i++) {
-    final n = _mapa(crudosNodos[i]);
-    final id = n['vertice_id'] is String
-        ? _cortar((n['vertice_id']! as String).trim(), 20)
-        : '';
-    if (id.isEmpty || nodos.any((o) => o.verticeId == id)) continue;
-    nodos.add(
-      NodoMinimapa(
-        verticeId: id,
-        x: _red(_num(n['x'], 0, 1, 0.5), 4),
-        y: _red(_num(n['y'], 0, 1, 0.5), 4),
-      ),
-    );
-  }
+  final nodos = _nodos(m['nodos'], 500);
 
   // Se conserva la página de una sección aunque cambie de tipo.
   final paginasCrudas = _mapa(x['paginas']);
@@ -644,7 +697,8 @@ ConfigApp normalizarConfig(
       ),
       centrarEnActual: _bool(m['centrarEnActual'], d.minimapa.centrarEnActual),
       mostrarNombres: _bool(m['mostrarNombres'], d.minimapa.mostrarNombres),
-      nodos: List<NodoMinimapa>.unmodifiable(nodos),
+      nodos: nodos,
+      edificios: _edificios(m['edificios']),
     ),
     inicio: InicioApp(
       pantalla: _uno(inicio['pantalla'], const <String>[

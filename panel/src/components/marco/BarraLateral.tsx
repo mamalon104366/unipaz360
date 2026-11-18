@@ -8,6 +8,7 @@ import {
   Building2,
   ChevronDown,
   FileText,
+  Flag,
   CircleDashed,
   History,
   Image,
@@ -73,7 +74,13 @@ export function BarraLateral({
       ? [
           { titulo: 'Resumen', items: [{ href: '/', icono: LayoutDashboard, nombre: 'Estado del campus' }] },
           { titulo: 'Estado del grafo', items: estadoGrafo },
-          { titulo: 'Pendiente', items: [{ href: '/publicar', icono: Send, nombre: 'Cambios sin publicar', cuenta: r?.cambiosPendientes, tono: 'info' }] },
+          {
+            titulo: 'Pendiente',
+            items: [
+              { href: '/publicar', icono: Send, nombre: 'Cambios sin publicar', cuenta: r?.cambiosPendientes, tono: 'info' },
+              { href: '/reportes', icono: Flag, nombre: 'Reportes de la app', cuenta: r?.reportesNuevos, tono: 'alerta' },
+            ],
+          },
         ]
       : area.id === 'campus'
         ? [

@@ -9,6 +9,7 @@ import type { MarkersPlugin } from '@photo-sphere-viewer/markers-plugin';
 import {
   ArrowDown,
   ArrowUp,
+  Building2,
   ChevronLeft,
   ChevronRight,
   Circle,
@@ -63,8 +64,14 @@ import {
   type PestanaPagina,
   type SeccionApp,
   type TipoElemento,
+  type EdificioMinimapa,
+  type PisoEdificio,
+  MAX_EDIFICIOS,
+  MAX_PISOS,
   MAX_RESPUESTAS,
   MAX_SINONIMOS,
+  conPlano,
+  planoDe,
 } from '@/lib/configApp';
 import { LOGOS } from '@/lib/marca.generado';
 import { paginaInicial } from '@/lib/paginasIniciales';
@@ -75,6 +82,7 @@ import { LienzoPagina } from './LienzoPagina';
 import { PropiedadesPagina } from './PropiedadesPagina';
 import { MinimapaVista } from './Minimapa';
 import { EditorMinimapa, type VerticeMapa } from './EditorMinimapa';
+import { urlRecurso } from './recursos';
 import { alinear, copiar, crearElemento, distribuir, nuevoId, ordenar, type ModoAlinear } from './operaciones';
 import { IconoCatalogo, SelectorIconos } from '@/components/ui/SelectorIconos';
 import { ETIQUETA_ICONO } from '@/lib/iconosPunto.generado';
@@ -178,6 +186,8 @@ export function EditorCliente({
   const [verComo, setVerComo] = useState<'invitado' | 'institucional'>('institucional');
   const [editorMapa, setEditorMapa] = useState(false);
   const [subiendo, setSubiendo] = useState<number | null>(null);
+  const [editorPlano, setEditorPlano] = useState<{ edificio: string; piso: string } | null>(null);
+  const [subiendoPlano, setSubiendoPlano] = useState<{ piso: string; avance: number } | null>(null);
   const portapapeles = useRef<PestanaPagina['elementos']>([]);
   const actual = panoramicas.find((p) => p.id === panoActual) ?? panoramicas[0] ?? null;
   const editable = puedeEditar && !visitante;
@@ -521,6 +531,35 @@ export function EditorCliente({
   const elegirCapa = (id: Capa) => ir({ capa: id, pagina: null });
   const textoBase = 16 * e * u;
   const nodosInfo = vertices.map((v) => ({ id: v.id, nombre: v.nombre, panoramica_id: v.panoramica_id }));
+  /** La foto de la vista previa está dentro de un edificio con plano: el minimapa lo muestra. */
+  const planoVista = planoDe(c.minimapa, actual?.vertice_id);
+  /** El piso cuyo plano se está editando (sus nodos). */
+  const planoAbierto = (() => {
+    if (!editorPlano) return null;
+    const edificio = c.minimapa.edificios.find((x) => x.id === editorPlano.edificio);
+    const piso = edificio?.pisos.find((x) => x.id === editorPlano.piso);
+    return edificio && piso ? { edificio, piso } : null;
+  })();
+
+  /** Cambia un edificio (sus datos o sus pisos). */
+  const cambiarEdificio = (id: string, cambio: (e: EdificioMinimapa) => EdificioMinimapa, grupo?: string) =>
+    setC((x) => ({ ...x, minimapa: { ...x.minimapa, edificios: x.minimapa.edificios.map((e) => (e.id === id ? cambio(e) : e)) } }), grupo);
+  const cambiarPiso = (edificio: string, piso: string, datos: Partial<PisoEdificio>, grupo?: string) =>
+    cambiarEdificio(edificio, (e) => ({ ...e, pisos: e.pisos.map((p) => (p.id === piso ? { ...p, ...datos } : p)) }), grupo);
+
+  async function planoPiso(edificio: string, piso: string, archivo: File | undefined) {
+    if (!archivo) return;
+    try {
+      setSubiendoPlano({ piso, avance: 0 });
+      const m = await subirMedio(archivo, (avance) => setSubiendoPlano({ piso, avance }));
+      cambiarPiso(edificio, piso, { imagen: m.url });
+      avisar('Plano cargado. Ahora ubica sobre él los nodos de ese piso.', 'ok');
+    } catch (e) {
+      avisar((e as Error).message);
+    } finally {
+      setSubiendoPlano(null);
+    }
+  }
   // Barra: el logo horizontal (en blanco sobre vidrio u oscuro, a color sobre claro), las secciones
   // con separadores y el pie con el nombre. El logo va en su propia capa: al plegar no se mueve.
   const clara = c.barraLateral.estilo === 'claro';
@@ -807,10 +846,11 @@ export function EditorCliente({
                 </div>
               )}
 
-              {/* Minimapa */}
+              {/* Minimapa (dentro de un edificio con plano, como en la app, el plano de su piso) */}
               {c.minimapa.visible && !seccionAbierta && (
                 <MinimapaVista
-                  m={c.minimapa}
+                  m={planoVista ? conPlano(c.minimapa, planoVista.piso) : c.minimapa}
+                  edificio={planoVista ? { nombre: planoVista.edificio.nombre, piso: planoVista.piso.nombre } : undefined}
                   nodos={nodosInfo}
                   actual={actual?.vertice_id ?? null}
                   estado={estadoMapa}
@@ -1240,6 +1280,126 @@ export function EditorCliente({
                   alCambiar={(v) => setC({ ...c, minimapa: { ...c.minimapa, centrarEnActual: v } })}
                 />
               </Seccion>
+              <Seccion
+                titulo={`Edificios por dentro (${c.minimapa.edificios.length})`}
+                accion={
+                  c.minimapa.edificios.length < MAX_EDIFICIOS ? (
+                    <BotonIcono
+                      titulo="Agregar edificio"
+                      icono={<Plus size={15} />}
+                      onClick={() =>
+                        setC((x) => ({
+                          ...x,
+                          minimapa: {
+                            ...x.minimapa,
+                            edificios: [
+                              ...x.minimapa.edificios,
+                              { id: nuevoId('edificio'), nombre: `Edificio ${x.minimapa.edificios.length + 1}`, pisos: [{ id: nuevoId('piso'), nombre: 'Planta baja', nivel: 0, imagen: '', nodos: [] }] },
+                            ],
+                          },
+                        }))
+                      }
+                    />
+                  ) : undefined
+                }
+              >
+                <p className="text-[12px] leading-snug text-tinta-tenue">
+                  Sube el plano de cada piso y ubica sobre él sus nodos. Cuando la persona esté en uno de esos nodos, el minimapa de la app muestra el edificio por dentro, con botones para cambiar de piso y volver al campus.
+                </p>
+                {c.minimapa.edificios.map((e) => (
+                  <div key={e.id} className="space-y-2 rounded-xl bg-black/[0.03] p-2.5">
+                    <div className="flex items-center gap-1.5">
+                      <Building2 size={15} className="shrink-0 text-tinta-suave" />
+                      <input
+                        value={e.nombre}
+                        maxLength={40}
+                        placeholder="Nombre del edificio"
+                        onChange={(ev) => cambiarEdificio(e.id, (x) => ({ ...x, nombre: ev.target.value }), `edif-nombre-${e.id}`)}
+                        className="campo !h-9 min-w-0 flex-1 !px-2.5 !text-[13px]"
+                      />
+                      <BotonIcono
+                        titulo="Quitar edificio"
+                        icono={<Trash2 size={14} />}
+                        onClick={() => {
+                          if (!confirm(`¿Quitar «${e.nombre}» con sus planos? Puedes deshacerlo con Ctrl + Z.`)) return;
+                          setC((x) => ({ ...x, minimapa: { ...x.minimapa, edificios: x.minimapa.edificios.filter((o) => o.id !== e.id) } }));
+                        }}
+                      />
+                    </div>
+                    {e.pisos.map((p) => {
+                      const cargando = subiendoPlano?.piso === p.id;
+                      return (
+                        <div key={p.id} className="space-y-1.5 rounded-lg bg-white/60 p-2">
+                          <div className="flex items-center gap-2">
+                            <span className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-lg bg-black/5 text-tinta-tenue" title={p.imagen ? 'Plano cargado' : 'Sin plano todavía'}>
+                              {cargando ? (
+                                <span className="font-mono text-[10px]">{Math.round((subiendoPlano?.avance ?? 0) * 100)}%</span>
+                              ) : p.imagen ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={urlRecurso(p.imagen)} alt="" className="h-full w-full object-cover" />
+                              ) : (
+                                <ImageIcon size={14} />
+                              )}
+                            </span>
+                            <input
+                              value={p.nombre}
+                              maxLength={40}
+                              placeholder="Nombre del piso"
+                              onChange={(ev) => cambiarPiso(e.id, p.id, { nombre: ev.target.value }, `piso-nombre-${p.id}`)}
+                              className="campo !h-9 min-w-0 flex-1 !px-2.5 !text-[13px]"
+                            />
+                            <BotonIcono
+                              titulo="Quitar piso"
+                              icono={<Trash2 size={14} />}
+                              onClick={() => cambiarEdificio(e.id, (x) => ({ ...x, pisos: x.pisos.filter((o) => o.id !== p.id) }))}
+                            />
+                          </div>
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <label className="flex items-center gap-1 text-[12px] text-tinta-tenue" title="Nivel de los nodos de este piso en el mapa (0 = planta baja)">
+                              Nivel
+                              <input
+                                type="number"
+                                value={p.nivel}
+                                min={-5}
+                                max={20}
+                                onChange={(ev) => cambiarPiso(e.id, p.id, { nivel: Math.round(Math.min(20, Math.max(-5, Number(ev.target.value) || 0))) }, `piso-nivel-${p.id}`)}
+                                className="campo !h-8 w-12 !px-1.5 text-center font-mono !text-[13px]"
+                              />
+                            </label>
+                            <label className={`chip !py-1.5 bg-black/5 text-tinta-suave hover:bg-black/10 ${cargando ? 'pointer-events-none opacity-50' : 'cursor-pointer'}`}>
+                              <ImageUp size={12} /> {p.imagen ? 'Cambiar plano' : 'Subir plano'}
+                              <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" disabled={cargando} onChange={(ev) => planoPiso(e.id, p.id, ev.target.files?.[0])} />
+                            </label>
+                            <button
+                              type="button"
+                              disabled={!p.imagen}
+                              title={p.imagen ? 'Ubicar sobre el plano los nodos de este piso' : 'Primero sube el plano'}
+                              onClick={() => setEditorPlano({ edificio: e.id, piso: p.id })}
+                              className="chip !py-1.5 bg-black/5 text-tinta-suave hover:bg-black/10 disabled:opacity-40"
+                            >
+                              <MapPinned size={12} /> Nodos ({p.nodos.length})
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {e.pisos.length < MAX_PISOS && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          cambiarEdificio(e.id, (x) => {
+                            const nivel = x.pisos.length ? Math.min(20, Math.max(...x.pisos.map((o) => o.nivel)) + 1) : 0;
+                            return { ...x, pisos: [...x.pisos, { id: nuevoId('piso'), nombre: nivel === 0 ? 'Planta baja' : `Piso ${nivel}`, nivel, imagen: '', nodos: [] }] };
+                          })
+                        }
+                        className="boton-suave w-full !h-9 !text-[13px]"
+                      >
+                        <Plus size={14} /> Agregar piso
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </Seccion>
               <Seccion titulo="Estados">
                 <Opciones
                   etiqueta="Al abrir la app"
@@ -1414,6 +1574,20 @@ export function EditorCliente({
           colores={colores}
           alCambiar={(nodos, grupo) => setC((x) => ({ ...x, minimapa: { ...x.minimapa, nodos } }), grupo)}
           alCerrar={() => setEditorMapa(false)}
+          avisar={avisar}
+        />
+      )}
+      {planoAbierto && (
+        <EditorMinimapa
+          imagen={planoAbierto.piso.imagen}
+          nodos={planoAbierto.piso.nodos}
+          vertices={vertices}
+          colores={colores}
+          titulo={`${planoAbierto.edificio.nombre} · ${planoAbierto.piso.nombre}`}
+          descripcion="Arrastra cada nodo de este piso a su lugar en el plano. Cuando la persona esté en uno de ellos, el minimapa de la app mostrará este plano. Con 3 ubicados, «Ubicar los que faltan» pone los demás de este nivel."
+          nivel={planoAbierto.piso.nivel}
+          alCambiar={(nodos, grupo) => cambiarPiso(planoAbierto.edificio.id, planoAbierto.piso.id, { nodos }, grupo)}
+          alCerrar={() => setEditorPlano(null)}
           avisar={avisar}
         />
       )}

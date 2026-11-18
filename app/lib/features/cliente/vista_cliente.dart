@@ -31,6 +31,7 @@ import '../../core/modelo/recorrido.dart';
 import '../../core/paquete/paquete_local.dart';
 import '../../domain/insignias.dart';
 import '../../domain/preferencias.dart';
+import '../../domain/reporte.dart';
 import '../../ui/preferencias/preferencias_viewmodel.dart';
 import '../asistente/asistente.dart' show Lugar;
 import '../asistente/recorrido_guiado.dart';
@@ -39,6 +40,7 @@ import '../rutas/rutas.dart' show Paso, Ruta, pasosDe;
 import '../visor360/visor_360.dart';
 import 'bienvenida_cliente.dart';
 import 'direccion_guia.dart';
+import 'edificios.dart';
 import 'escaner_qr.dart';
 import 'guia_cliente.dart';
 import 'insignias_cliente.dart';
@@ -46,6 +48,7 @@ import 'marco_cliente.dart';
 import 'medidas_cliente.dart';
 import 'minimapa_cliente.dart';
 import 'panel_pagina.dart';
+import 'reportar_cliente.dart';
 import 'ubicacion_cliente.dart';
 import 'vertical_cliente.dart';
 
@@ -70,6 +73,7 @@ class VistaCliente extends StatefulWidget {
     this.ubicacionInicial,
     this.insignias = const Insignias(),
     this.alGanarInsignia,
+    this.alReportar,
   });
 
   final PaqueteLocal paquete;
@@ -107,6 +111,10 @@ class VistaCliente extends StatefulWidget {
 
   /// Ganó la insignia de un lugar (se guarda en su dispositivo).
   final ValueChanged<String>? alGanarInsignia;
+
+  /// Manda un reporte a la plataforma (o lo guarda si no hay internet). Sin él, la app no
+  /// ofrece «Reportar un problema».
+  final Future<EstadoEnvio> Function(Reporte reporte)? alReportar;
 
   @override
   State<VistaCliente> createState() => _VistaClienteState();
@@ -167,6 +175,14 @@ class _VistaClienteState extends State<VistaCliente> {
   /// Un punto marcado en el mapa que no tiene foto 360° (la ubicación o el paso del recorrido).
   String? _marcadoEnMapa;
 
+  // Los edificios por dentro: estando en un nodo ubicado sobre el plano de un piso, el minimapa
+  // muestra ese plano. La persona puede cambiar de piso o volver a ver el campus.
+  bool _verCampus = false;
+  (String, String)? _pisoElegido;
+
+  /// El edificio donde estaba (para saber cuándo entra a otro).
+  String? _edificioVisto;
+
   /// El aviso «Estás en…» (y una clave para volver a mostrarlo).
   String? _aviso;
   int _avisoVez = 0;
@@ -186,6 +202,9 @@ class _VistaClienteState extends State<VistaCliente> {
     super.initState();
     final panos = widget.paquete.datos.panoramicas;
     _panoramica = panos.isEmpty ? null : panos.first.id;
+    // Si la app abre dentro de un edificio, el minimapa no se abre solo: se respeta lo que
+    // la persona eligió en «Tu experiencia».
+    _edificioVisto = planoDe(c.minimapa, _actual?.verticeId)?.edificio.id;
     if (widget.comprobarRed) {
       InternetConnection().hasInternetAccess
           .then((v) {
@@ -510,6 +529,7 @@ class _VistaClienteState extends State<VistaCliente> {
         for (final r in c.asistente.respuestas) (r.pregunta, r.respuesta),
       ],
       puedeEscanear: _escanea,
+      puedeReportar: widget.alReportar != null,
     );
     _eligiendo = _Eleccion.nada;
     _ficha = null;
@@ -519,6 +539,55 @@ class _VistaClienteState extends State<VistaCliente> {
     _chat = true;
   });
 
+  /// «Reportar un problema»: va con el lugar donde está la persona, la foto que ve y a dónde
+  /// iba, para que el equipo lo encuentre sin preguntar.
+  Future<void> _reportar(TipoReporte tipo, {String? detalle}) async {
+    final enviar = widget.alReportar;
+    if (enviar == null) return;
+    final datos = widget.paquete.datos;
+    final nodo = _nodoParaGuiar;
+    final v = nodo == null ? null : datos.grafo.nodos[nodo];
+    // «A dónde iba» solo si había pedido una ruta (preguntar por un horario no es ir).
+    final asistente = _conversacion?.asistente;
+    final destino = asistente?.ultimaRuta == null
+        ? null
+        : asistente?.destino?.nombre;
+    await mostrarReportar(
+      context,
+      config: c,
+      contexto: ContextoReporte(
+        nodo: v?.id,
+        lugar: v == null ? null : nombreDelNodo(datos, v.id),
+        foto: _actual?.id,
+        destino: destino,
+        lat: v?.lat,
+        lon: v?.lon,
+        paquete: widget.paquete.puntero?.version,
+      ),
+      enviar: enviar,
+      tipo: tipo,
+      descripcion: detalle,
+    );
+  }
+
+  /// Entró a otro edificio (o salió): se muestra su plano, con el piso donde está, y si el
+  /// minimapa estaba recogido se abre («cuando uno entra a un edificio, se abre su mapa»).
+  void _revisarEdificio(String? edificio) {
+    if (edificio == _edificioVisto) return;
+    _edificioVisto = edificio;
+    // Lo que eligió en el edificio anterior no aplica en este. Solo se lee más abajo en el
+    // mismo dibujo, así que se puede cambiar aquí.
+    _verCampus = false;
+    _pisoElegido = null;
+    if (edificio == null) return;
+    // El estado del minimapa ya se usó en este dibujo: se cambia en el siguiente.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _estadoMapa == 'minimizado') {
+        setState(() => _estadoMapa = 'normal');
+      }
+    });
+  }
+
   /// «Ver en el mapa»: la ruta se dibuja en el mapa maximizado.
   void _verRutaEnMapa(Ruta ruta) => setState(() {
     if (!_hayMapa) {
@@ -526,6 +595,12 @@ class _VistaClienteState extends State<VistaCliente> {
         'Esta versión no tiene el mapa activo. Sigue los pasos de arriba o empieza el recorrido guiado.',
       );
       return;
+    }
+    // Si la ruta sale del piso que se ve, se muestra en el mapa del campus.
+    final dentro = planoDe(c.minimapa, _marcadoEnMapa ?? _actual?.verticeId);
+    if (dentro != null) {
+      final enElPiso = <String>{for (final n in dentro.piso.nodos) n.verticeId};
+      _verCampus = !ruta.nodos.every(enElPiso.contains);
     }
     _rutaMapa = ruta.nodos;
     _estadoMapa = 'maximizado';
@@ -817,18 +892,51 @@ class _VistaClienteState extends State<VistaCliente> {
                 panoramicaId: datos.panoramicaPorVertice[v.id]?.id,
               ),
           };
+          // ¿Está dentro de un edificio con plano? Entonces el minimapa muestra su piso.
+          final nodoMapa = _marcadoEnMapa ?? actual?.verticeId;
+          final dentro = c.minimapa.visible
+              ? planoDe(c.minimapa, nodoMapa)
+              : null;
+          _revisarEdificio(dentro?.edificio.id);
+          final pisos = dentro == null
+              ? const <PisoEdificio>[]
+              : pisosConPlano(dentro.edificio);
+          var piso = dentro?.piso;
+          final elegido = _pisoElegido;
+          if (dentro != null &&
+              elegido != null &&
+              elegido.$1 == dentro.edificio.id) {
+            for (final p in pisos) {
+              if (p.id == elegido.$2) piso = p;
+            }
+          }
+          final plano = dentro != null && piso != null && !_verCampus
+              ? InfoPlano(
+                  edificio: dentro.edificio.nombre,
+                  piso: piso,
+                  pisos: pisos,
+                  alCambiarPiso: (id) =>
+                      setState(() => _pisoElegido = (dentro.edificio.id, id)),
+                  alVerCampus: () => setState(() => _verCampus = true),
+                )
+              : null;
+          final configMapa = plano == null ? c : conPlano(c, plano.piso);
           Widget mapa(String estado, ValueChanged<String> alCambiar) =>
               MinimapaCliente(
-                config: c,
-                imagen: widget.paquete.imagen(c.minimapa.imagen),
+                config: configMapa,
+                imagen: widget.paquete.imagen(configMapa.minimapa.imagen),
                 nodos: nodos,
-                actual: _marcadoEnMapa ?? actual?.verticeId,
+                actual: nodoMapa,
                 estado: estado,
                 anchoPantalla: pantalla.width,
                 ruta: _rutaMapa,
                 alCambiarEstado: alCambiar,
                 alIr: _tocarNodo,
                 elegirPunto: _eligiendo != _Eleccion.nada,
+                plano: plano,
+                alVerEdificio: dentro != null && _verCampus
+                    ? () => setState(() => _verCampus = false)
+                    : null,
               );
           final capas = vertical
               ? _capasVerticales(mq, m, abierta, suave, mapa)
@@ -918,9 +1026,11 @@ class _VistaClienteState extends State<VistaCliente> {
                   ),
                 // Los avisos de arriba: «Estás en…» y «¡Nueva insignia!». Van al lado de la
                 // barra; si ahí no caben (celular acostado con el menú abierto), encima de ella.
+                // Con el mapa maximizado no se muestran: taparían su título y sus pisos.
                 if (!_bienvenida &&
                     (_aviso != null || _avisoInsignia != null) &&
-                    abierta == null)
+                    abierta == null &&
+                    _estadoMapa != 'maximizado')
                   Positioned(
                     top: vertical
                         ? mq.padding.top + margen
@@ -1007,6 +1117,10 @@ class _VistaClienteState extends State<VistaCliente> {
     insignias: _cuantasInsignias,
     lugares: _lugares.length,
     alVerInsignias: _verInsignias,
+    alReportar: widget.alReportar == null
+        ? null
+        : (tipo, detalle) =>
+              unawaited(_reportar(TipoReporte.desde(tipo), detalle: detalle)),
   );
 
   /// Hay puntos en el mapa del campus: el botón del QR sirve.

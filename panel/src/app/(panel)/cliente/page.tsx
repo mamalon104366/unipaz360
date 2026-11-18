@@ -42,7 +42,7 @@ async function Contenido() {
     }),
   );
   const porVertice = new Map(panos.map((p) => [p.vertice_id, p.id]));
-  const vertices = grafo.vertices.map((v) => ({ id: v.id, nombre: v.descripcion?.trim() || v.id, lat: v.lat, lon: v.lon, panoramica_id: porVertice.get(v.id) ?? null }));
+  const vertices = grafo.vertices.map((v) => ({ id: v.id, nombre: v.descripcion?.trim() || v.id, lat: v.lat, lon: v.lon, nivel: v.nivel, panoramica_id: porVertice.get(v.id) ?? null }));
   return (
     <div className={`h-full ${sans.variable} ${serif.variable}`}>
       <EditorCliente inicial={config} panoramicas={panoramicas.filter((p) => p.clave)} vertices={vertices} puedeEditar={puedeEditar} />

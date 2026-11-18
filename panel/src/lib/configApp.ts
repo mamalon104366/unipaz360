@@ -129,6 +129,51 @@ export interface NodoMinimapa {
   y: number;
 }
 
+/**
+ * Un piso de un edificio, con su plano: cuando la persona está en uno de sus nodos, la app
+ * cambia el minimapa por este plano («el minimapa del edificio»).
+ */
+export interface PisoEdificio {
+  id: string;
+  /** «Planta baja», «Segundo piso». */
+  nombre: string;
+  /** El nivel de los nodos de ese piso en el mapa (0 = planta baja). */
+  nivel: number;
+  /** El plano: una imagen subida a la plataforma o '' mientras no hay (así no se muestra). */
+  imagen: string;
+  /** Los nodos de ese piso ubicados sobre el plano. */
+  nodos: NodoMinimapa[];
+}
+
+export interface EdificioMinimapa {
+  id: string;
+  nombre: string;
+  pisos: PisoEdificio[];
+}
+
+export const MAX_EDIFICIOS = 20;
+export const MAX_PISOS = 12;
+export const MAX_NODOS_PISO = 300;
+
+/** El edificio y el piso (con plano) donde está ubicado [verticeId], si hay: ahí «entró» la persona. */
+export function planoDe(m: { edificios: EdificioMinimapa[] }, verticeId: string | null | undefined) {
+  if (!verticeId) return null;
+  for (const edificio of m.edificios) {
+    for (const piso of edificio.pisos) {
+      if (piso.imagen && piso.nodos.some((n) => n.vertice_id === verticeId)) return { edificio, piso };
+    }
+  }
+  return null;
+}
+
+/** El minimapa mostrando el plano de un piso: su imagen y sus nodos, sin el encuadre del campus. */
+export function conPlano<M extends { imagen: string; nodos: NodoMinimapa[]; zoom: number; rotacion: number; desplazamientoX: number; desplazamientoY: number; centrarEnActual: boolean }>(
+  m: M,
+  piso: PisoEdificio,
+): M {
+  return { ...m, imagen: piso.imagen, nodos: piso.nodos, zoom: 1, rotacion: 0, desplazamientoX: 0, desplazamientoY: 0, centrarEnActual: false };
+}
+
 export interface SinonimoAsistente {
   palabra: string;
   significa: string;
@@ -184,6 +229,8 @@ export interface ConfigApp {
     /** Nombres de los nodos también en estado normal (al maximizar siempre se ven). */
     mostrarNombres: boolean;
     nodos: NodoMinimapa[];
+    /** Los edificios por dentro: un plano por piso (ver PisoEdificio). */
+    edificios: EdificioMinimapa[];
   };
   inicio: { pantalla: 'tour' | 'mapa'; textoBoton: string; bienvenida: string };
   /**
@@ -231,6 +278,7 @@ export const CONFIG_POR_DEFECTO: ConfigApp = {
     centrarEnActual: false,
     mostrarNombres: false,
     nodos: [],
+    edificios: [],
   },
   inicio: { pantalla: 'tour', textoBoton: 'Inicio', bienvenida: 'Bienvenido a UniPaz360' },
   asistente: { visible: true, nombre: 'Paz', saludo: '', sinonimos: [], respuestas: [] },
@@ -395,6 +443,45 @@ function normalizarAsistente(v: unknown): ConfigApp['asistente'] {
   return { visible: bool(x.visible, d.visible), nombre: texto(x.nombre, d.nombre, 24), saludo: libre(x.saludo, 200), sinonimos, respuestas };
 }
 
+/** Nodos ubicados sobre una imagen: sin repetir y con la posición entre 0 y 1. */
+function normalizarNodos(v: unknown, max: number): NodoMinimapa[] {
+  const nodos: NodoMinimapa[] = [];
+  for (const n of Array.isArray(v) ? v.slice(0, max) : []) {
+    const id = typeof n?.vertice_id === 'string' ? n.vertice_id.trim().slice(0, 20) : '';
+    if (!id || nodos.some((o) => o.vertice_id === id)) continue;
+    nodos.push({ vertice_id: id, x: red(num(n.x, 0, 1, 0.5), 4), y: red(num(n.y, 0, 1, 0.5), 4) });
+  }
+  return nodos;
+}
+
+const objeto = (v: unknown) => (v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
+
+/** Los edificios con sus pisos: identificadores sin repetir y planos válidos (o vacíos). */
+function normalizarEdificios(v: unknown): EdificioMinimapa[] {
+  const ids = new Set<string>();
+  return (Array.isArray(v) ? v.slice(0, MAX_EDIFICIOS) : []).map((crudo, i) => {
+    const e = objeto(crudo);
+    let id = ident(e.id, `edificio-${i + 1}`);
+    while (ids.has(id)) id = `${id}-${i + 1}`;
+    ids.add(id);
+    const idsPisos = new Set<string>();
+    const pisos = (Array.isArray(e.pisos) ? e.pisos.slice(0, MAX_PISOS) : []).map((crudoPiso, k) => {
+      const p = objeto(crudoPiso);
+      let pid = ident(p.id, `piso-${k + 1}`);
+      while (idsPisos.has(pid)) pid = `${pid}-${k + 1}`;
+      idsPisos.add(pid);
+      return {
+        id: pid,
+        nombre: texto(p.nombre, `Piso ${k + 1}`, 40),
+        nivel: Math.round(num(p.nivel, -5, 20, k)),
+        imagen: recursoValido(p.imagen) && !p.imagen.startsWith('app://videos/') ? p.imagen : '',
+        nodos: normalizarNodos(p.nodos, MAX_NODOS_PISO),
+      };
+    });
+    return { id, nombre: texto(e.nombre, `Edificio ${i + 1}`, 40), pisos };
+  });
+}
+
 export function normalizarConfig(c: Partial<ConfigApp> | null | undefined): ConfigApp {
   const d = CONFIG_POR_DEFECTO;
   const x = (c ?? {}) as Partial<ConfigApp> & { minimapa?: Partial<ConfigApp['minimapa']> & { plegable?: boolean; iniciaPlegado?: boolean } };
@@ -417,12 +504,7 @@ export function normalizarConfig(c: Partial<ConfigApp> | null | undefined): Conf
     };
   });
   const m: Partial<ConfigApp['minimapa']> & { plegable?: boolean; iniciaPlegado?: boolean } = x.minimapa ?? {};
-  const nodos: NodoMinimapa[] = [];
-  for (const n of Array.isArray(m.nodos) ? m.nodos.slice(0, 500) : []) {
-    const id = typeof n?.vertice_id === 'string' ? n.vertice_id.trim().slice(0, 20) : '';
-    if (!id || nodos.some((o) => o.vertice_id === id)) continue;
-    nodos.push({ vertice_id: id, x: red(num(n.x, 0, 1, 0.5), 4), y: red(num(n.y, 0, 1, 0.5), 4) });
-  }
+  const nodos = normalizarNodos(m.nodos, 500);
   // Se conserva la página de una sección aunque cambie de tipo (así no se pierde si se vuelve a "pagina").
   const paginas: Record<string, Pagina> = {};
   for (const s of secciones) {
@@ -468,6 +550,7 @@ export function normalizarConfig(c: Partial<ConfigApp> | null | undefined): Conf
       centrarEnActual: bool(m.centrarEnActual, d.minimapa.centrarEnActual),
       mostrarNombres: bool(m.mostrarNombres, d.minimapa.mostrarNombres),
       nodos,
+      edificios: normalizarEdificios(m.edificios),
     },
     inicio: {
       pantalla: uno(x.inicio?.pantalla, ['tour', 'mapa'] as const, d.inicio.pantalla),
