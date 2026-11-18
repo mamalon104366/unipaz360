@@ -6,6 +6,7 @@ library;
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../core/marca/cara_paz.dart';
 import '../../core/marca/logo_unipaz.dart';
 import '../../core/modelo/config_app.dart';
 import '../visor360/animacion_punto.dart';
@@ -559,8 +560,8 @@ class BotonInicio extends StatelessWidget {
 }
 
 /// El botón redondo del asistente, junto al de cuenta: abre el chat que guía
-/// hasta un lugar. Lleva la cara de Paz (los dos colores de la marca y un destello) para que
-/// se distinga y se reconozca dentro del chat.
+/// hasta un lugar. Lleva la cara de Paz (la paloma de UNIPAZ con el aro de los colores de la
+/// marca) para que se distinga y se reconozca dentro del chat.
 class BotonChat extends StatelessWidget {
   const BotonChat({super.key, required this.config, required this.alTocar});
 
@@ -585,30 +586,11 @@ class BotonChat extends StatelessWidget {
           excludeSemantics: true,
           child: GestureDetector(
             onTap: alTocar,
-            child: Container(
-              width: ladoBuscar * e,
-              height: ladoBuscar * e,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: <Color>[color, verde],
-                ),
-                border: Border.all(color: const Color(0x59FFFFFF)),
-                boxShadow: <BoxShadow>[
-                  BoxShadow(
-                    color: color.withValues(alpha: 0.45),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Icon(
-                LucideIcons.sparkles,
-                size: 18 * e,
-                color: Colors.white,
-              ),
+            child: CaraPaz(
+              lado: ladoBuscar * e,
+              primario: color,
+              acento: verde,
+              brillo: color.withValues(alpha: 0.45),
             ),
           ),
         ),

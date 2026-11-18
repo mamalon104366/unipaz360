@@ -17,6 +17,7 @@ import 'package:flutter/services.dart'
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../../core/marca/cara_paz.dart';
 import '../../../core/modelo/config_app.dart';
 import '../../cliente/estilo_cliente.dart';
 import '../../rutas/rutas.dart' show Paso, PerfilRuta, Ruta, TipoPaso;
@@ -761,35 +762,24 @@ class _PulsarState extends State<_Pulsar> {
   }
 }
 
-/// La cara de Paz: un círculo con los colores de la marca y un destello.
+/// La cara de Paz: la paloma de UNIPAZ con el aro de los colores de la marca ([CaraPaz]).
 class _AvatarPaz extends StatelessWidget {
   const _AvatarPaz({required this.lado, required this.degradado, this.brillo});
 
   final double lado;
+
+  /// El degradado de la marca: sus colores pintan el aro.
   final Gradient degradado;
 
   /// Un halo de color alrededor (en la bienvenida).
   final Color? brillo;
 
   @override
-  Widget build(BuildContext context) => Container(
-    width: lado,
-    height: lado,
-    decoration: BoxDecoration(
-      shape: BoxShape.circle,
-      gradient: degradado,
-      border: Border.all(color: const Color(0x33FFFFFF)),
-      boxShadow: brillo == null
-          ? null
-          : <BoxShadow>[
-              BoxShadow(
-                color: brillo!,
-                blurRadius: lado * 0.7,
-                offset: Offset(0, lado * 0.14),
-              ),
-            ],
-    ),
-    child: Icon(LucideIcons.sparkles, size: lado * 0.48, color: Colors.white),
+  Widget build(BuildContext context) => CaraPaz(
+    lado: lado,
+    primario: degradado.colors.first,
+    acento: degradado.colors.last,
+    brillo: brillo,
   );
 }
 

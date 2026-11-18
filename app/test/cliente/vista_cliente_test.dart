@@ -5,6 +5,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:unipaz360/core/marca/cara_paz.dart';
 import 'package:unipaz360/core/marca/logo_unipaz.dart';
 import 'package:unipaz360/core/modelo/config_app.dart';
 import 'package:unipaz360/core/modelo/normalizar_config.dart';
@@ -54,8 +55,16 @@ ConfigApp _config({Map<String, Object?> barra = const <String, Object?>{}}) {
   return normalizarConfig(crudo);
 }
 
-LogoUnipaz _logo(WidgetTester tester) =>
-    tester.widget<LogoUnipaz>(find.byType(LogoUnipaz));
+/// El logo de la plataforma (en la barra o sobre la foto). La cara de Paz, en el botón del
+/// asistente, también lleva la paloma del logo, pero esa no cuenta.
+Finder _elLogo() => find.byElementPredicate(
+  (e) =>
+      e.widget is LogoUnipaz &&
+      e.findAncestorWidgetOfExactType<CaraPaz>() == null,
+  description: 'el logo de la plataforma',
+);
+
+LogoUnipaz _logo(WidgetTester tester) => tester.widget<LogoUnipaz>(_elLogo());
 
 Future<void> _mostrar(
   WidgetTester tester,
@@ -221,7 +230,7 @@ void main() {
     'al plegar la barra se esconde y el logo se queda sobre la foto, con sombra',
     (tester) async {
       await _mostrar(tester, const Size(1440, 900));
-      final lugar = tester.getTopLeft(find.byType(LogoUnipaz));
+      final lugar = tester.getTopLeft(_elLogo());
       await tester.tap(find.byTooltip('Ocultar menú'));
       await tester.pump();
       await tester.pump(duracionBarra);
@@ -233,7 +242,7 @@ void main() {
       final logo = _logo(tester);
       expect(logo.tinta, TintaLogo.blanco);
       expect(logo.sombra, isTrue);
-      expect(tester.getTopLeft(find.byType(LogoUnipaz)), lugar);
+      expect(tester.getTopLeft(_elLogo()), lugar);
       // El botón queda a un margen del borde y la vuelve a abrir.
       expect(tester.getTopLeft(find.byType(BotonPlegar)).dx, margen);
       await tester.tap(find.byTooltip('Mostrar menú'));
@@ -282,7 +291,7 @@ void main() {
       const Size(1440, 900),
       config: _config(barra: <String, Object?>{'mostrarLogo': false}),
     );
-    expect(find.byType(LogoUnipaz), findsNothing);
+    expect(_elLogo(), findsNothing);
   });
 
   testWidgets('con la barra a la derecha todo se refleja', (tester) async {
@@ -292,7 +301,7 @@ void main() {
       config: _config(barra: <String, Object?>{'posicion': 'derecha'}),
     );
     expect(tester.getTopRight(find.byType(BarraSecciones)).dx, 1440);
-    expect(tester.getTopRight(find.byType(LogoUnipaz)).dx, 1440 - 14);
+    expect(tester.getTopRight(_elLogo()).dx, 1440 - 14);
     expect(tester.getTopLeft(find.byType(BotonChat)).dx, margen);
   });
 

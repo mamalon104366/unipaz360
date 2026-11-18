@@ -31,7 +31,6 @@ import {
   ScanQrCode,
   SlidersHorizontal,
   Smartphone,
-  Sparkles,
   Square,
   Trash2,
   Type,
@@ -819,19 +818,24 @@ export function EditorCliente({
                 <button
                   onClick={() => elegirCapa('asistente')}
                   title={`${c.asistente.nombre}: el asistente que guía hasta un lugar (en la app abre el chat)`}
-                  className={`pointer-events-auto absolute z-30 grid place-items-center rounded-full border border-white/35 text-white ${marco('asistente')}`}
+                  className={`pointer-events-auto absolute z-30 grid place-items-center rounded-full ${marco('asistente')}`}
                   style={{
                     ...tenue,
                     width: ladoBoton,
                     height: ladoBoton,
                     top: m12,
-                    // La cara de Paz, como en la app: los dos colores de la marca y un destello.
+                    // La cara de Paz, como en la app (CaraPaz): la paloma de UNIPAZ a color sobre un
+                    // círculo blanco, con un aro de los dos colores de la marca y un halo.
+                    padding: Math.max(1.5 * u, ladoBoton * 0.065),
                     background: 'linear-gradient(135deg, var(--primario), var(--acento))',
-                    boxShadow: '0 4px 12px color-mix(in srgb, var(--primario) 45%, transparent)',
+                    boxShadow: `0 ${ladoBoton * 0.1}px ${ladoBoton * 0.45}px color-mix(in srgb, var(--primario) 45%, transparent)`,
                     [derecha ? 'left' : 'right']: m12 + 2 * (ladoBoton + 8 * u),
                   }}
                 >
-                  <Sparkles size={18 * e * u} />
+                  <span className="grid h-full w-full place-items-center rounded-full bg-white">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src="/marca/isotipo.svg" alt="" draggable={false} style={{ width: '80%', height: '80%' }} />
+                  </span>
                 </button>
               )}
 

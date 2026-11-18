@@ -6,6 +6,7 @@ import 'dart:io';
 import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:unipaz360/core/marca/logo_unipaz.dart';
 import 'package:unipaz360/core/modelo/config_app.dart';
 import 'package:unipaz360/core/modelo/normalizar_config.dart';
 import 'package:unipaz360/core/modelo/recorrido.dart';
@@ -154,6 +155,28 @@ void main() {
     expect(find.text('Ver en el mapa'), findsOneWidget);
     expect(find.text('Recorrido guiado'), findsOneWidget);
   });
+
+  testWidgets(
+    'la cara de Paz es la paloma de UNIPAZ, en su botón y en el chat',
+    (tester) async {
+      // La paloma es el símbolo del logo (sin las letras), a color sobre blanco.
+      Finder paloma(Finder dentro) => find.descendant(
+        of: dentro,
+        matching: find.byWidgetPredicate(
+          (w) =>
+              w is LogoUnipaz &&
+              identical(w.trazos, trazosIsotipo) &&
+              w.tinta == TintaLogo.color,
+        ),
+      );
+      await _mostrar(tester, _paquete());
+      expect(paloma(find.byType(BotonChat)), findsOneWidget);
+      await tester.tap(find.byType(BotonChat));
+      await tester.pumpAndSettle();
+      // En la cabecera y en la bienvenida.
+      expect(paloma(find.byType(ChatAsistente)), findsNWidgets(2));
+    },
+  );
 
   testWidgets(
     'lo que no entiende no lo inventa, y cerrar no borra la conversación',

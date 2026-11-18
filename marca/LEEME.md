@@ -13,7 +13,7 @@ node panel/scripts/marca.mjs
 | ------- | ------ |
 | `logo-vertical.svg` | El logo oficial: el símbolo arriba, UNIPAZ y el nombre debajo. |
 | `logo-horizontal.svg` | El mismo símbolo a la izquierda y el bloque de texto a la derecha, con las proporciones del texto intactas. Es el que usa la barra lateral de la app. |
-| `isotipo.svg` | Solo el símbolo: ícono de la app, favicon, riel de íconos y parche del nadir. |
+| `isotipo.svg` | Solo el símbolo: ícono de la app, favicon, riel de íconos, parche del nadir y la cara de Paz, el asistente (a color sobre un círculo blanco con un aro azul y verde: `CaraPaz` en la app). |
 | `fuente/logo-unipaz.jpg` | La imagen de la que salieron los maestros. |
 | `fuente/trazar_logo.py` | Convierte esa imagen en trazos (cobertura por tinta, marching squares y curvas de Bézier). |
 | `fuente/componer_marca.py` | Arma los tres SVG a partir de los trazos. |
