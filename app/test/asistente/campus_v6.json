@@ -1,0 +1,511 @@
+{
+ "version": "2026.11.18-1353",
+ "vertices": [
+  {
+   "id": "V-001",
+   "lat": 7.069257842052352,
+   "lon": -73.74535174871725,
+   "nivel": 0,
+   "tipo": "cruce",
+   "descripcion": "Paloma Punto de encuentro"
+  },
+  {
+   "id": "V-031",
+   "lat": 7.069264256188177,
+   "lon": -73.74546401121302,
+   "nivel": 1,
+   "tipo": "cruce",
+   "descripcion": "biblioteca"
+  },
+  {
+   "id": "V-033",
+   "lat": 7.069293837068145,
+   "lon": -73.74542704087892,
+   "nivel": 0,
+   "tipo": "cruce",
+   "descripcion": "Segundo Piso de Biblioteca"
+  },
+  {
+   "id": "V-034",
+   "lat": 7.069272943912097,
+   "lon": -73.74543624221778,
+   "nivel": 0,
+   "tipo": "cruce",
+   "descripcion": "Salas de biblioteca segundo piso"
+  },
+  {
+   "id": "V-035",
+   "lat": 7.069257237056547,
+   "lon": -73.74542637032641,
+   "nivel": 0,
+   "tipo": "cruce",
+   "descripcion": "división de primer y segundo piso de biblioteca"
+  },
+  {
+   "id": "V-036",
+   "lat": 7.069277866154465,
+   "lon": -73.74547129732748,
+   "nivel": 0,
+   "tipo": "cruce",
+   "descripcion": "Entrada de salones de Biblioteca"
+  },
+  {
+   "id": "V-037",
+   "lat": 7.06928092407037,
+   "lon": -73.74550223233337,
+   "nivel": 0,
+   "tipo": "cruce",
+   "descripcion": "salón de informática 1"
+  },
+  {
+   "id": "V-038",
+   "lat": 7.06928092407037,
+   "lon": -73.74554011853593,
+   "nivel": 0,
+   "tipo": "cruce",
+   "descripcion": "salones de informática"
+  },
+  {
+   "id": "V-039",
+   "lat": 7.069230850817064,
+   "lon": -73.74543776004435,
+   "nivel": 0,
+   "tipo": "cruce",
+   "descripcion": "Bienestar Universitario"
+  }
+ ],
+ "tramos": [
+  {
+   "id": "T-034",
+   "origen": "V-034",
+   "destino": "V-033",
+   "longitud_m": 2.52,
+   "escaleras": false,
+   "accesible": false,
+   "bidireccional": true
+  },
+  {
+   "id": "T-035",
+   "origen": "V-001",
+   "destino": "V-035",
+   "longitud_m": 8.24,
+   "escaleras": false,
+   "accesible": false,
+   "bidireccional": true
+  },
+  {
+   "id": "T-036",
+   "origen": "V-035",
+   "destino": "V-031",
+   "longitud_m": 4.23,
+   "escaleras": false,
+   "accesible": false,
+   "bidireccional": true
+  },
+  {
+   "id": "T-037",
+   "origen": "V-035",
+   "destino": "V-034",
+   "longitud_m": 2.06,
+   "escaleras": false,
+   "accesible": false,
+   "bidireccional": true
+  },
+  {
+   "id": "T-038",
+   "origen": "V-034",
+   "destino": "V-036",
+   "longitud_m": 3.91,
+   "escaleras": false,
+   "accesible": false,
+   "bidireccional": true
+  },
+  {
+   "id": "T-039",
+   "origen": "V-036",
+   "destino": "V-037",
+   "longitud_m": 3.43,
+   "escaleras": false,
+   "accesible": false,
+   "bidireccional": true
+  },
+  {
+   "id": "T-040",
+   "origen": "V-037",
+   "destino": "V-038",
+   "longitud_m": 4.19,
+   "escaleras": false,
+   "accesible": false,
+   "bidireccional": true
+  },
+  {
+   "id": "T-041",
+   "origen": "V-034",
+   "destino": "V-039",
+   "longitud_m": 4.68,
+   "escaleras": false,
+   "accesible": false,
+   "bidireccional": true
+  }
+ ],
+ "panoramicas": [
+  {
+   "id": "P-002",
+   "vertice": "V-001"
+  },
+  {
+   "id": "P-005",
+   "vertice": "V-031"
+  },
+  {
+   "id": "P-006",
+   "vertice": "V-033"
+  },
+  {
+   "id": "P-007",
+   "vertice": "V-034"
+  },
+  {
+   "id": "P-008",
+   "vertice": "V-035"
+  },
+  {
+   "id": "P-009",
+   "vertice": "V-036"
+  },
+  {
+   "id": "P-010",
+   "vertice": "V-037"
+  },
+  {
+   "id": "P-011",
+   "vertice": "V-038"
+  },
+  {
+   "id": "P-012",
+   "vertice": "V-039"
+  }
+ ],
+ "puntos": [
+  {
+   "id": "H-009",
+   "panoramica": "P-002",
+   "tipo": "informacion",
+   "yaw": -114.97000000000003,
+   "pitch": 5.64,
+   "titulo": "Biblioteca y Auditoria",
+   "texto": "Bienvenido a la Biblioteca de UNIPAZ, un espacio dedicado a la lectura, la investigación y el aprendizaje, donde encontrarás recursos académicos para fortalecer tu formación profesional.",
+   "destino": null
+  },
+  {
+   "id": "H-010",
+   "panoramica": "P-002",
+   "tipo": "informacion",
+   "yaw": 46.309999999999945,
+   "pitch": 3.81,
+   "titulo": "Área Administrativa y Escuelas",
+   "texto": "En este edificio se encuentran las oficinas administrativas y las diferentes escuelas de UNIPAZ, donde se desarrollan procesos de gestión institucional, atención a la comunidad universitaria y actividades de coordinación académica.",
+   "destino": null
+  },
+  {
+   "id": "H-011",
+   "panoramica": "P-002",
+   "tipo": "informacion",
+   "yaw": -37.860000000000014,
+   "pitch": 2.57,
+   "titulo": "Baños",
+   "texto": "Área de servicios sanitarios de UNIPAZ, con espacios habilitados para hombres y mujeres, de fácil acceso para toda la comunidad universitaria.",
+   "destino": null
+  },
+  {
+   "id": "H-014",
+   "panoramica": "P-002",
+   "tipo": "enlace",
+   "yaw": -93.86000000000001,
+   "pitch": -10.73,
+   "titulo": "Entrada Biblioteca",
+   "texto": null,
+   "destino": "P-008"
+  },
+  {
+   "id": "H-012",
+   "panoramica": "P-005",
+   "tipo": "informacion",
+   "yaw": 0.5800000000000409,
+   "pitch": 0.24,
+   "titulo": "Biblioteca UNIPAZ",
+   "texto": "¡Bienvenido a la Biblioteca de UNIPAZ! Un espacio tranquilo y acogedor para que los estudiantes puedan leer, estudiar, investigar y fortalecer sus conocimientos.",
+   "destino": null
+  },
+  {
+   "id": "H-013",
+   "panoramica": "P-005",
+   "tipo": "enlace",
+   "yaw": -174.27999999999997,
+   "pitch": -12.74,
+   "titulo": "Ir a la paloma",
+   "texto": null,
+   "destino": "P-002"
+  },
+  {
+   "id": "H-015",
+   "panoramica": "P-006",
+   "tipo": "enlace",
+   "yaw": 98.22000000000003,
+   "pitch": -0.76,
+   "titulo": "Ir a biblioteca",
+   "texto": null,
+   "destino": "P-005"
+  },
+  {
+   "id": "H-019",
+   "panoramica": "P-006",
+   "tipo": "enlace",
+   "yaw": 112.45000000000005,
+   "pitch": -11.35,
+   "titulo": "Ir a Salas de biblioteca segundo piso",
+   "texto": null,
+   "destino": "P-007"
+  },
+  {
+   "id": "H-017",
+   "panoramica": "P-007",
+   "tipo": "enlace",
+   "yaw": 108.0,
+   "pitch": -14.01,
+   "titulo": "Ir a Segundo Piso de Biblioteca",
+   "texto": null,
+   "destino": "P-006"
+  },
+  {
+   "id": "H-018",
+   "panoramica": "P-007",
+   "tipo": "anuncio",
+   "yaw": 177.27999999999997,
+   "pitch": 5.87,
+   "titulo": "Cafetería – Segundo Piso de la Biblioteca",
+   "texto": "Disfruta de la cafetería ubicada en el segundo piso de la Biblioteca UNIPAZ, un espacio ideal para compartir, descansar y disfrutar de alimentos y bebidas durante tu jornada universitaria.",
+   "destino": null
+  },
+  {
+   "id": "H-023",
+   "panoramica": "P-007",
+   "tipo": "enlace",
+   "yaw": -112.99000000000001,
+   "pitch": -15.9,
+   "titulo": "Ir a división de primer y segundo piso de biblioteca",
+   "texto": null,
+   "destino": "P-008"
+  },
+  {
+   "id": "H-040",
+   "panoramica": "P-007",
+   "tipo": "enlace",
+   "yaw": -2.019999999999982,
+   "pitch": -25.92,
+   "titulo": "Ir a Entrada de salones de Biblioteca",
+   "texto": null,
+   "destino": "P-009"
+  },
+  {
+   "id": "H-041",
+   "panoramica": "P-007",
+   "tipo": "informacion",
+   "yaw": -0.6599999999999682,
+   "pitch": 3.29,
+   "titulo": "Salones de la Biblioteca",
+   "texto": "En esta área se encuentran diferentes espacios destinados a la formación y actividades universitarias, como los salones de informática, radio, bienestar universitario, auditorio y edición, donde los estudiantes pueden aprender, desarrollar proyectos y participar en diversas actividades académicas y culturales.",
+   "destino": null
+  },
+  {
+   "id": "H-020",
+   "panoramica": "P-008",
+   "tipo": "enlace",
+   "yaw": -139.77999999999997,
+   "pitch": -19.49,
+   "titulo": "Ir a Paloma Punto de encuentro",
+   "texto": null,
+   "destino": "P-002"
+  },
+  {
+   "id": "H-021",
+   "panoramica": "P-008",
+   "tipo": "enlace",
+   "yaw": -0.2999999999999545,
+   "pitch": -0.41,
+   "titulo": "Ir a biblioteca",
+   "texto": null,
+   "destino": "P-005"
+  },
+  {
+   "id": "H-022",
+   "panoramica": "P-008",
+   "tipo": "enlace",
+   "yaw": -91.5,
+   "pitch": -7.61,
+   "titulo": "Ir a Salas de biblioteca segundo piso",
+   "texto": null,
+   "destino": "P-007"
+  },
+  {
+   "id": "H-024",
+   "panoramica": "P-009",
+   "tipo": "enlace",
+   "yaw": 179.94000000000005,
+   "pitch": -20.82,
+   "titulo": "Ir a Salas de biblioteca segundo piso",
+   "texto": null,
+   "destino": "P-007"
+  },
+  {
+   "id": "H-033",
+   "panoramica": "P-009",
+   "tipo": "enlace",
+   "yaw": 9.110000000000014,
+   "pitch": -15.02,
+   "titulo": "Ir a salón de informática 1",
+   "texto": null,
+   "destino": "P-010"
+  },
+  {
+   "id": "H-034",
+   "panoramica": "P-009",
+   "tipo": "informacion",
+   "yaw": -21.659999999999968,
+   "pitch": -2.8,
+   "titulo": "Auditorio de la Biblioteca",
+   "texto": "Espacio destinado a conferencias, charlas, presentaciones y actividades académicas, donde estudiantes y docentes pueden reunirse para compartir conocimientos y participar en eventos educativos.",
+   "destino": null
+  },
+  {
+   "id": "H-035",
+   "panoramica": "P-009",
+   "tipo": "informacion",
+   "yaw": 23.940000000000055,
+   "pitch": -1.19,
+   "titulo": "Salón de Informática 1",
+   "texto": "Espacio académico equipado con computadores y herramientas tecnológicas, destinado al aprendizaje, la práctica y el desarrollo de actividades relacionadas con la informática y las tecnologías de la información.",
+   "destino": null
+  },
+  {
+   "id": "H-036",
+   "panoramica": "P-009",
+   "tipo": "informacion",
+   "yaw": -137.37,
+   "pitch": 9.08,
+   "titulo": "Bienestar Universitario",
+   "texto": "Espacio dedicado al acompañamiento y bienestar de los estudiantes, donde se ofrecen servicios y actividades que promueven la salud, la integración, la cultura, el deporte y el desarrollo personal de la comunidad universitaria.",
+   "destino": null
+  },
+  {
+   "id": "H-039",
+   "panoramica": "P-009",
+   "tipo": "enlace",
+   "yaw": -136.75,
+   "pitch": -20.72,
+   "titulo": "Ir a Bienestar Universitario",
+   "texto": null,
+   "destino": "P-012"
+  },
+  {
+   "id": "H-025",
+   "panoramica": "P-010",
+   "tipo": "enlace",
+   "yaw": 114.63999999999999,
+   "pitch": -17.76,
+   "titulo": "Ir a Entrada de salones de Biblioteca",
+   "texto": null,
+   "destino": "P-009"
+  },
+  {
+   "id": "H-026",
+   "panoramica": "P-010",
+   "tipo": "enlace",
+   "yaw": -105.89999999999998,
+   "pitch": -18.35,
+   "titulo": "Ir a salones de informática",
+   "texto": null,
+   "destino": "P-011"
+  },
+  {
+   "id": "H-027",
+   "panoramica": "P-010",
+   "tipo": "informacion",
+   "yaw": 29.710000000000036,
+   "pitch": -4.38,
+   "titulo": "Salón de Informática",
+   "texto": "Espacio académico equipado con computadores y herramientas tecnológicas, destinado al aprendizaje, la práctica y el desarrollo de actividades relacionadas con la informática y las tecnologías de la información.",
+   "destino": null
+  },
+  {
+   "id": "H-028",
+   "panoramica": "P-011",
+   "tipo": "enlace",
+   "yaw": 175.04999999999995,
+   "pitch": -11.84,
+   "titulo": "Ir a salón de informática 1",
+   "texto": null,
+   "destino": "P-010"
+  },
+  {
+   "id": "H-029",
+   "panoramica": "P-011",
+   "tipo": "informacion",
+   "yaw": 138.16999999999996,
+   "pitch": -0.05,
+   "titulo": "Salón de Informática 2",
+   "texto": "Espacio académico equipado con computadores y herramientas tecnológicas, destinado al aprendizaje, la práctica y el desarrollo de actividades relacionadas con la informática y las tecnologías de la información.",
+   "destino": null
+  },
+  {
+   "id": "H-030",
+   "panoramica": "P-011",
+   "tipo": "informacion",
+   "yaw": 92.65999999999997,
+   "pitch": 4.0,
+   "titulo": "Salón de Informática 3",
+   "texto": "Espacio académico equipado con computadores y herramientas tecnológicas, destinado al aprendizaje, la práctica y el desarrollo de actividades relacionadas con la informática y las tecnologías de la información.",
+   "destino": null
+  },
+  {
+   "id": "H-031",
+   "panoramica": "P-011",
+   "tipo": "informacion",
+   "yaw": -23.309999999999945,
+   "pitch": 0.17,
+   "titulo": "Sala De Edicion",
+   "texto": "Espacio destinado a la edición y producción de contenido audiovisual, donde los estudiantes pueden realizar trabajos de edición, desarrollar proyectos multimedia y fortalecer sus habilidades creativas y tecnológicas.",
+   "destino": null
+  },
+  {
+   "id": "H-032",
+   "panoramica": "P-011",
+   "tipo": "informacion",
+   "yaw": -97.18,
+   "pitch": -3.96,
+   "titulo": "Auditorio de la Biblioteca",
+   "texto": "Espacio destinado a conferencias, charlas, presentaciones y actividades académicas, donde estudiantes y docentes pueden reunirse para compartir conocimientos y participar en eventos educativos.",
+   "destino": null
+  },
+  {
+   "id": "H-037",
+   "panoramica": "P-012",
+   "tipo": "informacion",
+   "yaw": 14.700000000000045,
+   "pitch": -11.77,
+   "titulo": "Bienestar Universitario",
+   "texto": "Espacio dedicado al acompañamiento y bienestar de los estudiantes, donde se ofrecen servicios y actividades que promueven la salud, la integración, la cultura, el deporte y el desarrollo personal de la comunidad universitaria.",
+   "destino": null
+  },
+  {
+   "id": "H-038",
+   "panoramica": "P-012",
+   "tipo": "enlace",
+   "yaw": 175.79999999999995,
+   "pitch": -30.1,
+   "titulo": "Ir a Entrada de salones de Biblioteca",
+   "texto": null,
+   "destino": "P-009"
+  }
+ ]
+}

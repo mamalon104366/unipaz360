@@ -105,6 +105,22 @@ Matriz3 multiplicar(Matriz3 a, Matriz3 b) => <List<double>>[
   );
 }
 
+/// Lo que se ve en el visor → marco de la foto: lo contrario de [aVista]. La corrección es una
+/// rotación, así que se deshace con su transpuesta.
+({double yaw, double pitch}) aFoto(
+  double yaw,
+  double pitch,
+  double inclinacion,
+  double alabeo,
+) {
+  if (inclinacion == 0 && alabeo == 0) return (yaw: yaw, pitch: pitch);
+  final m = matrizCorreccion(inclinacion, alabeo);
+  final transpuesta = <List<double>>[
+    for (var i = 0; i < 3; i++) <double>[for (var j = 0; j < 3; j++) m[j][i]],
+  ];
+  return posicionDe(aplicar(transpuesta, vectorThree(yaw, pitch)));
+}
+
 /// La cámara del visor: hacia dónde mira y con qué campo de visión.
 class Camara {
   const Camara({

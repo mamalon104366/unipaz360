@@ -33,7 +33,7 @@ import '../../domain/insignias.dart';
 import '../../domain/preferencias.dart';
 import '../../domain/reporte.dart';
 import '../../ui/preferencias/preferencias_viewmodel.dart';
-import '../asistente/asistente.dart' show Lugar;
+import '../asistente/asistente.dart' show Lugar, Senal;
 import '../asistente/recorrido_guiado.dart';
 import '../asistente/ui/chat_asistente.dart';
 import '../rutas/rutas.dart' show Paso, Ruta, pasosDe;
@@ -144,6 +144,13 @@ class _VistaClienteState extends State<VistaCliente> {
   // El asistente: la conversación se conserva aunque se cierre el panel.
   bool _chat = false;
   ConversacionAsistente? _conversacion;
+
+  /// El letrero que Paz mostró con «Mostrar el letrero» (se marca en su foto).
+  Senal? _letreroMirado;
+
+  /// Hacia dónde mira la persona en la foto abierta (grados), para que Paz diga «el letrero
+  /// está a tu izquierda». No redibuja nada: se lee al enviar un mensaje.
+  double? _yawVista;
 
   /// Nodos de la última ruta que se pidió ver en el mapa.
   List<String> _rutaMapa = const <String>[];
@@ -333,8 +340,15 @@ class _VistaClienteState extends State<VistaCliente> {
         _ficha = null;
         _panoramica = panoramicaId;
         if (_guia == null) _marcadoEnMapa = null;
+        _soltarLetrero();
       });
     }
+  }
+
+  /// Al cambiar de foto, la señal del letrero que mostró Paz ya no sirve (si se vuelve a esa
+  /// foto, no debe reaparecer ni girar la vista).
+  void _soltarLetrero() {
+    if (_letreroMirado?.panoramicaId != _panoramica) _letreroMirado = null;
   }
 
   void _irAVertice(String verticeId) {
@@ -366,6 +380,7 @@ class _VistaClienteState extends State<VistaCliente> {
       _marcadoEnMapa = null;
       if (panos.isNotEmpty && _panoramica != panos.first.id) {
         _panoramica = panos.first.id;
+        _soltarLetrero();
       } else {
         _reinicio++;
       }
@@ -418,6 +433,7 @@ class _VistaClienteState extends State<VistaCliente> {
         _marcadoEnMapa = nodoId;
       } else if (foto != null) {
         _panoramica = foto.id;
+        _soltarLetrero();
         _marcadoEnMapa = g == null ? null : nodoId;
       } else {
         _marcadoEnMapa = nodoId;
@@ -530,6 +546,7 @@ class _VistaClienteState extends State<VistaCliente> {
       ],
       puedeEscanear: _escanea,
       puedeReportar: widget.alReportar != null,
+      puedeMostrar: true,
     );
     _eligiendo = _Eleccion.nada;
     _ficha = null;
@@ -614,6 +631,7 @@ class _VistaClienteState extends State<VistaCliente> {
       if (p != null) {
         _ficha = null;
         _panoramica = p.id;
+        _soltarLetrero();
         _chat = false;
       } else if (_hayMapa) {
         _rutaMapa = const <String>[];
@@ -698,6 +716,7 @@ class _VistaClienteState extends State<VistaCliente> {
     };
     final foto = g.fotoDelPaso(porNodo);
     if (foto != null) _panoramica = foto;
+    _soltarLetrero();
     _marcadoEnMapa = g.nodoActual();
     _guiaVez++;
     // Insignias: los lugares a los que se llegó avanzando (no el de salida). La del destino la
@@ -707,7 +726,7 @@ class _VistaClienteState extends State<VistaCliente> {
       final antes = g.posicionActual(desde);
       final ahora = g.posicionActual();
       for (var i = antes + 1; i <= ahora; i++) {
-        for (final l in datos.guia.lugares) {
+        for (final l in _lugares) {
           if (l.nodoId == g.ruta.nodos[i] && l.id != destino?.id) _ganar(l);
         }
       }
@@ -763,17 +782,70 @@ class _VistaClienteState extends State<VistaCliente> {
     if (p == null) return null;
     final d = direccionEnFoto(widget.paquete.datos, g, p);
     if (d == null) return null;
+    // Al llegar, la señal marca el letrero del destino.
+    final llegada = g.alFinal;
     return DireccionGuia(
       panoramicaId: p.id,
       yaw: d.yaw,
       pitch: d.pitch,
       vez: _guiaVez,
+      etiqueta: llegada
+          ? 'Aquí: ${g.destino?.nombre ?? 'tu destino'}'
+          : 'Sigue por aquí',
+      lugar: llegada,
     );
+  }
+
+  /// «Mostrar el letrero» del chat: abre su foto girando hacia él y lo marca.
+  void _mirar(Senal s) {
+    if (!widget.paquete.datos.panoramicaPorId.containsKey(s.panoramicaId)) {
+      _conversacion?.avisar('Ese letrero ya no está en el recorrido.');
+      return;
+    }
+    setState(() {
+      _ficha = null;
+      _chat = false;
+      _panoramica = s.panoramicaId;
+      _letreroMirado = s;
+      _guiaVez++;
+    });
+  }
+
+  /// La señal sobre el letrero que mostró Paz (mientras se siga en esa foto).
+  DireccionGuia? get _direccionLetrero {
+    final s = _letreroMirado;
+    if (s == null || s.panoramicaId != _panoramica) return null;
+    return DireccionGuia(
+      panoramicaId: s.panoramicaId,
+      yaw: s.yaw,
+      pitch: s.pitch,
+      vez: _guiaVez,
+      etiqueta: s.nombre,
+      lugar: true,
+    );
+  }
+
+  /// Tocar la señal del letrero: abre su ficha y la señal se quita.
+  void _tocarLetrero() {
+    final s = _letreroMirado;
+    if (s == null) return;
+    final punto = widget.paquete.datos.puntos[s.panoramicaId]
+        ?.where((p) => p.id == s.id)
+        .firstOrNull;
+    setState(() {
+      _letreroMirado = null;
+      if (punto != null && punto.tipo != 'enlace') _ficha = punto;
+    });
   }
 
   // ------------------------------------------------------------------ insignias
 
-  List<Lugar> get _lugares => widget.paquete.datos.guia.lugares;
+  /// Los lugares que dan insignia: los que de verdad se pisan (nodos con nombre y espacios), no
+  /// los que solo se ven en un letrero.
+  List<Lugar> get _lugares => <Lugar>[
+    for (final l in widget.paquete.datos.guia.lugares)
+      if (!l.soloLetrero) l,
+  ];
 
   bool _tiene(String id) =>
       widget.insignias.tiene(id) || _ganadasAhora.contains(id);
@@ -782,7 +854,7 @@ class _VistaClienteState extends State<VistaCliente> {
 
   /// Gana la insignia de [l] si no la tenía. Devuelve `true` si es nueva.
   bool _ganar(Lugar l, {bool avisar = true}) {
-    if (_tiene(l.id)) return false;
+    if (l.soloLetrero || _tiene(l.id)) return false;
     _ganadasAhora.add(l.id);
     widget.alGanarInsignia?.call(l.id);
     if (avisar) _avisoInsignia = l;
@@ -980,8 +1052,15 @@ class _VistaClienteState extends State<VistaCliente> {
                             institucional: widget.institucional,
                             alIrA: _irA,
                             alTocarPunto: (p) => setState(() => _ficha = p),
-                            guia: guia == null ? null : _direccionGuia(guia),
-                            alTocarGuia: guia == null ? null : _siguientePaso,
+                            guia: guia == null
+                                ? _direccionLetrero
+                                : _direccionGuia(guia),
+                            alTocarGuia: guia == null
+                                ? (_direccionLetrero == null
+                                      ? null
+                                      : _tocarLetrero)
+                                : _siguientePaso,
+                            alCambiarVista: (yaw) => _yawVista = yaw,
                           ),
                   ),
                 ),
@@ -1104,6 +1183,9 @@ class _VistaClienteState extends State<VistaCliente> {
     config: c,
     conversacion: _conversacion!,
     nodoActual: _nodoParaGuiar,
+    fotoActual: _panoramica,
+    yawVista: () => _yawVista,
+    alMirar: _mirar,
     alCerrar: () => setState(() => _chat = false),
     alVerMapa: _verRutaEnMapa,
     alRecorridoGuiado: _empezarGuia,

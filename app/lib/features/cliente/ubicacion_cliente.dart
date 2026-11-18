@@ -50,6 +50,8 @@ List<SitioUbicable> sitiosUbicables(DatosPaquete datos) {
   final vistos = <String>{};
   final sitios = <SitioUbicable>[];
   for (final l in datos.guia.lugares) {
+    // Lo que solo está en un letrero se ve desde ahí, pero no es ahí: no sirve para ubicarse.
+    if (l.soloLetrero) continue;
     if (!vistos.add('${l.nodoId}|${l.nombreConCodigo}')) continue;
     sitios.add(
       SitioUbicable(

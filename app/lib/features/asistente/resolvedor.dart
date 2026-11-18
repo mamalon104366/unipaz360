@@ -40,13 +40,24 @@ List<Candidato> buscarLugares(FuenteGuia fuente, String consulta, {Iterable<Luga
   final q = fuente.claves(consulta);
   if (q.isEmpty) return const <Candidato>[];
   final codigo = q.join();
+  // En una frase larga, también sin el relleno («voy con mi papá, guíanos caminando a la
+  // cafetería» → «cafetería»). Vale un poco menos que la frase completa.
+  final utiles = fuente.clavesUtiles(consulta);
+  final conRelleno = utiles.isNotEmpty && utiles.length < q.length;
   final lista = <Candidato>[];
   for (final l in entre ?? fuente.lugares) {
-    final p = _puntaje(fuente.indice(l), q, codigo);
+    final i = fuente.indice(l);
+    var p = _puntaje(i, q, codigo);
+    if (conRelleno) {
+      final sinRelleno = _puntaje(i, utiles, codigo) * 0.97;
+      if (sinRelleno > p) p = sinRelleno;
+    }
     if (p >= umbral) lista.add(Candidato(l, p));
   }
+  // Un lugar que solo está en un letrero no se descarta: se ve desde ese nodo, pero es otro
+  // sitio («Salón de Informática 2» señalado desde el salón 1).
   final nodosDeEspacios = <String>{for (final c in lista) if (c.lugar.esEspacio) c.lugar.nodoId};
-  lista.removeWhere((c) => !c.lugar.esEspacio && nodosDeEspacios.contains(c.lugar.nodoId));
+  lista.removeWhere((c) => !c.lugar.esEspacio && !c.lugar.soloLetrero && nodosDeEspacios.contains(c.lugar.nodoId));
   lista.sort((a, b) {
     final porPuntaje = b.puntaje.compareTo(a.puntaje);
     if (porPuntaje != 0) return porPuntaje;
@@ -61,8 +72,26 @@ Resolucion resolver(FuenteGuia fuente, String consulta, {Iterable<Lugar>? entre}
   final c = buscarLugares(fuente, consulta, entre: entre);
   if (c.isEmpty) return const Resolucion._(null, <Lugar>[]);
   if (c.length == 1 || c[0].puntaje - c[1].puntaje >= margenDuda) return Resolucion._(c[0].lugar, const <Lugar>[]);
-  final parecidos = c.where((x) => c[0].puntaje - x.puntaje < margenDuda).take(5).map((x) => x.lugar).toList();
-  return Resolucion._(null, parecidos);
+  final parecidos = c.where((x) => c[0].puntaje - x.puntaje < margenDuda).toList();
+  // Si uno se llama exactamente como se escribió (sin tildes ni artículos), es ese: «los
+  // salones de informática» es el lugar «salones de informática», no el «salón de informática 1».
+  List<String> tal(String s) => palabras(normalizar(s)).where((p) => !palabrasVacias.contains(p)).toList();
+  final escrito = tal(consulta).join(' ');
+  final exactos = parecidos.where((x) => tal(x.lugar.nombre).join(' ') == escrito).toList();
+  if (exactos.length == 1) return Resolucion._(exactos.single.lugar, const <Lugar>[]);
+  // Si entre los parecidos solo uno empieza por lo que se pidió, es ese: «auditorio» es el
+  // «Auditorio de la Biblioteca» y no la biblioteca (aunque su letrero diga «Biblioteca y
+  // Auditoria»).
+  final utiles = fuente.clavesUtiles(consulta);
+  final q = utiles.isNotEmpty ? utiles : fuente.claves(consulta);
+  if (q.isNotEmpty) {
+    final porNucleo = parecidos.where((x) {
+      final n = fuente.indice(x.lugar).nombre;
+      return n.isNotEmpty && (n.first == q.first || parecido(q.first, n.first) >= 0.85);
+    }).toList();
+    if (porNucleo.length == 1) return Resolucion._(porNucleo.single.lugar, const <Lugar>[]);
+  }
+  return Resolucion._(null, parecidos.take(5).map((x) => x.lugar).toList());
 }
 
 /// Cuando nada se parece lo suficiente: hasta [cuantos] lugares que se parecen un poco, para
@@ -70,15 +99,24 @@ Resolucion resolver(FuenteGuia fuente, String consulta, {Iterable<Lugar>? entre}
 List<Lugar> sugerirLugares(FuenteGuia fuente, String consulta, {int cuantos = 3}) =>
     buscarLugares(fuente, consulta, umbral: umbralSugerencia).take(cuantos).map((c) => c.lugar).toList();
 
-/// Qué tan bien nombra la consulta [q] al lugar del índice [l].
+/// Qué tan bien nombra la consulta [q] al lugar del índice [l]: por su nombre o por el que le
+/// dan sus letreros (este vale un poco menos, para que gane el nombre si empatan).
 double _puntaje(IndiceLugar l, List<String> q, String codigoConsulta) {
   // El código escrito de cualquier forma («B2-201», «b2 201»), solo o dentro de la frase.
   final codigo = l.codigo;
   if (codigo.isNotEmpty && (codigo == codigoConsulta || (codigo.length >= 4 && codigoConsulta.contains(codigo)))) return 1;
-  final nombre = l.nombre;
+  var mejor = _puntajeNombre(l.nombre, l.extra, q);
+  for (final a in l.alias) {
+    final p = _puntajeNombre(a, l.extra, q) * 0.97;
+    if (p > mejor) mejor = p;
+  }
+  return mejor;
+}
+
+/// Qué tan bien nombra la consulta [q] un nombre (sus palabras clave) con sus palabras [extra].
+double _puntajeNombre(List<String> nombre, List<String> extra, List<String> q) {
   if (nombre.isEmpty) return 0;
   // Lo que ayuda sin ser parte del nombre: el bloque y la categoría («el laboratorio del bloque 2»).
-  final extra = l.extra;
   var suma = 0.0;
   final usados = <int>{};
 

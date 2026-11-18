@@ -48,6 +48,7 @@ class ConversacionAsistente {
     List<(String, String)> respuestas = const <(String, String)>[],
     bool puedeEscanear = false,
     bool puedeReportar = false,
+    bool puedeMostrar = false,
   }) : asistente = Asistente(
          fuente,
          nombre: nombre,
@@ -55,6 +56,7 @@ class ConversacionAsistente {
          respuestasFrecuentes: respuestas,
          puedeEscanear: puedeEscanear,
          puedeReportar: puedeReportar,
+         puedeMostrar: puedeMostrar,
        ) {
     mensajes.add(MensajeChat.asistente(_saludo()));
   }
@@ -83,19 +85,45 @@ class ConversacionAsistente {
       ..add(MensajeChat.asistente(_saludo()));
   }
 
-  /// Lo que escribió la persona y la respuesta del asistente.
-  Respuesta enviar(String texto, {String? nodoActual}) {
+  /// Lo que escribió la persona y la respuesta del asistente. [fotoActual] y [yawVista]: la
+  /// foto 360° abierta y hacia dónde mira en ella (para «el letrero está a tu izquierda»).
+  Respuesta enviar(
+    String texto, {
+    String? nodoActual,
+    String? fotoActual,
+    double? yawVista,
+  }) {
     mensajes.add(MensajeChat.persona(texto));
     return _agregar(
-      asistente.responder(texto, contexto: Contexto(nodoActual: nodoActual)),
+      asistente.responder(
+        texto,
+        contexto: Contexto(
+          nodoActual: nodoActual,
+          fotoActual: fotoActual,
+          yawVista: yawVista,
+        ),
+      ),
     );
   }
 
   /// Un botón «ir a este lugar».
-  Respuesta irA(String lugarId, String etiqueta, {String? nodoActual}) {
+  Respuesta irA(
+    String lugarId,
+    String etiqueta, {
+    String? nodoActual,
+    String? fotoActual,
+    double? yawVista,
+  }) {
     mensajes.add(MensajeChat.persona(etiqueta));
     return _agregar(
-      asistente.irA(lugarId, contexto: Contexto(nodoActual: nodoActual)),
+      asistente.irA(
+        lugarId,
+        contexto: Contexto(
+          nodoActual: nodoActual,
+          fotoActual: fotoActual,
+          yawVista: yawVista,
+        ),
+      ),
     );
   }
 
@@ -152,6 +180,9 @@ class ChatAsistente extends StatefulWidget {
     this.lugares = 0,
     this.alVerInsignias,
     this.alReportar,
+    this.alMirar,
+    this.fotoActual,
+    this.yawVista,
   });
 
   final ConfigApp config;
@@ -159,6 +190,14 @@ class ChatAsistente extends StatefulWidget {
 
   /// Nodo donde está la persona (QR, elegido o la foto 360° abierta): «desde donde estoy».
   final String? nodoActual;
+
+  /// La foto 360° abierta y hacia dónde mira la persona en ella (se pregunta al enviar).
+  final String? fotoActual;
+  final double? Function()? yawVista;
+
+  /// Mostrar un letrero de las fotos: abrir su foto mirando hacia él. Sin esto, el botón
+  /// «Mostrar el letrero» no se ofrece.
+  final ValueChanged<Senal>? alMirar;
   final VoidCallback alCerrar;
 
   /// Mostrar la ruta dibujada en el mapa.
@@ -323,7 +362,12 @@ class _ChatAsistenteState extends State<ChatAsistente>
     // Un toque suave en el celular, como al enviar un mensaje.
     unawaited(HapticFeedback.selectionClick());
     setState(() {
-      c.enviar(t, nodoActual: widget.nodoActual);
+      c.enviar(
+        t,
+        nodoActual: widget.nodoActual,
+        fotoActual: widget.fotoActual,
+        yawVista: widget.yawVista?.call(),
+      );
       _campo.clear();
       _nuevos();
     });
@@ -331,7 +375,13 @@ class _ChatAsistenteState extends State<ChatAsistente>
 
   void _irA(Lugar l) {
     setState(() {
-      c.irA(l.id, 'Llévame ${aLugar(l.nombre)}', nodoActual: widget.nodoActual);
+      c.irA(
+        l.id,
+        'Llévame ${aLugar(l.nombre)}',
+        nodoActual: widget.nodoActual,
+        fotoActual: widget.fotoActual,
+        yawVista: widget.yawVista?.call(),
+      );
       _campo.clear();
       _nuevos();
     });
@@ -362,7 +412,13 @@ class _ChatAsistenteState extends State<ChatAsistente>
         final id = o.lugarId;
         if (id == null) return _enviar(o.enviar);
         setState(() {
-          c.irA(id, o.etiqueta, nodoActual: widget.nodoActual);
+          c.irA(
+            id,
+            o.etiqueta,
+            nodoActual: widget.nodoActual,
+            fotoActual: widget.fotoActual,
+            yawVista: widget.yawVista?.call(),
+          );
           _nuevos();
         });
       case TipoOpcion.verMapa:
@@ -387,6 +443,10 @@ class _ChatAsistenteState extends State<ChatAsistente>
         (widget.alUbicarme ?? widget.alElegirEnMapa)();
       case TipoOpcion.reportar:
         widget.alReportar?.call(o.enviar, o.detalle);
+      case TipoOpcion.mirar:
+        final id = o.letreroId;
+        final letrero = id == null ? null : c.asistente.fuente.letrero(id);
+        if (letrero != null) widget.alMirar?.call(letrero);
     }
   }
 
@@ -1138,6 +1198,7 @@ IconData? _iconoOpcion(Opcion o, bool puedeEscanear) => switch (o.tipo) {
   TipoOpcion.ubicarme =>
     puedeEscanear ? LucideIcons.scanQrCode : LucideIcons.locateFixed,
   TipoOpcion.reportar => LucideIcons.flag,
+  TipoOpcion.mirar => LucideIcons.scanEye,
   TipoOpcion.texto => null,
 };
 

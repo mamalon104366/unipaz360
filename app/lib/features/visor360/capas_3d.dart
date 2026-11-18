@@ -7,8 +7,8 @@
 /// 2. Mirando hacia el eje vertical a su misma altura (`lookAt(0, y, 0)`): queda de pie.
 /// 3. Girada con `rotateY(−yaw) · rotateX(−pitch) · rotateZ(−roll)` sobre sus propios ejes.
 ///
-/// Las cuatro esquinas se proyectan con la cámara y el contenido se dibuja con una
-/// homografía (una matriz de perspectiva), que es exacta para un plano.
+/// Las capas con widgets usan una homografía; las flechas se recortan en 3D y se pintan
+/// en pantalla para que los desenfoques no pasen por una perspectiva.
 library;
 
 import 'dart:math' as math;
@@ -80,7 +80,123 @@ V3 _rotarZ(V3 v, double a) => V3(
   v.z,
 );
 
-/// Las esquinas de una capa en la pantalla, o `null` si alguna queda detrás de la cámara.
+const double _distanciaCapa = 1000;
+const double _cercanoFlecha = 0.08 * _distanciaCapa;
+const double _cercanoCapa = 0.12 * _distanciaCapa;
+
+/// Comparte la colocación de los widgets y de los contornos, sin dividir por profundidad.
+class PlanoCapa3D {
+  PlanoCapa3D({
+    required double yaw,
+    required double pitch,
+    required this.ancho,
+    required this.alto,
+    this.rotYaw = 0,
+    this.rotPitch = 0,
+    this.rotRoll = 0,
+  }) : _centro = vectorThree(yaw, pitch) * _distanciaCapa {
+    var zx = -_centro.x, zz = -_centro.z;
+    final n = math.sqrt(zx * zx + zz * zz);
+    if (n < 1e-9) {
+      zx = 0;
+      zz = 1;
+    } else {
+      zx /= n;
+      zz /= n;
+    }
+    _ejeX = V3(zz, 0, -zx);
+    _ejeZ = V3(zx, 0, zz);
+  }
+
+  final double ancho;
+  final double alto;
+  final double rotYaw;
+  final double rotPitch;
+  final double rotRoll;
+  final V3 _centro;
+  late final V3 _ejeX;
+  late final V3 _ejeZ;
+
+  /// Anima en el plano antes de pasar al marco de la app; el eje local y apunta abajo.
+  V3 enMundo(
+    Offset local, {
+    PasoAnimacion paso = const PasoAnimacion(),
+    bool anclaAbajo = false,
+  }) {
+    final ancla = Offset(ancho / 2, anclaAbajo ? alto : alto / 2);
+    final animado = _rotarZ(
+      _rotarY(V3(local.dx - ancla.dx, local.dy - ancla.dy, 0), paso.giroY),
+      paso.giro,
+    );
+    final v = _rotarY(
+      _rotarX(
+        _rotarZ(
+          V3(
+            animado.x * paso.escala + ancla.dx - ancho / 2,
+            alto / 2 - ancla.dy - animado.y * paso.escala - paso.dy * 16,
+            -animado.z,
+          ),
+          rad(-rotRoll),
+        ),
+        rad(-rotPitch),
+      ),
+      rad(-rotYaw),
+    );
+    return (_centro + _ejeX * v.x + const V3(0, 1, 0) * v.y + _ejeZ * v.z)
+        .espejoX;
+  }
+}
+
+/// Recorta antes de proyectar para evitar divisiones por cero y conservar la parte visible.
+List<V3> recortarPlanoCercano(
+  List<V3> poligono, {
+  double cercano = _cercanoFlecha,
+}) {
+  assert(cercano > 0);
+  if (poligono.isEmpty) return <V3>[];
+  final salida = <V3>[];
+  var anterior = poligono.last;
+  var anteriorDentro = anterior.z >= cercano;
+  for (final actual in poligono) {
+    final dentro = actual.z >= cercano;
+    if (dentro != anteriorDentro) {
+      final t = (cercano - anterior.z) / (actual.z - anterior.z);
+      salida.add(
+        V3(
+          anterior.x + (actual.x - anterior.x) * t,
+          anterior.y + (actual.y - anterior.y) * t,
+          cercano,
+        ),
+      );
+    }
+    if (dentro) salida.add(actual);
+    anterior = actual;
+    anteriorDentro = dentro;
+  }
+  return salida;
+}
+
+Offset _proyectarCamara(Camara camara, V3 v) => Offset(
+  camara.tamano.width / 2 + v.x / v.z * camara.focal,
+  camara.tamano.height / 2 - v.y / v.z * camara.focal,
+);
+
+List<V3> _esquinasEnCamara(
+  Camara camara,
+  PlanoCapa3D plano, {
+  PasoAnimacion paso = const PasoAnimacion(),
+  bool anclaAbajo = false,
+}) => <V3>[
+  for (final local in <Offset>[
+    Offset.zero,
+    Offset(plano.ancho, 0),
+    Offset(plano.ancho, plano.alto),
+    Offset(0, plano.alto),
+  ])
+    camara.aCamara(plano.enMundo(local, paso: paso, anclaAbajo: anclaAbajo)),
+];
+
+/// Las esquinas en pantalla, o `null` si la homografía queda demasiado cerca de la cámara.
 /// [yaw] y [pitch] ya traen la corrección de horizonte (grados).
 List<Offset>? esquinasCapa(
   Camara camara, {
@@ -92,36 +208,20 @@ List<Offset>? esquinasCapa(
   double rotPitch = 0,
   double rotRoll = 0,
 }) {
-  final centro = vectorThree(yaw, pitch) * 1000;
-  var zx = -centro.x, zz = -centro.z;
-  final n = math.sqrt(zx * zx + zz * zz);
-  if (n < 1e-9) {
-    zx = 0;
-    zz = 1;
-  } else {
-    zx /= n;
-    zz /= n;
-  }
-  final ejeX = V3(zz, 0, -zx);
-  const ejeY = V3(0, 1, 0);
-  final ejeZ = V3(zx, 0, zz);
-  final esquinas = <Offset>[];
-  for (final (lx, ly) in <(double, double)>[
-    (-ancho / 2, alto / 2),
-    (ancho / 2, alto / 2),
-    (ancho / 2, -alto / 2),
-    (-ancho / 2, -alto / 2),
-  ]) {
-    final v = _rotarY(
-      _rotarX(_rotarZ(V3(lx, ly, 0), rad(-rotRoll)), rad(-rotPitch)),
-      rad(-rotYaw),
-    );
-    final mundo = centro + ejeX * v.x + ejeY * v.y + ejeZ * v.z;
-    final p = camara.proyectar(mundo.espejoX, minimo: 1);
-    if (p == null) return null;
-    esquinas.add(p);
-  }
-  return esquinas;
+  final vertices = _esquinasEnCamara(
+    camara,
+    PlanoCapa3D(
+      yaw: yaw,
+      pitch: pitch,
+      ancho: ancho,
+      alto: alto,
+      rotYaw: rotYaw,
+      rotPitch: rotPitch,
+      rotRoll: rotRoll,
+    ),
+  );
+  if (vertices.any((v) => v.z <= _cercanoCapa)) return null;
+  return vertices.map((v) => _proyectarCamara(camara, v)).toList();
 }
 
 /// Una capa 3D (flecha o capa dentro de la imagen) ya colocada en la pantalla.
@@ -156,8 +256,12 @@ class CapaPunto3D extends StatelessWidget {
     final e = punto.estilo;
     final ancho = math.max(20.0, e.ancho);
     final alto = math.max(20.0, e.alto);
-    final esquinas = esquinasCapa(
-      camara,
+    // Entera fuera de la vista (detrás o a un lado): ni se anima, así no recalcula nada en cada
+    // cuadro.
+    if (!_quizaVisible(camara, yaw, pitch, ancho, alto)) {
+      return const SizedBox.shrink();
+    }
+    final plano = PlanoCapa3D(
       yaw: yaw,
       pitch: pitch,
       ancho: ancho,
@@ -166,69 +270,128 @@ class CapaPunto3D extends StatelessWidget {
       rotPitch: e.rotPitch,
       rotRoll: e.rotRoll,
     );
-    if (esquinas == null) return const SizedBox.shrink();
-    final m = homografia(ancho, alto, esquinas);
-    if (m == null) return const SizedBox.shrink();
     final color = colorHex(
       e.color,
       porDefecto: colorHex(colorPunto[punto.tipo]),
     );
-    final flecha = e.forma == 'flecha';
     // La capa 3D gira en 4 s (los puntos 2D, en 3 s).
-    Widget capa = Animador(
+    return Animador(
       nombre: e.animacion,
       duracion: e.animacion == 'girar' ? const Duration(seconds: 4) : null,
       velocidad: e.velocidad,
       constructor: (context, paso) {
-        Widget c = flecha
-            ? CustomPaint(
-                size: Size(ancho, alto),
-                painter: _Flecha(color, brillo: paso.onda),
-              )
-            : _Caja(
-                brillo: paso.onda,
-                color: color,
-                relleno: transparente
-                    ? const Color(0x00000000)
-                    : _fondoCapa(e.fondoEfectivo, color),
-                sombra: !transparente,
-                radio: e.radioCapa(ancho, alto),
-                marco: e.marco,
-                child: contenido,
-              );
-        final local = Matrix4.identity()
-          ..translateByDouble(0, paso.dy * 16, 0, 1)
-          ..scaleByDouble(paso.escala, paso.escala, 1, 1)
-          ..rotateZ(paso.giro)
-          ..rotateY(paso.giroY);
-        c = Transform(
-          transform: local,
-          alignment: e.animacion == 'balanceo'
-              ? Alignment.bottomCenter
-              : Alignment.center,
-          child: c,
+        if (e.forma == 'flecha') {
+          return _flechaEnVista(plano, paso, color);
+        }
+        final vertices = _esquinasEnCamara(
+          camara,
+          plano,
+          paso: paso,
+          anclaAbajo: e.animacion == 'balanceo',
         );
-        if (paso.opacidad < 1) c = Opacity(opacity: paso.opacidad, child: c);
-        return c;
+        final profundidad = vertices.map((v) => v.z).reduce(math.min);
+        if (profundidad <= _cercanoCapa) return const SizedBox.shrink();
+        final esquinas = vertices
+            .map((v) => _proyectarCamara(camara, v))
+            .toList();
+        final m = homografia(ancho, alto, esquinas);
+        if (m == null) return const SizedBox.shrink();
+        Widget capa = Stack(
+          clipBehavior: Clip.none,
+          children: <Widget>[
+            if (!transparente || paso.onda > 0)
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: CustomPaint(
+                    painter: _SombraCapa(
+                      esquinas,
+                      color: color,
+                      sombra: !transparente,
+                      brillo: paso.onda,
+                    ),
+                  ),
+                ),
+              ),
+            Positioned(
+              left: 0,
+              top: 0,
+              child: Transform(
+                transform: m,
+                child: SizedBox(
+                  width: ancho,
+                  height: alto,
+                  child: Tooltip(
+                    message: punto.tituloVisible,
+                    child: MouseRegion(
+                      cursor: SystemMouseCursors.click,
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: alTocar,
+                        child: _Caja(
+                          color: color,
+                          relleno: transparente
+                              ? const Color(0x00000000)
+                              : _fondoCapa(e.fondoEfectivo, color),
+                          radio: e.radioCapa(ancho, alto),
+                          marco: e.marco,
+                          child: contenido,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+        final opacidad = e.opacidad * paso.opacidad * _fundidoCapa(profundidad);
+        if (opacidad < 1) capa = Opacity(opacity: opacidad, child: capa);
+        return Positioned.fill(child: capa);
       },
     );
-    if (e.opacidad < 1) capa = Opacity(opacity: e.opacidad, child: capa);
+  }
+
+  Widget _flechaEnVista(PlanoCapa3D plano, PasoAnimacion paso, Color color) {
+    const margen = 28.0;
+    final vista = Offset.zero & camara.tamano;
+    final contornos = <List<Offset>>[
+      for (final contorno in flechaEnPantalla(camara, plano: plano, paso: paso))
+        _recortarPantalla(contorno, vista.inflate(margen)),
+    ];
+    final vertices = contornos.expand((c) => c).toList();
+    if (vertices.isEmpty) return const SizedBox.shrink();
+    var caja = Rect.fromPoints(vertices.first, vertices.first);
+    for (final v in vertices.skip(1)) {
+      caja = caja.expandToInclude(Rect.fromPoints(v, v));
+    }
+    caja = caja.inflate(margen).intersect(vista);
+    if (caja.isEmpty) return const SizedBox.shrink();
+    final locales = <List<Offset>>[
+      for (final c in contornos) c.map((v) => v - caja.topLeft).toList(),
+    ];
     return Positioned(
-      left: 0,
-      top: 0,
-      child: Transform(
-        transform: m,
-        child: SizedBox(
-          width: ancho,
-          height: alto,
-          child: Tooltip(
-            message: punto.tituloVisible,
-            child: MouseRegion(
-              cursor: SystemMouseCursors.click,
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: alTocar,
-                child: capa,
+      left: caja.left,
+      top: caja.top,
+      width: caja.width,
+      height: caja.height,
+      child: ClipPath(
+        clipBehavior: Clip.none,
+        clipper: _ContornoFlecha(locales),
+        child: Tooltip(
+          message: punto.tituloVisible,
+          child: MouseRegion(
+            cursor: SystemMouseCursors.click,
+            hitTestBehavior: HitTestBehavior.deferToChild,
+            child: GestureDetector(
+              behavior: HitTestBehavior.deferToChild,
+              onTap: alTocar,
+              child: CustomPaint(
+                painter: _Flecha(
+                  locales,
+                  color: color,
+                  brillo: paso.onda,
+                  opacidad: punto.estilo.opacidad * paso.opacidad,
+                ),
               ),
             ),
           ),
@@ -236,6 +399,153 @@ class CapaPunto3D extends StatelessWidget {
       ),
     );
   }
+}
+
+/// ¿Puede verse algo de una capa de [ancho]×[alto] puesta en (yaw, pitch)? Se cuenta por lo
+/// alto: el ángulo entre el centro de la vista y el de la capa contra la mitad del campo de
+/// visión en diagonal, más lo que mide la capa vista desde el centro (con margen para el pulso y
+/// la sombra). Una capa tan grande que rodea la cámara siempre cuenta.
+bool _quizaVisible(
+  Camara camara,
+  double yaw,
+  double pitch,
+  double ancho,
+  double alto,
+) {
+  final semidiagonal = math.sqrt(ancho * ancho + alto * alto) / 2 * 1.25;
+  if (semidiagonal >= 0.9 * _distanciaCapa) return true;
+  final d = camara.aCamara(vectorApp(yaw, pitch));
+  final angulo = math.acos(d.z.clamp(-1.0, 1.0));
+  final tv = math.tan(camara.fov / 2);
+  final th = math.tan(camara.fovHorizontal / 2);
+  final mitadVista = math.atan(math.sqrt(tv * tv + th * th));
+  return angulo < mitadVista + math.asin(semidiagonal / _distanciaCapa) + 0.15;
+}
+
+/// Apaga la capa antes del límite para suavizar el descarte de la homografía.
+double _fundidoCapa(double profundidad) {
+  final t = ((profundidad - _cercanoCapa) / _cercanoCapa).clamp(0.0, 1.0);
+  return t * t * (3 - 2 * t);
+}
+
+/// Mantiene pequeñas las superficies de desenfoque aunque la proyección salga del visor.
+List<Offset> _recortarPantalla(List<Offset> poligono, Rect limites) {
+  var salida = poligono;
+  for (final distancia in <double Function(Offset)>[
+    (v) => v.dx - limites.left,
+    (v) => limites.right - v.dx,
+    (v) => v.dy - limites.top,
+    (v) => limites.bottom - v.dy,
+  ]) {
+    if (salida.isEmpty) break;
+    final entrada = salida;
+    salida = <Offset>[];
+    var anterior = entrada.last;
+    var da = distancia(anterior);
+    for (final actual in entrada) {
+      final d = distancia(actual);
+      if ((da >= 0) != (d >= 0)) {
+        salida.add(Offset.lerp(anterior, actual, da / (da - d))!);
+      }
+      if (d >= 0) salida.add(actual);
+      anterior = actual;
+      da = d;
+    }
+  }
+  return salida.length < 3 ? <Offset>[] : salida;
+}
+
+Path _camino(List<Offset> vertices) {
+  final camino = Path();
+  if (vertices.length >= 3) camino.addPolygon(vertices, true);
+  return camino;
+}
+
+bool _mismosVertices(List<Offset> a, List<Offset> b) {
+  if (a.length != b.length) return false;
+  for (var i = 0; i < a.length; i++) {
+    if (a[i] != b[i]) return false;
+  }
+  return true;
+}
+
+bool _mismosContornos(List<List<Offset>> a, List<List<Offset>> b) {
+  if (a.length != b.length) return false;
+  for (var i = 0; i < a.length; i++) {
+    if (!_mismosVertices(a[i], b[i])) return false;
+  }
+  return true;
+}
+
+/// Limita también el Tooltip al contorno, sin recortar visualmente su resplandor.
+class _ContornoFlecha extends CustomClipper<Path> {
+  _ContornoFlecha(this.contornos);
+
+  final List<List<Offset>> contornos;
+
+  @override
+  Path getClip(Size tamano) {
+    final camino = Path();
+    for (final contorno in contornos) {
+      camino.addPath(_camino(contorno), Offset.zero);
+    }
+    return camino;
+  }
+
+  @override
+  bool shouldReclip(_ContornoFlecha anterior) =>
+      !_mismosContornos(anterior.contornos, contornos);
+}
+
+/// La sombra y el halo de los widgets usan píxeles de pantalla constantes.
+class _SombraCapa extends CustomPainter {
+  _SombraCapa(
+    this.esquinas, {
+    required this.color,
+    required this.sombra,
+    required this.brillo,
+  });
+
+  final List<Offset> esquinas;
+  final Color color;
+  final bool sombra;
+  final double brillo;
+
+  @override
+  void paint(Canvas canvas, Size tamano) {
+    final contorno = _recortarPantalla(
+      esquinas,
+      (Offset.zero & tamano).inflate(64),
+    );
+    if (contorno.isEmpty) return;
+    final camino = _camino(contorno);
+    if (sombra) {
+      canvas.drawPath(
+        camino.shift(const Offset(0, 12)),
+        Paint()
+          ..color = const Color(0x99000000)
+          ..maskFilter = const ui.MaskFilter.blur(BlurStyle.normal, 12),
+      );
+    }
+    if (brillo > 0) {
+      canvas.drawPath(
+        camino,
+        Paint()
+          ..color = color
+          ..maskFilter = ui.MaskFilter.blur(
+            BlurStyle.normal,
+            7 * math.sin(brillo * math.pi) + 0.01,
+          ),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_SombraCapa anterior) =>
+      !_mismosVertices(anterior.esquinas, esquinas) ||
+      anterior.color != color ||
+      anterior.sombra != sombra ||
+      anterior.brillo != brillo;
 }
 
 /// Fondo de la capa dentro de la imagen (`.psv-capa--capa3d` y `.pz-f-*`): se ve en la tarjeta
@@ -256,8 +566,6 @@ class _Caja extends StatelessWidget {
     required this.relleno,
     this.radio = esquinasPorDefecto,
     this.marco = 0,
-    this.brillo = 0,
-    this.sombra = true,
   });
 
   final Widget? child;
@@ -265,29 +573,14 @@ class _Caja extends StatelessWidget {
   final Color relleno;
   final double radio;
   final double marco;
-  final bool sombra;
-
-  /// Fase del brillo (0 a 1): un resplandor del color de acento que va y viene.
-  final double brillo;
 
   @override
   Widget build(BuildContext context) {
-    final resplandor = brillo == 0 ? 0.0 : math.sin(brillo * math.pi) * 14;
     return Container(
       decoration: BoxDecoration(
         color: relleno,
         borderRadius: BorderRadius.circular(radio),
         border: marco > 0 ? Border.all(color: color, width: marco) : null,
-        boxShadow: <BoxShadow>[
-          if (sombra)
-            sombraCss(
-              y: 20,
-              blur: 40,
-              spread: -16,
-              color: const Color(0xCC000000),
-            ),
-          if (resplandor > 0) sombraCss(blur: resplandor, color: color),
-        ],
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(math.max(0, radio - marco)),
@@ -353,52 +646,103 @@ class TarjetaCapa extends StatelessWidget {
   }
 }
 
-/// La flecha doble acostada en el piso (el SVG del panel: dos chevrones en 100×100).
-class _Flecha extends CustomPainter {
-  _Flecha(this.color, {this.brillo = 0});
+/// El trazo de 9 unidades se vuelve un contorno con puntas y unión exterior redondeadas.
+List<Offset> _contornoChevron(double y, double ancho, double alto) {
+  final k = math.min(ancho, alto) / 100;
+  final o = Offset((ancho - 100 * k) / 2, (alto - 100 * k) / 2);
+  const radio = 4.5;
+  final diagonal = radio / math.sqrt(2);
+  List<Offset> arco(Offset centro, double inicio, double giro, int segmentos) =>
+      <Offset>[
+        for (var i = 1; i <= segmentos; i++)
+          centro +
+              Offset(
+                    math.cos(inicio + giro * i / segmentos),
+                    math.sin(inicio + giro * i / segmentos),
+                  ) *
+                  radio,
+      ];
+  final vertices = <Offset>[
+    Offset(22 + diagonal, y + 28 + diagonal),
+    Offset(50, y + radio * math.sqrt(2)),
+    Offset(78 - diagonal, y + 28 + diagonal),
+    ...arco(Offset(78, y + 28), 3 * math.pi / 4, -math.pi, 6),
+    Offset(50 + diagonal, y - diagonal),
+    ...arco(Offset(50, y), -math.pi / 4, -math.pi / 2, 4),
+    Offset(22 - diagonal, y + 28 - diagonal),
+    ...arco(Offset(22, y + 28), -3 * math.pi / 4, -math.pi, 6),
+  ];
+  return vertices.map((v) => o + v * k).toList();
+}
 
+/// Cada chevrón conserva su parte delantera aunque una esquina de la caja quede detrás.
+List<List<Offset>> flechaEnPantalla(
+  Camara camara, {
+  required PlanoCapa3D plano,
+  PasoAnimacion paso = const PasoAnimacion(),
+}) => <List<Offset>>[
+  for (final y in <double>[34, 58])
+    recortarPlanoCercano(<V3>[
+      for (final local in _contornoChevron(y, plano.ancho, plano.alto))
+        camara.aCamara(plano.enMundo(local, paso: paso)),
+    ]).map((v) => _proyectarCamara(camara, v)).toList(),
+];
+
+/// Rellena polígonos ya proyectados: ningún trazo ni desenfoque recibe perspectiva.
+class _Flecha extends CustomPainter {
+  _Flecha(
+    this.contornos, {
+    required this.color,
+    this.brillo = 0,
+    this.opacidad = 1,
+  }) : _caminos = contornos.map(_camino).toList();
+
+  final List<List<Offset>> contornos;
+  final List<Path> _caminos;
   final Color color;
   final double brillo;
+  final double opacidad;
 
   @override
-  void paint(Canvas canvas, Size size) {
-    final k = math.min(size.width, size.height) / 100;
-    final o = Offset((size.width - 100 * k) / 2, (size.height - 100 * k) / 2);
-    Path chevron(double y) => Path()
-      ..moveTo(o.dx + 22 * k, o.dy + (y + 28) * k)
-      ..lineTo(o.dx + 50 * k, o.dy + y * k)
-      ..lineTo(o.dx + 78 * k, o.dy + (y + 28) * k);
-    Paint trazo(Color c) => Paint()
-      ..color = c
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 9 * k
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-    final arriba = chevron(34), abajo = chevron(58);
-    // drop-shadow(0 4px 6px rgb(0 0 0 / 0.6))
-    final sombra = trazo(const Color(0x99000000))
+  void paint(Canvas canvas, Size tamano) {
+    final sombra = Paint()
       ..maskFilter = const ui.MaskFilter.blur(BlurStyle.normal, 3);
-    canvas
-      ..save()
-      ..translate(0, 4)
-      ..drawPath(arriba, sombra)
-      ..drawPath(abajo, sombra..color = const Color(0x54000000))
-      ..restore();
+    for (var i = 0; i < _caminos.length; i++) {
+      if (contornos[i].isEmpty) continue;
+      sombra.color = Color.fromRGBO(0, 0, 0, (i == 0 ? 0.6 : 0.33) * opacidad);
+      canvas.drawPath(_caminos[i].shift(const Offset(0, 4)), sombra);
+    }
     if (brillo > 0) {
-      final halo = trazo(color.withValues(alpha: 0.8))
+      final halo = Paint()
+        ..color = color.withValues(alpha: color.a * 0.8 * opacidad)
         ..maskFilter = ui.MaskFilter.blur(
           BlurStyle.normal,
           7 * math.sin(brillo * math.pi) + 0.01,
         );
-      canvas
-        ..drawPath(arriba, halo)
-        ..drawPath(abajo, halo);
+      for (var i = 0; i < _caminos.length; i++) {
+        if (contornos[i].isNotEmpty) canvas.drawPath(_caminos[i], halo);
+      }
     }
-    canvas
-      ..drawPath(arriba, trazo(color))
-      ..drawPath(abajo, trazo(color.withValues(alpha: 0.55)));
+    for (var i = 0; i < _caminos.length; i++) {
+      if (contornos[i].isEmpty) continue;
+      canvas.drawPath(
+        _caminos[i],
+        Paint()
+          ..color = color.withValues(
+            alpha: color.a * opacidad * (i == 0 ? 1 : 0.55),
+          ),
+      );
+    }
   }
 
   @override
-  bool shouldRepaint(_Flecha old) => old.color != color || old.brillo != brillo;
+  bool hitTest(Offset posicion) =>
+      opacidad > 0 && _caminos.any((camino) => camino.contains(posicion));
+
+  @override
+  bool shouldRepaint(_Flecha anterior) =>
+      !_mismosContornos(anterior.contornos, contornos) ||
+      anterior.color != color ||
+      anterior.brillo != brillo ||
+      anterior.opacidad != opacidad;
 }

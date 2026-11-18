@@ -38,6 +38,19 @@ enum Intencion {
 
   /// «¿Cómo estás?».
   estado,
+
+  /// «¿Qué anuncios hay?», «¿hay novedades?»: los anuncios puestos en las fotos.
+  anuncios,
+
+  /// «¿Qué hay aquí?», «¿qué es esto?»: lo que se ve desde donde está.
+  alrededor,
+
+  /// «¿Qué lugares hay?», «¿qué puedo visitar?».
+  lugares,
+
+  /// Charla que no es del campus: la hora, la fecha, un chiste, un cumplido, el clima… (el tema
+  /// va en [Analisis.tema]).
+  charla,
   saludo,
   gracias,
   despedida,
@@ -55,9 +68,13 @@ class Analisis {
     this.conEscaleras = false,
     this.aqui = false,
     this.tipoReporte = 'otro',
+    this.tema = '',
   });
 
   final Intencion intencion;
+
+  /// Para [Intencion.charla]: `hora`, `fecha`, `chiste`, `cumplido`, `insulto` o `clima`.
+  final String tema;
 
   /// Texto del destino ya sin las frases de intención (puede quedar vacío).
   final String destino;
@@ -84,14 +101,28 @@ const List<String> _ruta = <String>[
   'tengo que ir', 'quisiera ir', 'ir hasta', 'ir al', 'ir a', 'ruta hasta', 'ruta hacia', 'ruta al', 'ruta a',
   'camino al', 'camino a', 'indicame', 'llegar al', 'llegar a', 'volver a', 'volver al', 'regresar a',
   'regresar al', 'devolverme a', 'devolverme al', 'me llevas', 'me puedes llevar', 'acompaname',
+  'como me voy', 'como hago para ir', 'quiero llegar', 'necesito llegar', 'me toca ir', 'voy para', 'voy hacia',
+  'como se va', 'por donde se va', 'por donde voy', 'por donde me voy', 'guia hasta', 'guiame hasta', 'dirigeme',
+  'me guias', 'me puedes guiar', 'me ayudas a llegar', 'ayudame a llegar', 'ayudame a ir', 'llevar al',
+  'llevar a', 'quiero conocer', 'quiero visitar', 'como entro', 'como entro al', 'como entro a', 'para ir',
+  'ruta para', 'llegar hasta', 'como llego hasta', 'guianos', 'llevanos', 'como llegamos', 'vamos a', 'vamos al',
+  'nos llevas', 'como subo', 'como bajo', 'subir a', 'subir al', 'bajar a', 'bajar al', 'me indica como llegar',
+  'me indicas como llegar', 'indiqueme', 'me lleva', 'lleveme', 'me puede llevar', 'como hago para llegar a',
 ];
 const List<String> _buscar = <String>[
   'donde se encuentra', 'donde queda', 'donde esta', 'donde es', 'donde hay', 'en donde', 'ubicacion de', //
   'ubicacion del', 'en que bloque', 'en que piso', 'que bloque', 'que piso', 'buscar', 'busca', 'encuentra',
   'donde puedo encontrar', 'no encuentro', 'estoy buscando', 'ando buscando', 'donde consigo', 'donde puedo',
-  'donde se puede',
+  'donde se puede', 'donde encuentro', 'como encuentro', 'donde lo encuentro', 'donde la encuentro',
+  'por donde queda', 'por donde es', 'para donde queda', 'hacia donde queda', 'donde estan', 'donde quedan',
+  'muestrame', 'ensename', 'ubicame el', 'ubicame la', 'ubicame los', 'ubicame las', 'en que parte queda',
+  'en que parte esta', 'en que parte', 'sabe donde', 'sabes donde', 'me dices donde', 'me puedes decir donde',
+  'donde sera', 'cual es la ubicacion', 'donde se ubica', 'donde esta ubicado', 'donde esta ubicada', 'quiero ver',
 ];
-const List<String> _cerca = <String>['mas cercano', 'mas cercana', 'mas proximo', 'mas proxima', 'cercano', 'cercana', 'cerquita', 'cerca'];
+const List<String> _cerca = <String>[
+  'mas cercano', 'mas cercana', 'mas proximo', 'mas proxima', 'cercano', 'cercana', 'cerquita', 'cerca', //
+  'mas cerca', 'queda mas cerca', 'me queda mas cerca', 'proximo', 'proxima',
+];
 const List<String> _accesible = <String>[
   'sin escaleras', 'sin escalera', 'sin gradas', 'silla de ruedas', 'movilidad reducida', 'no puedo subir', //
   'coche de bebe', 'muletas', 'accesible', 'rampa',
@@ -102,8 +133,42 @@ const List<String> _info = <String>[
   'cual es el horario', 'horario de atencion', 'horario de', 'horario del', 'horarios', 'horario', 'cuando abre',
   'cuando cierra', 'esta abierto', 'esta abierta', 'esta cerrado', 'esta cerrada', 'abre hoy', 'que hay en',
   'que tiene', 'que servicios', 'servicios de', 'servicios del', 'informacion de', 'informacion del',
-  'informacion sobre',
+  'informacion sobre', 'que es', 'que son', 'para que sirve', 'para que es', 'que hacen en', 'que se hace en',
+  'cuentame de', 'cuentame sobre', 'cuentame del', 'hablame de', 'hablame del', 'hablame sobre', 'que encuentro en',
+  'que ofrece', 'que ofrecen', 'describeme', 'de que se trata', 'que hay de', 'como es', 'que dice',
+  'que dice el letrero', 'que dice el aviso', 'explicame', 'explicame el letrero', 'letrero que dice',
+  'que menciona', 'menciona', 'que hace', 'que hacen', 'atiende', 'atienden', 'prestan', 'que espacios',
 ];
+/// «¿Qué hay aquí?»: lo que se ve desde donde está la persona.
+const List<String> _alrededor = <String>[
+  'que hay aqui', 'que hay por aqui', 'que hay aca', 'que hay por aca', 'que hay alrededor', 'que veo aqui', //
+  'que se ve aqui', 'que estoy viendo', 'que es esto', 'que es eso', 'que lugar es este', 'que lugar es esto',
+  'que hay cerca de mi', 'que hay a mi alrededor', 'que tengo cerca', 'que hay por ahi', 'que veo',
+];
+const List<String> _anuncios = <String>[
+  'que anuncios hay', 'hay anuncios', 'anuncios', 'anuncio', 'novedades', 'novedad', 'que hay de nuevo', 'avisos', //
+  'noticias', 'eventos', 'que eventos hay', 'hay eventos', 'comunicados', 'cartelera', 'que dice el anuncio',
+];
+const List<String> _lugares = <String>[
+  'que lugares hay', 'que sitios hay', 'que lugares conoces', 'que puedo visitar', 'que hay para visitar', //
+  'lista de lugares', 'todos los lugares', 'que lugares tienes', 'a donde puedo ir', 'adonde puedo ir',
+  'que conoces', 'lugares disponibles', 'que hay en el campus', 'que hay en la universidad', 'que lugares',
+];
+/// Charla que no es del campus, por tema.
+const Map<String, List<String>> _charla = <String, List<String>>{
+  'hora': <String>['que hora es', 'que horas son', 'me dices la hora', 'dime la hora', 'la hora'],
+  'fecha': <String>['que dia es hoy', 'que fecha es', 'a cuantos estamos', 'que dia es', 'fecha de hoy'],
+  'chiste': <String>['cuentame un chiste', 'echame un chiste', 'un chiste', 'chiste', 'hazme reir', 'algo chistoso'],
+  'cumplido': <String>[
+    'eres genial', 'eres la mejor', 'eres muy buena', 'eres muy inteligente', 'te quiero', 'me caes bien', //
+    'me encantas', 'excelente trabajo', 'buen trabajo', 'que crack', 'eres una crack', 'muy bien hecho', 'eres lo maximo',
+  ],
+  'insulto': <String>[
+    'eres tonta', 'eres boba', 'eres inutil', 'no sirves para nada', 'no sirves', 'estupida', 'idiota', 'eres mala', //
+    'no sabes nada', 'que bruta', 'eres bruta',
+  ],
+  'clima': <String>['como esta el clima', 'va a llover', 'el clima', 'que temperatura', 'hace calor', 'hace frio', 'esta lloviendo'],
+};
 const List<String> _tiempo = <String>[
   'cuanto me demoro', 'cuanto se demora', 'cuanto tiempo', 'cuanto tardo', 'cuanto se tarda', 'cuanto falta', //
   'que tan lejos', 'que tan cerca', 'a cuantos metros', 'cuantos metros', 'que distancia', 'esta lejos',
@@ -116,7 +181,11 @@ const List<String> _volver = <String>[
 const List<String> _repetir = <String>['repite', 'repitelo', 'repetir', 'otra vez', 'de nuevo', 'nuevamente', 'muestrame la ruta otra vez'];
 const List<String> _perdido = <String>[
   'me perdi', 'estoy perdido', 'estoy perdida', 'ando perdido', 'ando perdida', 'no se donde estoy', //
-  'donde estoy', 'en donde estoy', 'ubicame', 'mi ubicacion', 'no se como salir',
+  'donde estoy', 'en donde estoy', 'ubicame', 'mi ubicacion', 'no se como salir', 'no se donde quede',
+  'donde quede', 'en que parte estoy', 'como se llama este lugar', 'como se llama este punto', 'como se llama aqui',
+  'donde estoy ubicado', 'donde estoy ubicada', 'en que parte del campus', 'esta foto', 'que foto es esta',
+  'donde es esta foto', 'ya no se donde estoy', 'me desubique', 'estoy desubicado', 'estoy desubicada',
+  'no se donde ando', 'donde ando',
 ];
 /// Siempre son para reportar.
 const List<String> _reportarFuerte = <String>[
@@ -133,10 +202,17 @@ const List<String> _ayuda = <String>[
   'que puedes hacer', 'que sabes hacer', 'como funciona', 'como te uso', 'que haces', 'no entiendo', //
   'ayudame', 'ayuda', 'opciones', 'menu',
 ];
-const List<String> _presentacion = <String>['quien eres', 'que eres', 'como te llamas', 'cual es tu nombre', 'tu nombre', 'eres un robot', 'eres humano', 'eres una persona'];
-const List<String> _estado = <String>['como estas', 'como vas', 'que mas', 'como te va', 'todo bien'];
-const List<String> _saludos = <String>['buenos dias', 'buenas tardes', 'buenas noches', 'buenas', 'hola', 'que tal', 'saludos', 'hey', 'quiubo', 'buen dia'];
-const List<String> _gracias = <String>['muchas gracias', 'mil gracias', 'te agradezco', 'gracias', 'muy amable', 'que amable'];
+const List<String> _presentacion = <String>[
+  'quien eres', 'que eres', 'como te llamas', 'cual es tu nombre', 'tu nombre', 'eres un robot', 'eres humano', //
+  'eres una persona', 'es una persona', 'eres el asistente', 'es el asistente', 'quien es usted', 'eres real',
+  'eres una ia', 'eres inteligencia artificial', 'eres un bot', 'eres un chatbot', 'con quien hablo', 'quien me habla',
+];
+const List<String> _estado = <String>['como estas', 'como vas', 'que mas', 'como te va', 'todo bien', 'como esta', 'que mas pues'];
+const List<String> _saludos = <String>['buenos dias', 'buenas tardes', 'buenas noches', 'buenas', 'hola', 'que tal', 'saludos', 'hey', 'quiubo', 'buen dia', 'quihubo', 'ey'];
+const List<String> _gracias = <String>[
+  'muchas gracias', 'mil gracias', 'te agradezco', 'gracias', 'muy amable', 'que amable', 'gracias por la ayuda', //
+  'gracias por tu ayuda', 'gracias por todo', 'me sirvio', 'me ayudaste', 'muy util', 'le agradezco',
+];
 const List<String> _despedidas = <String>['hasta luego', 'nos vemos', 'chao', 'adios', 'bye', 'hasta pronto'];
 const List<String> _reiniciar = <String>['empezar de nuevo', 'olvida eso', 'olvidalo', 'reiniciar', 'cancelar', 'cancela'];
 const List<String> _aqui = <String>['desde donde estoy', 'donde estoy', 'mi ubicacion', 'desde aqui', 'desde aca', 'estoy aqui'];
@@ -171,6 +247,12 @@ final _Frases _fGracias = _Frases(_gracias);
 final _Frases _fDespedidas = _Frases(_despedidas);
 final _Frases _fReiniciar = _Frases(_reiniciar);
 final _Frases _fAqui = _Frases(_aqui);
+final _Frases _fAlrededor = _Frases(_alrededor);
+final _Frases _fAnuncios = _Frases(_anuncios);
+final _Frases _fLugares = _Frases(_lugares);
+final Map<String, _Frases> _fCharla = <String, _Frases>{
+  for (final e in _charla.entries) e.key: _Frases(e.value),
+};
 
 /// Dónde aparece cada frase en las palabras [ft] (ya pasadas por cómo suenan): (inicio, fin).
 List<(int, int)> _donde(List<String> ft, _Frases frases) {
@@ -192,23 +274,38 @@ final RegExp _deA = RegExp(r'^(?:desde|de) (.+?) (?:hasta|hacia|al|a) (.+)$');
 final RegExp _aDesde = RegExp(r'^(.+?) (?:desde|saliendo de) (.+)$');
 final RegExp _soloDesde = RegExp(r'^(?:desde) (.+)$');
 
+// Con las frases de intención marcadas con «|» se sabe dónde termina el origen aunque no haya
+// conector: «desde la paloma | | salon 3» («desde la Paloma necesito ir al salón 3»).
+final RegExp _desdeMarcado = RegExp(r'^desde ([^|]+?) \|[| ]*([^| ][^|]*.*)$');
+
+/// «Estoy (con mi niña) en la biblioteca, ¿cómo llegamos a los baños?»: el origen es donde está.
+final RegExp _estoyEn = RegExp(r'(?:^| )(?:estoy|estamos|me encuentro|nos encontramos)(?: [a-z0-9]+){0,3}? (?:en|por) ([^|]+?) \|[| ]*([^| ][^|]*.*)$');
+
+/// «La cafetería más cercana a la biblioteca»: después de «más cercana» viene desde dónde.
+final RegExp _cercaDe = RegExp(r'^(.*?) ?\|[| ]*(?:de|del|a|al) ([^|]+?)[| ]*$');
+
+/// «Más cerca de mí», «cerca de aquí»: desde donde está.
+const Set<String> _aquiMismo = <String>{'aqui', 'aca', 'mi', 'nosotros', 'donde estoy', 'ti'};
+
 /// Todas las frases de intención: lo que queda sin ellas es lo que nombra un lugar.
 final List<_Frases> _todas = <_Frases>[
   _fAqui, _fAccesible, _fConEscaleras, _fSaludos, _fGracias, _fRuta, _fBuscar, _fCerca, _fInfo, _fTiempo, //
   _fPerdido, _fVolver, _fRepetir, _fReportarFuerte, _fReportarSuave, _fAyuda, _fPresentacion, _fEstado,
-  _fDespedidas, _fReiniciar,
+  _fDespedidas, _fReiniciar, _fAlrededor, _fAnuncios, _fLugares, ..._fCharla.values,
 ];
 
 /// Analiza un texto ya normalizado (ver [normalizar]). [pregunta]: la persona escribió signos
 /// de pregunta («¿está cerrada la biblioteca?» pregunta; «la puerta está cerrada» reporta).
-Analisis analizar(String normalizado, {bool pregunta = false}) {
+/// [esLugar]: si una palabra nombra algún lugar del campus; con él, el relleno de una frase
+/// larga («toqué varias flechas y ya no sé dónde estoy») no se toma por un lugar.
+Analisis analizar(String normalizado, {bool pregunta = false, bool Function(String palabra)? esLugar}) {
   final t = sinJerga(normalizado);
   final ps = palabras(t);
   final ft = <String>[for (final p in ps) fonetica(p)];
   bool tiene(_Frases frases) => _donde(ft, frases).isNotEmpty;
 
-  /// El texto sin las palabras de esas frases.
-  String sin(List<_Frases> listas) {
+  /// El texto sin las palabras de esas frases. Con [marcar], cada palabra quitada deja una «|».
+  String sin(List<_Frases> listas, {bool marcar = false}) {
     final quitadas = <int>{};
     for (final l in listas) {
       for (final (i, f) in _donde(ft, l)) {
@@ -217,64 +314,99 @@ Analisis analizar(String normalizado, {bool pregunta = false}) {
         }
       }
     }
-    return <String>[for (var i = 0; i < ps.length; i++) if (!quitadas.contains(i)) ps[i]].join(' ');
+    return <String>[
+      for (var i = 0; i < ps.length; i++)
+        if (!quitadas.contains(i)) ps[i] else if (marcar) '|',
+    ].join(' ');
   }
 
-  final aqui = tiene(_fAqui);
+  String limpio(String s) => s.replaceAll('|', ' ').replaceAll(RegExp(r'\s+'), ' ').trim();
+
+  var aqui = tiene(_fAqui);
   final accesible = tiene(_fAccesible);
   final conEscaleras = tiene(_fConEscaleras);
 
-  var resto = sin(<_Frases>[_fAqui, _fAccesible, _fConEscaleras, _fSaludos, _fGracias, _fRuta, _fBuscar, _fCerca, _fInfo, _fTiempo, _fPerdido]);
+  final marcado = sin(<_Frases>[_fAqui, _fAccesible, _fConEscaleras, _fSaludos, _fGracias, _fRuta, _fBuscar, _fCerca, _fInfo, _fTiempo, _fPerdido, _fAnuncios], marcar: true);
+  var resto = limpio(marcado);
   var origen = '';
   final deA = _deA.firstMatch(resto);
+  final desde = _desdeMarcado.firstMatch(marcado);
   final aDesde = _aDesde.firstMatch(resto);
   final soloDesde = _soloDesde.firstMatch(resto);
+  final estoyEn = _estoyEn.firstMatch(marcado);
+  final cercaDe = tiene(_fCerca) ? _cercaDe.firstMatch(marcado) : null;
   if (deA != null) {
     origen = deA[1]!;
     resto = deA[2]!;
+  } else if (desde != null && limpio(desde[2]!).isNotEmpty) {
+    origen = limpio(desde[1]!);
+    resto = limpio(desde[2]!);
   } else if (aDesde != null) {
     resto = aDesde[1]!;
     origen = aDesde[2]!;
   } else if (soloDesde != null) {
     origen = soloDesde[1]!;
     resto = '';
+  } else if (estoyEn != null && limpio(estoyEn[2]!).isNotEmpty) {
+    origen = limpio(estoyEn[1]!);
+    resto = limpio(estoyEn[2]!);
+  } else if (cercaDe != null && limpio(cercaDe[2]!).isNotEmpty) {
+    final de = limpio(cercaDe[2]!);
+    if (_aquiMismo.contains(de)) {
+      aqui = true;
+    } else {
+      origen = de;
+    }
+    resto = limpio(cercaDe[1]!);
   }
 
-  // ¿Nombra algún lugar? Lo que queda sin ninguna frase de intención ni palabras de relleno.
-  final conLugar = palabras(sin(_todas)).any((p) => !palabrasVacias.contains(p) && !_relleno.contains(p));
+  // ¿Nombra algún lugar? Lo que queda sin ninguna frase de intención ni palabras de relleno (y,
+  // si se sabe, que de verdad nombre algo del campus).
+  final quedan = palabras(sin(_todas)).where((p) => !palabrasVacias.contains(p) && !_relleno.contains(p));
+  final conLugar = esLugar == null ? quedan.isNotEmpty : quedan.any(esLugar);
   final pideIr = tiene(_fRuta) || deA != null;
   final pideBuscar = tiene(_fBuscar);
   final pideInfo = tiene(_fInfo);
   // «La puerta está cerrada» reporta; «¿está cerrada la biblioteca?» pregunta.
   final reportaSuave = tiene(_fReportarSuave) && !pideIr && !pideBuscar && !(pregunta && pideInfo);
+  final tema = _charla.keys.where((k) => tiene(_fCharla[k]!)).firstOrNull;
 
   final Intencion intencion;
   if (tiene(_fReportarFuerte) || reportaSuave) {
     intencion = Intencion.reportar;
+  } else if (tiene(_fAnuncios) && !pideIr) {
+    intencion = Intencion.anuncios;
+  } else if (tiene(_fPerdido) && !conLugar && !pideIr) {
+    intencion = Intencion.ubicarme;
   } else if (tiene(_fTiempo)) {
     intencion = conLugar ? Intencion.ruta : Intencion.tiempo;
   } else if (tiene(_fVolver) && !conLugar) {
     intencion = Intencion.volver;
   } else if (pideIr) {
     intencion = Intencion.ruta;
+  } else if (tiene(_fAlrededor) && !conLugar) {
+    intencion = Intencion.alrededor;
+  } else if (tiene(_fLugares) && !conLugar) {
+    intencion = Intencion.lugares;
   } else if (pideInfo) {
     intencion = Intencion.info;
   } else if (tiene(_fCerca)) {
     intencion = Intencion.cercano;
   } else if (pideBuscar) {
     intencion = Intencion.buscar;
+  } else if (tema != null && !conLugar) {
+    intencion = Intencion.charla;
+  } else if (tiene(_fGracias) && !conLugar) {
+    // Antes que la ayuda: «gracias por la ayuda» agradece, no pide ayuda.
+    intencion = Intencion.gracias;
   } else if (tiene(_fAyuda)) {
     intencion = Intencion.ayuda;
   } else if (tiene(_fReiniciar)) {
     intencion = Intencion.reiniciar;
-  } else if (tiene(_fPerdido) && !conLugar) {
-    intencion = Intencion.ubicarme;
   } else if (tiene(_fRepetir) && !conLugar) {
     intencion = Intencion.repetir;
   } else if (tiene(_fPresentacion)) {
     intencion = Intencion.presentacion;
-  } else if (tiene(_fGracias) && !conLugar) {
-    intencion = Intencion.gracias;
   } else if (tiene(_fDespedidas)) {
     intencion = Intencion.despedida;
   } else if (tiene(_fEstado) && !conLugar) {
@@ -285,7 +417,10 @@ Analisis analizar(String normalizado, {bool pregunta = false}) {
     intencion = Intencion.ninguna;
   }
 
-  final sinDestino = intencion == Intencion.ayuda || intencion == Intencion.reiniciar || intencion == Intencion.reportar || intencion == Intencion.presentacion || intencion == Intencion.estado;
+  final sinDestino = const <Intencion>{
+    Intencion.ayuda, Intencion.reiniciar, Intencion.reportar, Intencion.presentacion, Intencion.estado, //
+    Intencion.alrededor, Intencion.lugares, Intencion.charla,
+  }.contains(intencion);
   return Analisis(
     intencion: intencion,
     destino: sinDestino ? '' : resto,
@@ -294,6 +429,7 @@ Analisis analizar(String normalizado, {bool pregunta = false}) {
     conEscaleras: conEscaleras,
     aqui: aqui,
     tipoReporte: intencion == Intencion.reportar ? _tipoReporte(ps) : 'otro',
+    tema: intencion == Intencion.charla ? tema ?? '' : '',
   );
 }
 

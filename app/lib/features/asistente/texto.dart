@@ -40,17 +40,23 @@ const Map<String, String> jerga = <String, String>{
   'xfa': 'por favor', 'xfavor': 'por favor', 'porfavor': 'por favor', 'porfa': 'por favor', 'porfis': 'por favor',
   'plis': 'por favor', 'pls': 'por favor', 'please': 'por favor',
   'tmb': 'tambien', 'tb': 'tambien', 'tbn': 'tambien',
-  'toy': 'estoy', 'stoy': 'estoy', 'tamos': 'estamos',
+  'toy': 'estoy', 'stoy': 'estoy', 'tamos': 'estamos', 'ta': 'esta', 'tas': 'estas',
   'cm': 'como', 'cmo': 'como', 'bn': 'bien', 'tng': 'tengo', 'aki': 'aqui', 'info': 'informacion',
+  'x': 'por', 'ps': 'pues', 'pz': 'pues', 'nd': 'nada', 'grax': 'gracias', 'graxias': 'gracias', 'tks': 'gracias',
+  'oki': 'ok', 'okey': 'ok', 'sip': 'si',
 };
 
-/// Cambia las palabras de chat ([jerga]) de un texto normalizado. No toca las que van junto a un
-/// número: en «pa 101» puede ser un código.
+/// Risas y muletillas del chat que no dicen nada («jajaja», «xd»): se quitan.
+const Set<String> _risas = <String>{'xd', 'xdd', 'jaja', 'jajaja', 'jajajaja', 'jeje', 'jejeje', 'lol', 'jsjs', 'jsjsjs'};
+
+/// Cambia las palabras de chat ([jerga]) de un texto normalizado y quita las risas («jajaja»).
+/// No toca las que van junto a un número: en «pa 101» puede ser un código.
 String sinJerga(String normalizado) {
   final ps = palabras(normalizado);
   if (ps.isEmpty) return normalizado;
   final r = <String>[];
   for (var i = 0; i < ps.length; i++) {
+    if (_risas.contains(ps[i])) continue;
     final cambio = jerga[ps[i]];
     final siguiente = i + 1 < ps.length ? ps[i + 1] : '';
     r.add(cambio != null && !_digito.hasMatch(siguiente) ? cambio : ps[i]);

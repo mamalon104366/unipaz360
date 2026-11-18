@@ -178,8 +178,46 @@ class DatosPaquete {
       ),
   ], tramos);
 
-  /// Los lugares a los que se puede ir (espacios y nodos con nombre), para buscar y guiar.
+  /// Los letreros de las fotos que Paz lee: los puntos de información, anuncios, fichas,
+  /// avisos de accesibilidad y los títulos de los «Ir a», vigentes y para todo público (los
+  /// institucionales no: Paz no sabe quién entró).
+  List<Senal> letreros(DateTime ahora) => <Senal>[
+    for (final p in panoramicas)
+      for (final h in puntos[p.id] ?? const <PuntoPanoramica>[])
+        if (_tiposLetrero.contains(h.tipo) &&
+            h.titulo.trim().isNotEmpty &&
+            h.audiencia != 'institucional' &&
+            h.vigenteEn(ahora))
+          Senal(
+            id: h.id,
+            titulo: h.titulo.trim(),
+            texto: h.texto,
+            nodoId: p.verticeId,
+            panoramicaId: p.id,
+            yaw: h.yaw,
+            pitch: h.pitch,
+            tipo: h.tipo,
+            destinoNodoId: h.tipo == 'enlace'
+                ? panoramicaPorId[h.destinoPanoramicaId]?.verticeId
+                : null,
+            espacioId: h.espacioId,
+            vigenteDesde: h.vigenteDesde,
+            vigenteHasta: h.vigenteHasta,
+          ),
+  ];
+
+  static const Set<String> _tiposLetrero = <String>{
+    'informacion',
+    'anuncio',
+    'espacio',
+    'accesibilidad',
+    'enlace',
+  };
+
+  /// Los lugares a los que se puede ir (espacios, nodos con nombre y lo que dicen los letreros
+  /// de las fotos), para buscar y guiar.
   late final FuenteGuia guia = FuenteGuia(
+    senales: letreros(DateTime.now()),
     grafo: grafo,
     espacios: <Lugar>[
       for (final e in espacios)

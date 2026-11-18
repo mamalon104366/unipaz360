@@ -145,7 +145,8 @@ void main() {
     test('«hola Paz» saluda y «¿cómo te llamas?» se presenta', () {
       expect(nuevo().responder('hola paz').texto, startsWith('¡Hola! Soy Paz.'));
       expect(nuevo().responder('¿cómo te llamas?').texto, startsWith('Soy Paz, tu guía virtual del campus.'));
-      expect(nuevo().responder('¿cómo estás?').texto, startsWith('¡Muy bien'));
+      // «¿Qué más?» también es un saludo en Colombia: contesta saludando.
+      expect(nuevo().responder('¿cómo estás?').texto, startsWith('¡Hola! Muy bien'));
     });
   });
 

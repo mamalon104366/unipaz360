@@ -31,11 +31,15 @@ enum TipoOpcion {
   /// Abre «Reportar un problema». [Opcion.enviar] lleva el tipo sugerido: `ruta`, `ficha`,
   /// `horario` u `otro`.
   reportar,
+
+  /// Muestra un letrero de las fotos: abre su foto 360° y gira la vista hacia él
+  /// ([Opcion.letreroId]).
+  mirar,
 }
 
 /// Un botón de respuesta rápida.
 class Opcion {
-  const Opcion(this.etiqueta, {this.tipo = TipoOpcion.texto, String? enviar, this.lugarId, this.detalle}) : enviar = enviar ?? etiqueta;
+  const Opcion(this.etiqueta, {this.tipo = TipoOpcion.texto, String? enviar, this.lugarId, this.detalle, this.letreroId}) : enviar = enviar ?? etiqueta;
 
   final String etiqueta;
   final TipoOpcion tipo;
@@ -45,6 +49,9 @@ class Opcion {
   /// Para [TipoOpcion.reportar]: lo que la persona ya contó en el chat («la puerta del bloque 2
   /// está cerrada»), para que el formulario lo traiga escrito.
   final String? detalle;
+
+  /// Para [TipoOpcion.mirar]: el letrero que se muestra.
+  final String? letreroId;
 }
 
 /// La respuesta del asistente a un mensaje.

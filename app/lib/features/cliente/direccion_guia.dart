@@ -15,12 +15,20 @@ import '../visor360/geometria.dart' show normalizarGrados;
 ///    queda más adelante en el camino; si hay varios, el que lleva más cerca.
 /// 2. Si no hay, y la foto tiene el norte calibrado, el rumbo hacia el siguiente nodo.
 /// 3. Si no, nada: es mejor no señalar que señalar mal.
+///
+/// Al llegar, si el destino tiene un letrero en esta foto («Auditorio de la Biblioteca»), hacia
+/// ese letrero.
 ({double yaw, double pitch})? direccionEnFoto(
   DatosPaquete datos,
   RecorridoGuiado recorrido,
   Panoramica foto,
 ) {
-  if (recorrido.alFinal) return null;
+  if (recorrido.alFinal) {
+    final letrero = recorrido.destino?.senales
+        .where((s) => s.panoramicaId == foto.id && s.tipo != 'enlace')
+        .firstOrNull;
+    return letrero == null ? null : (yaw: letrero.yaw, pitch: letrero.pitch);
+  }
   final nodos = recorrido.ruta.nodos;
   // La foto puede ser de un nodo anterior a donde está la persona (ahí no hay foto propia).
   var pos = recorrido.posicionActual();

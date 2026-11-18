@@ -13,10 +13,15 @@ import 'texto.dart';
 
 /// Lo que la app sabe de la persona en cada mensaje.
 class Contexto {
-  const Contexto({this.nodoActual});
+  const Contexto({this.nodoActual, this.fotoActual, this.yawVista});
 
   /// Nodo donde está: el de la foto 360° que está viendo o el del último QR (si no ha caducado).
   final String? nodoActual;
+
+  /// La foto 360° que tiene abierta y hacia dónde mira en ella (grados, en el marco de los
+  /// puntos): así Paz puede decir «el letrero está a tu izquierda».
+  final String? fotoActual;
+  final double? yawVista;
 }
 
 enum _Espera { nada, origen, elegirDestino, elegirOrigen, confirmarEscaleras }
@@ -49,7 +54,23 @@ String? detalleReporte(String texto) {
 const Set<Intencion> _nuevaPregunta = <Intencion>{
   Intencion.ruta, Intencion.buscar, Intencion.cercano, Intencion.ayuda, Intencion.despedida, Intencion.info, //
   Intencion.tiempo, Intencion.volver, Intencion.repetir, Intencion.reportar, Intencion.presentacion, Intencion.estado,
+  Intencion.anuncios, Intencion.alrededor, Intencion.lugares, Intencion.charla,
 };
+
+/// Chistes cortos del campus (sin red, siempre los mismos: se turnan).
+const List<String> _chistes = <String>[
+  '¿Por qué el libro de matemáticas estaba triste? Porque tenía demasiados problemas. 📚',
+  '¿Qué le dijo el salón de informática al estudiante? «Tranquilo, aquí todo tiene solución… o al menos un Ctrl+Z».',
+  'Soy tan buena guiando que hasta el GPS me pide indicaciones. 😄',
+  '¿Sabes por qué la biblioteca es el lugar más alto del campus? Porque tiene muchos pisos… de conocimiento.',
+];
+
+DateTime _ahora() => DateTime.now();
+
+const List<String> _dias = <String>['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];
+const List<String> _meses = <String>[
+  'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre', //
+];
 
 /// El asistente. Guarda el hilo de la conversación (qué preguntó y a dónde se va).
 class Asistente {
@@ -60,10 +81,18 @@ class Asistente {
     this.respuestasFrecuentes = const <(String, String)>[],
     this.puedeEscanear = false,
     this.puedeReportar = false,
+    this.puedeMostrar = true,
+    this.reloj = _ahora,
   });
 
   final FuenteGuia fuente;
   final String nombre;
+
+  /// La app puede abrir la foto de un letrero mirando hacia él: se ofrece «Mostrar el letrero».
+  final bool puedeMostrar;
+
+  /// La hora del dispositivo (para «¿qué hora es?»). En las pruebas se fija.
+  final DateTime Function() reloj;
 
   /// El dispositivo lee códigos QR (celular): «Escanear el QR»; si no, «Elegir dónde estoy».
   final bool puedeEscanear;
@@ -121,6 +150,12 @@ class Asistente {
   String? _ultimoOrigen;
   Ruta? _ultimaRuta;
 
+  /// Lo que se sabe de la persona en el mensaje que se está respondiendo.
+  Contexto _contexto = const Contexto();
+
+  /// Cuántos chistes se han contado (se turnan).
+  int _chistesContados = 0;
+
   /// La última ruta que se mostró (para dibujarla en el mapa o seguirla en 360°).
   Ruta? get ultimaRuta => _ultimaRuta;
 
@@ -150,11 +185,17 @@ class Asistente {
 
   /// Responde a lo que escribió la persona.
   Respuesta responder(String texto, {Contexto contexto = const Contexto()}) {
+    _contexto = contexto;
     final t = sinJerga(_sinNombre(normalizar(texto)));
     if (t.isEmpty) return _ayuda();
     // Solo su nombre: como un saludo.
     if (t == normalizar(nombre)) return saludo();
-    final a = analizar(t, pregunta: texto.contains('?') || texto.contains('¿'));
+    var a = analizar(
+      t,
+      pregunta: texto.contains('?') || texto.contains('¿'),
+      // Una palabra nombra un lugar si está en algún nombre del campus o en un letrero.
+      esLugar: (p) => fuente.claves(p).any(fuente.esPalabraDeLugar) || fuente.soloEnLetreros(p).isNotEmpty,
+    );
     if (a.intencion == Intencion.reiniciar) {
       reiniciar();
       return const Respuesta('Listo, empecemos de nuevo. ¿A dónde quieres ir?');
@@ -180,7 +221,7 @@ class Asistente {
       case Intencion.presentacion:
         return _presentacion();
       case Intencion.estado:
-        return Respuesta('¡Muy bien, gracias por preguntar! Lista para guiarte. ¿A dónde quieres ir?', opciones: _ejemplos());
+        return Respuesta('¡Hola! Muy bien, gracias por preguntar. Lista para guiarte. ¿A dónde quieres ir?', opciones: _ejemplos());
       case Intencion.reportar:
         return _reportar(a.tipoReporte, texto);
       case Intencion.ubicarme:
@@ -191,6 +232,14 @@ class Asistente {
         return _volver(contexto);
       case Intencion.repetir:
         return _repetir();
+      case Intencion.anuncios:
+        return _anuncios(a.destino);
+      case Intencion.alrededor:
+        return _ubicarme(contexto, alrededor: true);
+      case Intencion.lugares:
+        return _listaLugares();
+      case Intencion.charla:
+        return _charla(a.tema);
       default:
         break;
     }
@@ -202,13 +251,24 @@ class Asistente {
     }
     _perfil = a.accesible ? PerfilRuta.accesible : PerfilRuta.estandar;
 
+    // «Desde bienestar, ¿cuál sala de edición me queda más cerca?»: sin conector, se parte la
+    // frase donde el origen y el destino son lugares.
+    if (fuente.claves(a.destino).isEmpty && a.origen.isNotEmpty) a = _partirOrigen(a);
+
     if (a.intencion == Intencion.info) return _info(a, contexto);
     if (a.intencion == Intencion.cercano) {
-      final categoria = fuente.categoriaEn(t);
+      final categoria = fuente.categoriaEn(a.destino.isNotEmpty ? a.destino : t);
       if (categoria == null) {
         // «¿Hay wifi cerca?»: lo que tiene ese servicio.
         final conServicio = fuente.conServicio(a.destino);
         if (conServicio.isNotEmpty) return _cercanoEntre(conServicio, fuente.claves(a.destino).join(' '), a.origen, contexto);
+        // «El bienestar universitario más cercano»: un lugar con nombre, desde donde está.
+        if (fuente.claves(a.destino).isNotEmpty) {
+          final r = resolver(fuente, a.destino);
+          if (r.lugar != null) return _conDestino(r.lugar!, Intencion.ruta, a.origen, a.aqui, contexto);
+          final menciones = fuente.mencionan(a.destino);
+          if (menciones.isNotEmpty) return _mencion(menciones, _queSeBusco(a.destino));
+        }
       }
       return _cercano(categoria, a.origen, a.aqui, contexto);
     }
@@ -218,6 +278,12 @@ class Asistente {
 
     final r = resolver(fuente, a.destino);
     if (r.vacia) {
+      // Algo que no es un lugar del mapa pero que nombra un letrero («la radio de la
+      // biblioteca»): lo que dice el letrero va antes que «la biblioteca más cercana».
+      if (fuente.soloEnLetreros(a.destino).isNotEmpty) {
+        final menciones = fuente.mencionan(a.destino);
+        if (menciones.isNotEmpty) return _mencion(menciones, _queSeBusco(a.destino));
+      }
       // Sin pedir nada, solo si no dijo más que eso: «baño» es el baño más cercano, pero
       // «¿cuánto vale el almuerzo?» no es «la cafetería más cercana».
       final sinPedir = a.intencion == Intencion.ninguna;
@@ -226,6 +292,9 @@ class Asistente {
       // «¿Dónde hay wifi?», «¿dónde puedo imprimir?»: lo que tiene ese servicio.
       final conServicio = !sinPedir || fuente.claves(a.destino).length == 1 ? fuente.conServicio(a.destino) : const <Lugar>[];
       if (conServicio.isNotEmpty) return _cercanoEntre(conServicio, fuente.claves(a.destino).join(' '), a.origen, contexto);
+      // No es un lugar del mapa, pero un letrero de las fotos lo nombra.
+      final menciones = fuente.mencionan(a.destino);
+      if (menciones.isNotEmpty) return _mencion(menciones, _queSeBusco(a.destino));
       // Si no pidió ir a ningún lado, no se inventa un lugar: se dice que no entendió.
       return sinPedir ? _noEntendi() : _noEncontrado(a.destino);
     }
@@ -241,8 +310,42 @@ class Asistente {
     return _conDestino(r.lugar!, intencion, a.origen, a.aqui, contexto);
   }
 
+  /// «desde bienestar cual sala de edicion»: parte el origen en dos (de dónde sale y a dónde
+  /// va) donde los dos pedazos nombran algo. Si no hay cómo, lo deja igual.
+  Analisis _partirOrigen(Analisis a) {
+    final ps = palabras(a.origen);
+    for (var k = 1; k < ps.length; k++) {
+      final o = ps.sublist(0, k).join(' ');
+      final d = ps.sublist(k).join(' ');
+      if (fuente.claves(o).isEmpty || fuente.claves(d).isEmpty) continue;
+      if (resolver(fuente, o).lugar == null) continue;
+      if (resolver(fuente, d).vacia && fuente.categoriaEn(d) == null && fuente.mencionan(d).isEmpty) continue;
+      return Analisis(
+        intencion: a.intencion == Intencion.ninguna ? Intencion.ruta : a.intencion,
+        destino: d,
+        origen: o,
+        accesible: a.accesible,
+        conEscaleras: a.conEscaleras,
+        aqui: a.aqui,
+        tipoReporte: a.tipoReporte,
+        tema: a.tema,
+      );
+    }
+    return a;
+  }
+
+  /// Lo que se buscó, para citarlo: lo que solo nombran los letreros («radio») o, si no, las
+  /// palabras útiles.
+  String _queSeBusco(String destino) {
+    final solo = fuente.soloEnLetreros(destino);
+    if (solo.isNotEmpty) return solo.join(' ');
+    final utiles = fuente.clavesUtiles(destino);
+    return (utiles.isNotEmpty ? utiles : fuente.claves(destino)).join(' ');
+  }
+
   /// Ir directo a un lugar (botón de «el más cercano» o de una lista).
   Respuesta irA(String lugarId, {Contexto contexto = const Contexto()}) {
+    _contexto = contexto;
     final lugar = fuente.lugares.where((l) => l.id == lugarId).firstOrNull;
     if (lugar == null) return _noEntendi();
     _espera = _Espera.nada;
@@ -343,11 +446,27 @@ class Asistente {
     _destino = lugar;
     if (intencion == Intencion.info) return _infoDe(lugar);
     if (intencion == Intencion.buscar) {
+      // Ya está ahí (o donde se ve su letrero): se le dice hacia dónde mirar.
+      final aquiEsta = contexto.nodoActual;
+      if (aquiEsta != null && lugar.accesos.contains(aquiEsta)) {
+        _destino = lugar;
+        return _yaEstas(lugar, aquiEsta);
+      }
       final donde = _dondeQueda(lugar);
+      final nombre = _mayuscula(conArticulo(lugar.nombreConCodigo));
+      final letrero = _letreroPara(lugar);
+      final String texto;
+      if (lugar.soloLetrero) {
+        // Solo está en los letreros: se dice desde dónde se ve.
+        texto = '${donde.isEmpty ? '' : '$nombre queda $donde. '}${_dondeLetreros(lugar)}.';
+      } else {
+        texto = donde.isEmpty ? '$nombre está en el mapa del campus.' : '$nombre queda $donde.';
+      }
       return Respuesta(
-        donde.isEmpty ? '${_mayuscula(conArticulo(lugar.nombreConCodigo))} está en el mapa del campus.' : '${_mayuscula(conArticulo(lugar.nombreConCodigo))} queda $donde.',
+        texto,
         opciones: <Opcion>[
           Opcion('Llévame', tipo: TipoOpcion.irA, lugarId: lugar.id, enviar: 'llévame ${aLugar(lugar.nombre)}'),
+          if (letrero != null && puedeMostrar) _mostrar(letrero),
           const Opcion('Ver en el mapa', tipo: TipoOpcion.verLugar),
         ],
         lugar: lugar,
@@ -384,19 +503,27 @@ class Asistente {
     _destino = destino;
     _ultimoOrigen = origen;
     _espera = _Espera.nada;
-    if (origen == destino.nodoId) {
+    // Un lugar que solo está en letreros se ve desde varias fotos: se va a la más cercana.
+    final fin = _llegadaA(destino, origen);
+    if (origen == fin) {
       _ultimaRuta = null;
-      return Respuesta('Ya estás ${_enLugar(destino.nombre)}.', lugar: destino);
+      return _yaEstas(destino, fin);
     }
-    final ruta = buscarRuta(fuente.grafo, origen, destino.nodoId, perfil: _perfil);
+    final ruta = buscarRuta(fuente.grafo, origen, fin, perfil: _perfil);
     if (ruta == null) {
       if (_perfil == PerfilRuta.accesible) {
-        final conEscaleras = buscarRuta(fuente.grafo, origen, destino.nodoId);
+        final conEscaleras = buscarRuta(fuente.grafo, origen, fin);
         if (conEscaleras != null) {
           _espera = _Espera.confirmarEscaleras;
+          // Sin escaleras marcadas no se dice que las tiene: es que nadie ha revisado el camino.
+          final tiene = conEscaleras.tramos.any((x) => x.escaleras);
           return Respuesta(
-            'No hay una ruta sin escaleras ${hastaLugar(destino.nombre)}. La única tiene escaleras (${conEscaleras.minutos} min). ¿Te la muestro?',
-            opciones: const <Opcion>[Opcion('Sí, con escaleras', enviar: 'con escaleras'), Opcion('No')],
+            tiene
+                ? 'No hay una ruta sin escaleras ${hastaLugar(destino.nombre)}. La única tiene escaleras (${conEscaleras.minutos} min). ¿Te la muestro?'
+                : 'No hay una ruta revisada como accesible ${hastaLugar(destino.nombre)}. La más corta no tiene escaleras marcadas (${conEscaleras.minutos} min), pero nadie la ha verificado en silla de ruedas. ¿Te la muestro?',
+            opciones: tiene
+                ? const <Opcion>[Opcion('Sí, con escaleras', enviar: 'con escaleras'), Opcion('No')]
+                : const <Opcion>[Opcion('Sí, muéstramela', enviar: 'si'), Opcion('No')],
             lugar: destino,
           );
         }
@@ -410,18 +537,28 @@ class Asistente {
     }
 
     final pasos = pasosDe(fuente.grafo, ruta);
-    // La llegada nombra el destino que pidió, no el nodo («Llegaste a la Biblioteca»).
-    final llegada = Paso(tipo: TipoPaso.llegada, texto: 'Llegaste ${aLugar(destino.nombre)}.', nodoId: destino.nodoId);
+    final letrero = destino.letreroEn(fin);
+    // La llegada nombra el destino que pidió, no el nodo («Llegaste a la Biblioteca»). Si el
+    // lugar solo está en un letrero, se dice que el letrero lo muestra.
+    final aqui = _nombreNodo(fin);
+    final textoLlegada = destino.soloLetrero && letrero != null
+        ? 'Llegaste${aqui == null ? '' : ' ${aLugar(aqui)}'}: el letrero «${letrero.titulo}» te muestra dónde está ${conArticulo(destino.nombre)}.'
+        : 'Llegaste ${aLugar(destino.nombre)}.';
+    final llegada = Paso(tipo: TipoPaso.llegada, texto: textoLlegada, nodoId: fin);
     final conDestino = <Paso>[...pasos.take(pasos.length - 1), llegada];
     final tiempo = '${ruta.minutos} min (${_metros(ruta.distanciaM)} m)';
     final accesible = _perfil == PerfilRuta.accesible;
     var texto = accesible ? 'Ruta sin escaleras ${hastaLugar(destino.nombre)}: $tiempo.' : 'Ruta lista ${hastaLugar(destino.nombre)}: $tiempo.';
+    if (destino.soloLetrero && letrero != null && aqui != null) {
+      texto += ' En ${conArticulo(aqui)} hay un letrero que te muestra dónde está.';
+    }
     final opciones = <Opcion>[
       const Opcion('Ver en el mapa', tipo: TipoOpcion.verMapa),
       const Opcion('Recorrido guiado', tipo: TipoOpcion.seguir360),
+      if (letrero != null && puedeMostrar) _mostrar(letrero),
     ];
     if (!accesible && ruta.tramos.any((x) => x.escaleras)) {
-      final sinEscaleras = buscarRuta(fuente.grafo, origen, destino.nodoId, perfil: PerfilRuta.accesible);
+      final sinEscaleras = buscarRuta(fuente.grafo, origen, fin, perfil: PerfilRuta.accesible);
       if (sinEscaleras != null) {
         texto += ' Tiene escaleras; hay otra sin escaleras de ${sinEscaleras.minutos} min.';
         opciones.add(const Opcion('Sin escaleras', enviar: 'sin escaleras'));
@@ -439,6 +576,9 @@ class Asistente {
     final nombres = nombresCategoria[categoria] ?? <String>[categoria, '${categoria}s'];
     final lugares = fuente.deCategoria(categoria);
     if (lugares.isEmpty) {
+      // Ninguno en el mapa, pero quizá un letrero lo nombra («…auditorio y edición»).
+      final menciones = fuente.mencionan(nombres[0]);
+      if (menciones.isNotEmpty) return _mencion(menciones, nombres[0]);
       return Respuesta(
         'No encontré ${nombres[1]} en el mapa del campus. Si sabes dónde hay uno, repórtalo y lo agregamos.',
         opciones: <Opcion>[if (puedeReportar) const Opcion('Reportar que falta', tipo: TipoOpcion.reportar, enviar: 'ficha'), ..._ejemplos()],
@@ -452,9 +592,10 @@ class Asistente {
         opciones: <Opcion>[for (final l in lugares.take(4)) Opcion(l.nombreConCodigo, tipo: TipoOpcion.irA, lugarId: l.id, enviar: 'llévame ${aLugar(l.nombre)}')],
       );
     }
+    final o = origen;
     final conRuta = <(Lugar, Ruta)>[
       for (final l in lugares)
-        if (buscarRuta(fuente.grafo, origen, l.nodoId, perfil: _perfil) case final r?) (l, r),
+        if (_rutaHasta(l, o) case final r?) (l, r),
     ]..sort((x, y) => x.$2.distanciaM.compareTo(y.$2.distanciaM));
     if (conRuta.isEmpty) return Respuesta('No encontré un camino hasta ningún ${nombres[0]} desde ahí.');
     final cercano = conRuta.first.$1;
@@ -462,13 +603,224 @@ class Asistente {
     final otros = <Opcion>[
       for (final (l, r) in conRuta.skip(1).take(3)) Opcion('${l.nombreConCodigo} (${r.minutos} min)', tipo: TipoOpcion.irA, lugarId: l.id, enviar: 'llévame ${aLugar(l.nombre)}'),
     ];
+    // «Baños», «Cafetería»: si el lugar se llama como lo que se pidió, no se dice «el baño
+    // más cercano es los Baños».
+    final intro = _soloCategoria(cercano.nombre, categoria)
+        ? ''
+        : '${_mayuscula(conArticulo(nombres[0]))} más ${articulo(nombres[0]) == 'la' ? 'cercana' : 'cercano'} es ${conArticulo(cercano.nombreConCodigo)}. ';
     return Respuesta(
-      '${_mayuscula(conArticulo(nombres[0]))} más ${articulo(nombres[0]) == 'la' ? 'cercana' : 'cercano'} es ${conArticulo(cercano.nombreConCodigo)}. ${respuesta.texto}',
+      '$intro${respuesta.texto}',
       opciones: <Opcion>[...respuesta.opciones, ...otros],
       ruta: respuesta.ruta,
       pasos: respuesta.pasos,
       lugar: cercano,
     );
+  }
+
+  /// La ruta más corta hasta [l] desde [origen] (a cualquiera de los nodos desde donde se ve,
+  /// si solo está en letreros). Si ya está ahí, una ruta vacía.
+  Ruta? _rutaHasta(Lugar l, String origen) {
+    // Si sin escaleras no hay camino, igual cuenta: la ruta luego explica qué pasa.
+    for (final perfil in <PerfilRuta>{_perfil, PerfilRuta.estandar}) {
+      Ruta? mejor;
+      for (final n in l.accesos) {
+        if (!fuente.grafo.nodos.containsKey(n)) continue;
+        final r = buscarRuta(fuente.grafo, origen, n, perfil: perfil);
+        if (r != null && (mejor == null || r.distanciaM < mejor.distanciaM)) mejor = r;
+      }
+      if (mejor != null) return mejor;
+    }
+    return null;
+  }
+
+  /// El nodo al que lleva la ruta hasta [destino] desde [origen]: el suyo o, si solo está en
+  /// letreros, el más cercano desde donde se ve.
+  String _llegadaA(Lugar destino, String origen) {
+    final accesos = destino.accesos;
+    if (accesos.length == 1 || !fuente.grafo.nodos.containsKey(origen)) return accesos.first;
+    if (accesos.contains(origen)) return origen;
+    // Primero, entre todos, con lo que se pidió (sin escaleras); solo si ninguno sirve, la ruta
+    // de siempre. Así no se descarta un acceso accesible más lejano.
+    for (final perfil in <PerfilRuta>{_perfil, PerfilRuta.estandar}) {
+      String? mejor;
+      var metros = double.infinity;
+      for (final n in accesos) {
+        if (!fuente.grafo.nodos.containsKey(n)) continue;
+        final r = buscarRuta(fuente.grafo, origen, n, perfil: perfil);
+        if (r != null && r.distanciaM < metros) {
+          mejor = n;
+          metros = r.distanciaM;
+        }
+      }
+      if (mejor != null) return mejor;
+    }
+    return accesos.first;
+  }
+
+  /// Ya está donde queda (o donde se ve) el lugar: se le dice hacia dónde mirar.
+  Respuesta _yaEstas(Lugar destino, String nodo) {
+    final letrero = destino.letreroEn(nodo);
+    if (letrero == null) return Respuesta('Ya estás ${_enLugar(destino.nombre)}.', lugar: destino);
+    final hacia = _haciaDonde(letrero);
+    final String texto;
+    if (destino.soloLetrero) {
+      texto = hacia == null
+          ? 'Ya estás cerca: busca en esta foto el letrero «${letrero.titulo}».'
+          : 'Ya estás cerca: el letrero «${letrero.titulo}» está $hacia.';
+    } else {
+      texto = 'Ya estás ${_enLugar(destino.nombre)}.${hacia == null ? '' : ' Su letrero está $hacia.'}';
+    }
+    return Respuesta(texto, opciones: <Opcion>[if (puedeMostrar) _mostrar(letrero)], lugar: destino);
+  }
+
+  /// «a tu izquierda», «al frente»… según hacia dónde mira la persona en la foto del letrero.
+  /// `null` si no está viendo esa foto.
+  String? _haciaDonde(Senal s) {
+    final yaw = _contexto.yawVista;
+    if (yaw == null || _contexto.fotoActual != s.panoramicaId) return null;
+    var d = (s.yaw - yaw) % 360;
+    if (d > 180) d -= 360;
+    if (d <= -180) d += 360;
+    if (d.abs() <= 30) return 'al frente';
+    if (d.abs() >= 140) return 'detrás de ti';
+    return d > 0 ? 'a tu derecha' : 'a tu izquierda';
+  }
+
+  /// El botón que abre la foto del letrero mirando hacia él.
+  Opcion _mostrar(Senal s) => Opcion('Mostrar el letrero', tipo: TipoOpcion.mirar, letreroId: s.id);
+
+  /// El letrero que mejor muestra un lugar: el de su propia foto o, si no, el primero.
+  Senal? _letreroPara(Lugar l) =>
+      l.letreroEn(l.nodoId) ?? l.senales.where((s) => s.tipo != 'enlace').firstOrNull;
+
+  /// El nombre de un nodo (o `null` si no tiene).
+  String? _nombreNodo(String nodo) {
+    final n = fuente.grafo.nodos[nodo]?.nombre?.trim() ?? '';
+    return n.isEmpty ? null : n;
+  }
+
+  /// «Hay un letrero del Auditorio en la Entrada de salones» o «Hay letreros de los Baños en
+  /// A y en B».
+  String _dondeLetreros(Lugar l) {
+    final nodos = <String>{
+      for (final s in l.senales)
+        if (s.tipo != 'enlace' && _nombreNodo(s.nodoId) != null) _nombreNodo(s.nodoId)!,
+    }.toList();
+    if (nodos.isEmpty) return 'Aparece en un letrero de las fotos del recorrido';
+    final donde = nodos.length == 1 ? conArticulo(nodos.first) : '${nodos.sublist(0, nodos.length - 1).map(conArticulo).join(', ')} y en ${conArticulo(nodos.last)}';
+    return nodos.length == 1 ? 'Hay un letrero ${_deLugar(l.nombre)} en $donde' : 'Hay letreros ${_deLugar(l.nombre)} en $donde';
+  }
+
+  /// No es un lugar del mapa, pero un letrero lo nombra: se cita el letrero y se ofrece ir.
+  Respuesta _mencion(List<Mencion> menciones, String que) {
+    final m = menciones.first;
+    final s = m.letrero;
+    final desde = _nombreNodo(s.nodoId);
+    final conocido = fuente.lugares.any((l) => l.id == m.lugar.id);
+    if (conocido) _destino = m.lugar;
+    final otros = <Lugar>{
+      for (final x in menciones.skip(1))
+        if (x.lugar.id != m.lugar.id && fuente.lugares.any((l) => l.id == x.lugar.id)) x.lugar,
+    }.take(2).toList();
+    final texto = StringBuffer('No tengo «$que» como un lugar del mapa, pero ')
+      ..write('el letrero «${s.titulo}»${desde == null ? '' : ' (en ${conArticulo(desde)})'} dice: «${m.fragmento}»')
+      ..write(conocido ? ' ¿Te llevo hasta allá?' : '');
+    return Respuesta(
+      texto.toString(),
+      opciones: <Opcion>[
+        if (conocido) Opcion('Llévame', tipo: TipoOpcion.irA, lugarId: m.lugar.id, enviar: 'llévame ${aLugar(m.lugar.nombre)}'),
+        if (puedeMostrar) _mostrar(s),
+        for (final l in otros) _irA(l, l.nombre),
+      ],
+      lugar: conocido ? m.lugar : null,
+    );
+  }
+
+  /// «¿Qué anuncios hay?»: los anuncios vigentes (o los que hablan de [filtro]).
+  Respuesta _anuncios(String filtro) {
+    var lista = fuente.anuncios;
+    final buscadas = fuente.claves(filtro).where((p) => p.length >= 4).toList();
+    if (buscadas.isNotEmpty) {
+      final conEso = lista.where((s) => fuente.claves('${s.titulo} ${s.texto ?? ''}').any((w) => buscadas.any((b) => parecido(b, w) >= 0.85))).toList();
+      if (conEso.isNotEmpty) lista = conEso;
+    }
+    if (lista.isEmpty) {
+      return Respuesta('Por ahora no hay anuncios publicados en el recorrido. Cuando el equipo publique uno, te lo cuento aquí.', opciones: _ejemplos());
+    }
+    String nombrado(Senal s) {
+      final donde = _nombreNodo(s.nodoId);
+      return '«${s.titulo}»${donde == null ? '' : ' (en ${conArticulo(donde)})'}';
+    }
+
+    final String texto;
+    if (lista.length == 1) {
+      final s = lista.single;
+      final dice = s.texto?.trim() ?? '';
+      texto = 'Hay un anuncio: ${nombrado(s)}.${dice.isEmpty ? '' : ' Dice: «${_resumen(dice)}»'}';
+    } else {
+      texto = 'Hay ${lista.length} anuncios: ${_enumerar(<String>[for (final s in lista.take(5)) nombrado(s)])}.${lista.length > 5 ? ' Te muestro los primeros.' : ''}';
+    }
+    final unico = lista.length == 1 ? fuente.lugarDelLetrero(lista.single) : null;
+    return Respuesta(
+      texto,
+      opciones: <Opcion>[
+        if (puedeMostrar) for (final s in lista.take(3)) Opcion(lista.length == 1 ? 'Ver el anuncio' : 'Ver «${s.nombre}»', tipo: TipoOpcion.mirar, letreroId: s.id),
+        if (unico != null && fuente.lugares.any((l) => l.id == unico.id)) _irA(unico, 'Llévame'),
+      ],
+      lugar: unico,
+    );
+  }
+
+  /// Lo primero de un texto largo (hasta ~180 letras, cortado en una palabra).
+  static String _resumen(String t) {
+    if (t.length <= 180) return t;
+    final corte = t.lastIndexOf(' ', 180);
+    return '${t.substring(0, corte > 80 ? corte : 180).trim()}…';
+  }
+
+  /// «¿Qué lugares hay?»: algunos lugares para empezar.
+  Respuesta _listaLugares() {
+    final todos = fuente.lugares;
+    if (todos.isEmpty) return const Respuesta('Todavía no tengo lugares del campus. Cuando se publiquen en la plataforma, te llevo a donde quieras.');
+    // Primero los que tienen nombre propio y categoría (más útiles), sin repetir nodos.
+    final vistos = <String>{};
+    final elegidos = <Lugar>[
+      for (final l in <Lugar>[...todos.where((l) => l.categoria != null), ...todos.where((l) => l.categoria == null)])
+        if (vistos.add(normalizar(l.nombre))) l,
+    ];
+    final muestra = elegidos.take(6).toList();
+    return Respuesta(
+      'Conozco ${todos.length} lugares del campus. Por ejemplo: ${_enumerar(<String>[for (final l in muestra) conArticulo(l.nombre)])}. ¿A cuál quieres ir?',
+      opciones: <Opcion>[for (final l in muestra.take(4)) _irA(l, l.nombre)],
+    );
+  }
+
+  /// Charla que no es del campus: se contesta corto y se vuelve a lo que Paz sabe hacer.
+  Respuesta _charla(String tema) {
+    final ahora = reloj();
+    switch (tema) {
+      case 'hora':
+        final h = ahora.hour % 12 == 0 ? 12 : ahora.hour % 12;
+        final m = ahora.minute.toString().padLeft(2, '0');
+        return Respuesta('Son las $h:$m ${ahora.hour < 12 ? 'a. m.' : 'p. m.'} ¿Te llevo a algún lugar?', opciones: _ejemplos());
+      case 'fecha':
+        return Respuesta(
+          'Hoy es ${_dias[ahora.weekday - 1]} ${ahora.day} de ${_meses[ahora.month - 1]} de ${ahora.year}. ¿A dónde quieres ir?',
+          opciones: _ejemplos(),
+        );
+      case 'chiste':
+        final chiste = _chistes[_chistesContados % _chistes.length];
+        _chistesContados++;
+        return Respuesta('$chiste ¿Te llevo a algún lugar del campus?', opciones: _ejemplos());
+      case 'cumplido':
+        return Respuesta('¡Gracias! 😊 Me alegra ayudarte. ¿A dónde vamos ahora?', opciones: _ejemplos());
+      case 'insulto':
+        return Respuesta('Lo siento si no te entendí bien. 🙏 Dime a qué lugar del campus quieres ir y lo intento de nuevo.', opciones: _ejemplos());
+      case 'clima':
+        return Respuesta('Funciono sin internet, así que no puedo ver el clima. Pero sí te llevo a donde necesites. ¿A dónde vas?', opciones: _ejemplos());
+      default:
+        return _noEntendi();
+    }
   }
 
   // ------------------------------------------------------------------ textos
@@ -526,12 +878,34 @@ class Asistente {
     );
   }
 
-  /// «Me perdí», «¿dónde estoy?».
-  Respuesta _ubicarme(Contexto contexto) {
+  /// «Me perdí», «¿dónde estoy?» y, con [alrededor], «¿qué hay aquí?»: dónde está y lo que
+  /// dicen los letreros que se ven desde ahí.
+  Respuesta _ubicarme(Contexto contexto, {bool alrededor = false}) {
     final aqui = contexto.nodoActual;
     if (aqui != null && fuente.grafo.nodos.containsKey(aqui)) {
       final l = fuente.lugarDelNodo(aqui);
-      return Respuesta('Estás ${l == null ? 'en el campus' : _enLugar(l.nombre)}. ¿A dónde quieres ir?', opciones: _ejemplos(), lugar: l);
+      final vistos = _vistosDesde(aqui);
+      final texto = StringBuffer('Estás ${l == null ? 'en el campus' : _enLugar(l.nombre)}.');
+      if (vistos.isNotEmpty) {
+        final nombres = <String>[
+          for (final (lugar, s) in vistos.take(5))
+            '${conArticulo(lugar.nombre)}${_haciaDonde(s) == null ? '' : ' (${_haciaDonde(s)})'}',
+        ];
+        texto.write(' Desde aquí se ${vistos.length == 1 ? 've' : 'ven'} ${_enumerar(nombres)}.');
+      } else if (alrededor && (l?.descripcion?.trim().isNotEmpty ?? false)) {
+        texto.write(' ${_conPunto(l!.descripcion!.trim())}');
+      } else if (alrededor) {
+        texto.write(' No hay letreros en esta foto.');
+      }
+      texto.write(' ¿A dónde quieres ir?');
+      return Respuesta(
+        texto.toString(),
+        opciones: <Opcion>[
+          if (puedeMostrar) for (final (lugar, s) in vistos.take(2)) Opcion('Ver ${_corto(lugar.nombre)}', tipo: TipoOpcion.mirar, letreroId: s.id),
+          ..._ejemplos(),
+        ].take(vistos.isEmpty ? 99 : 4).toList(),
+        lugar: l,
+      );
     }
     return Respuesta(
       puedeEscanear
@@ -540,6 +914,19 @@ class Asistente {
       opciones: <Opcion>[Opcion(puedeEscanear ? 'Escanear el QR' : 'Elegir dónde estoy', tipo: TipoOpcion.ubicarme)],
     );
   }
+
+  /// Los lugares que se ven desde un nodo según sus letreros (sin el propio lugar del nodo).
+  List<(Lugar, Senal)> _vistosDesde(String nodo) {
+    final propio = fuente.lugarDelNodo(nodo)?.id;
+    final ya = <String>{};
+    return <(Lugar, Senal)>[
+      for (final s in fuente.letrerosEn(nodo))
+        if (fuente.lugarDelLetrero(s) case final l? when l.id != propio && ya.add(l.id)) (l, s),
+    ];
+  }
+
+  /// Un nombre corto para un botón (sin pasar de ~28 letras).
+  static String _corto(String nombre) => nombre.length <= 28 ? nombre : '${nombre.substring(0, 26).trim()}…';
 
   /// «¿Cuánto me demoro?», «¿qué tan lejos queda?»: de la última ruta.
   Respuesta _tiempo() {
@@ -592,7 +979,12 @@ class Asistente {
       opciones = categoria == null ? const <Lugar>[] : fuente.deCategoria(categoria).take(5).toList();
       if (opciones.length == 1) return _infoDe(opciones.single);
     }
-    if (opciones.isEmpty) return _noEncontrado(a.destino);
+    if (opciones.isEmpty) {
+      // No es un lugar, pero un letrero habla de eso.
+      final menciones = fuente.mencionan(a.destino);
+      if (menciones.isNotEmpty) return _mencion(menciones, _queSeBusco(a.destino));
+      return _noEncontrado(a.destino);
+    }
     _espera = _Espera.elegirDestino;
     _opciones = opciones;
     _intencionPendiente = Intencion.info;
@@ -614,19 +1006,23 @@ class Asistente {
       if (servicios.isNotEmpty) 'Tiene ${_enumerar(servicios)}.',
       if (nota.isNotEmpty) _conPunto(nota),
     ];
-    final String texto;
+    String texto;
     if (partes.isEmpty) {
       texto = 'Todavía no tengo el horario ni los servicios ${_deLugar(nombre)}.${donde.isEmpty ? '' : ' Queda $donde.'}';
     } else {
       final inicio = donde.isEmpty ? 'Sobre ${conArticulo(nombre)}:' : '${_mayuscula(conArticulo(nombre))} queda $donde.';
       texto = '$inicio ${partes.join(' ')}';
     }
+    // Lo que solo está en letreros: también desde dónde se ve.
+    if (l.soloLetrero) texto += ' ${_dondeLetreros(l)}.';
+    final letrero = _letreroPara(l);
     return Respuesta(
       texto,
       opciones: <Opcion>[
         Opcion('Llévame', tipo: TipoOpcion.irA, lugarId: l.id, enviar: 'llévame ${aLugar(l.nombre)}'),
+        if (letrero != null && puedeMostrar) _mostrar(letrero),
         const Opcion('Ver en el mapa', tipo: TipoOpcion.verLugar),
-        if (puedeReportar && horario.isEmpty) const Opcion('Reportar el horario', tipo: TipoOpcion.reportar, enviar: 'horario'),
+        if (puedeReportar && horario.isEmpty && !l.soloLetrero) const Opcion('Reportar el horario', tipo: TipoOpcion.reportar, enviar: 'horario'),
       ],
       lugar: l,
     );

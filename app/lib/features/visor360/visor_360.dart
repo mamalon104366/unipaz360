@@ -44,6 +44,7 @@ class DireccionGuia {
     required this.pitch,
     this.etiqueta = 'Sigue por aquí',
     this.vez = 0,
+    this.lugar = false,
   });
 
   /// La foto en la que vale (en otra foto no se muestra).
@@ -54,6 +55,10 @@ class DireccionGuia {
 
   /// Cambia con cada paso: la vista vuelve a girar hacia la dirección aunque sea la misma.
   final int vez;
+
+  /// Señala un lugar (el letrero que mostró Paz o el destino al llegar), no hacia dónde
+  /// caminar: lleva un pin en vez de la flecha.
+  final bool lugar;
 }
 
 class Visor360 extends StatefulWidget {
@@ -67,10 +72,15 @@ class Visor360 extends StatefulWidget {
     this.institucional = false,
     this.guia,
     this.alTocarGuia,
+    this.alCambiarVista,
   });
 
   final PaqueteLocal paquete;
   final Panoramica panoramica;
+
+  /// Hacia dónde quedó mirando la persona (grados): al soltar el dedo, al terminar un giro y
+  /// al abrir una foto. Paz lo usa para decir «el letrero está a tu izquierda».
+  final ValueChanged<double>? alCambiarVista;
 
   /// Pasar a otra panorámica (por id).
   final ValueChanged<String> alIrA;
@@ -111,10 +121,26 @@ class _Visor360State extends State<Visor360> with TickerProviderStateMixin {
         });
 
   // El giro suave hacia la dirección de la guía.
-  late final AnimationController _giro = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 900),
-  )..addListener(_alGirar);
+  late final AnimationController _giro =
+      AnimationController(
+          vsync: this,
+          duration: const Duration(milliseconds: 900),
+        )
+        ..addListener(_alGirar)
+        ..addStatusListener((s) {
+          if (s == AnimationStatus.completed) _avisarVista();
+        });
+
+  /// Le cuenta a quien usa el visor hacia dónde quedó mirando la persona.
+  /// Va en el marco de la foto (como los puntos): en una foto con el horizonte corregido, el
+  /// rumbo de la vista no es el mismo.
+  void _avisarVista() {
+    final a = widget.panoramica.ajustes;
+    widget.alCambiarVista?.call(
+      aFoto(_yaw, _pitch, a.inclinacion, a.alabeo).yaw,
+    );
+  }
+
   double _giroYaw0 = 0;
   double _giroDeltaYaw = 0;
   double _giroPitch0 = 0;
@@ -140,14 +166,17 @@ class _Visor360State extends State<Visor360> with TickerProviderStateMixin {
     return aVista(g.yaw, g.pitch, a.inclinacion, a.alabeo);
   }
 
-  /// Gira la vista hacia la guía (un poco por encima del piso, para ver hacia dónde se va).
+  /// Gira la vista hacia la guía: para caminar, un poco por encima del piso (se ve hacia dónde
+  /// se va); hacia un letrero, de frente a él, esté alto o bajo.
   void _girarHacia() {
     final v = _guiaEnVista;
     if (v == null) return;
     _giroYaw0 = _yaw;
     _giroDeltaYaw = normalizarGrados(v.yaw - _yaw);
     _giroPitch0 = _pitch;
-    _giroPitch1 = (v.pitch * 0.35).clamp(-15.0, 10.0);
+    _giroPitch1 = widget.guia!.lugar
+        ? v.pitch.clamp(-60.0, 60.0)
+        : (v.pitch * 0.35).clamp(-15.0, 10.0);
     _giro.forward(from: 0);
   }
 
@@ -173,6 +202,7 @@ class _Visor360State extends State<Visor360> with TickerProviderStateMixin {
         _pitch = 0;
         _fov = _fovInicial;
       });
+      _avisarVista();
     }
   }
 
@@ -206,6 +236,7 @@ class _Visor360State extends State<Visor360> with TickerProviderStateMixin {
         _pitch = 0;
         _fov = _fovInicial;
       });
+      _avisarVista();
       if (_anterior != null) _transicion.forward(from: 0);
       _girarHacia();
     } catch (e) {
@@ -264,6 +295,7 @@ class _Visor360State extends State<Visor360> with TickerProviderStateMixin {
               behavior: HitTestBehavior.opaque,
               onScaleStart: (_) => _fovAlEmpezar = _fov,
               onScaleUpdate: (d) => _arrastrar(d, tamano),
+              onScaleEnd: (_) => _avisarVista(),
               child: Stack(
                 fit: StackFit.expand,
                 clipBehavior: Clip.hardEdge,
@@ -418,15 +450,26 @@ class _Visor360State extends State<Visor360> with TickerProviderStateMixin {
           en.dy > 0 &&
           en.dy < camara.tamano.height;
       final etiqueta = widget.guia!.etiqueta;
+      final lugar = widget.guia!.lugar;
       if (dentro) {
         r.add(
           Positioned(
             key: const ValueKey<String>('guia'),
             left: en.dx,
             top: en.dy,
+            // El pin de un lugar va encima del letrero, sin taparlo; la señal de seguir, centrada.
             child: FractionalTranslation(
-              translation: const Offset(-0.5, -0.5),
-              child: SenalGuia(etiqueta: etiqueta, alTocar: widget.alTocarGuia),
+              translation: lugar
+                  ? const Offset(-0.5, -1)
+                  : const Offset(-0.5, -0.5),
+              child: Padding(
+                padding: EdgeInsets.only(bottom: lugar ? 14 : 0),
+                child: SenalGuia(
+                  etiqueta: etiqueta,
+                  alTocar: widget.alTocarGuia,
+                  lugar: lugar,
+                ),
+              ),
             ),
           ),
         );
@@ -497,10 +540,18 @@ class _Visor360State extends State<Visor360> with TickerProviderStateMixin {
 
 /// La señal del recorrido guiado sobre la foto: un círculo que late con una flecha hacia arriba.
 class SenalGuia extends StatefulWidget {
-  const SenalGuia({super.key, required this.etiqueta, this.alTocar});
+  const SenalGuia({
+    super.key,
+    required this.etiqueta,
+    this.alTocar,
+    this.lugar = false,
+  });
 
   final String etiqueta;
   final VoidCallback? alTocar;
+
+  /// Señala un lugar (un letrero o el destino): pin en vez de flecha.
+  final bool lugar;
 
   @override
   State<SenalGuia> createState() => _SenalGuiaState();
@@ -581,30 +632,37 @@ class _SenalGuiaState extends State<SenalGuia>
                       ),
                     ],
                   ),
-                  child: const Icon(
-                    Icons.keyboard_double_arrow_up_rounded,
+                  child: Icon(
+                    widget.lugar
+                        ? Icons.place_rounded
+                        : Icons.keyboard_double_arrow_up_rounded,
                     size: 32,
                     color: Colors.white,
                   ),
                 ),
               ),
             ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: const Color(0xE61C1C1F),
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: Text(
-                widget.etiqueta,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  decoration: TextDecoration.none,
+            // Sobre un letrero no se repite el nombre: el letrero ya lo dice.
+            if (!widget.lugar)
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xE61C1C1F),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  widget.etiqueta,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    decoration: TextDecoration.none,
+                  ),
                 ),
               ),
-            ),
           ],
         ),
       ),

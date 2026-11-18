@@ -2,7 +2,9 @@
 ///
 /// Entiende la frase con reglas («¿cómo llego a la biblio?», «llévame al B2-201 sin escaleras»),
 /// tolera errores de escritura, pregunta lo que falta (desde dónde sales, cuál de varios lugares)
-/// y responde con la ruta paso a paso del motor de rutas. Todo sale del paquete de datos.
+/// y responde con la ruta paso a paso del motor de rutas. También lee los letreros y anuncios
+/// puestos dentro de las fotos 360° («Auditorio de la Biblioteca» señalado en una entrada) y dice
+/// hacia dónde mirar. Todo sale del paquete de datos.
 ///
 /// ```dart
 /// final asistente = Asistente(FuenteGuia(grafo: grafo, espacios: espacios));
@@ -13,6 +15,6 @@
 library;
 
 export 'analisis.dart' show Intencion;
-export 'conocimiento.dart' show FuenteGuia, Lugar, aLugar, conArticulo, hastaLugar;
+export 'conocimiento.dart' show FuenteGuia, Lugar, Mencion, Senal, aLugar, conArticulo, hastaLugar;
 export 'motor.dart';
 export 'respuesta.dart';
